@@ -11,7 +11,7 @@ export {
   PUBLISHED,
 } from "../../../fixtures/recursion/kernel.js";
 
-import { certifyKernel as cert, W as mapW } from "../../../fixtures/recursion/kernel.js";
+import { certifyKernel as cert, W as mapW, similarityFixedPoint } from "../../../fixtures/recursion/kernel.js";
 import * as cplx from "../../shared_math/complex.js";
 import { centroid } from "../../shared_math/polygon.js";
 import { sampleQ } from "../content_q/content.js";
@@ -45,17 +45,20 @@ export function inverseW(w, p, alphaC, beta = [0, 0]) {
 export function evaluateRecursion(requested, carrierP) {
   const mode = requested.recursion.mode;
   const available = autoAvailable(carrierP);
+  const reasons = carrierP?.reasons || ["P_INVALID"];
   if (mode === "AUTO" && !available) {
     return {
       available: false,
       mode: "OFF",
       refused: true,
-      reasons: carrierP?.reasons || ["P_INVALID"],
+      loop_state: "REFUSED",
+      certificate_kind: "NON-CLOSING",
+      reasons,
       certificate: null,
     };
   }
   if (mode === "OFF") {
-    return { available, mode: "OFF", certificate: null, refused: false };
+    return { available, mode: "OFF", refused: false, loop_state: "OFF", certificate_kind: null, certificate: null };
   }
   const certificate = cert({
     q: requested.recursion.q,
@@ -63,23 +66,43 @@ export function evaluateRecursion(requested, carrierP) {
     Sval: requested.recursion.source_period,
     theta_s: requested.recursion.source_rotation,
   });
-  const pole = poleOf(carrierP, requested.recursion.pole_policy);
+  const p_log = poleOf(carrierP, requested.recursion.pole_policy);
+  const g = certificate.gamma;
+  const b = cplx.sub(p_log, cplx.mul(g, p_log));
+  const pFix = similarityFixedPoint(g, b);
+  certificate.p_log = p_log;
+  certificate.pole = p_log;
   const ph = requested.recursion.phase;
   const beta = Array.isArray(ph) ? ph.slice() : [0, 0];
-  certificate.pole = pole;
   certificate.beta = beta;
   certificate.singularity_policy = requested.recursion.singularity_policy || "disk";
   certificate.map = (z) => mapW(z, certificate.pole, certificate.alpha, certificate.beta);
   certificate.loop_period = Math.log(certificate.gamma_abs);
-  const probe = [pole[0] + 0.2, pole[1]];
+  certificate.output_repeat = certificate.gamma_abs;
+  const probe = [p_log[0] + 0.2, p_log[1]];
   certificate.detJ_probe = mapJacobianDet(probe, certificate);
   certificate.no_fold = certificate.detJ_probe > 0;
+  const coincide = Math.hypot((pFix[0] || 0) - p_log[0], (pFix[1] || 0) - p_log[1]) < 1e-9;
+  certificate.p_fix = pFix;
+  certificate.p_log_p_fix_coincide = coincide;
+  let loop_state = "EXACT";
+  let certificate_kind = "EXACT";
+  if (!certificate.no_fold) {
+    loop_state = "DEGRADED";
+    certificate_kind = "FOLD-RISK";
+  }
   return {
     available,
     mode,
     refused: false,
+    loop_state,
+    certificate_kind,
+    reasons: available ? [] : reasons,
     certificate,
     map: certificate.map,
+    output_repeat: certificate.output_repeat,
+    p_log,
+    p_fix: pFix,
   };
 }
 

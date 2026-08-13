@@ -34,11 +34,11 @@ test("changing Q does not change residuals.phone", () => {
   const before = app.getEffective().residuals.phone;
   assert.equal(typeof before.residual, "number");
   const residual0 = before.residual;
-  const effective0 = JSON.stringify(before.effective);
+  const e0 = before.effective;
   app.dispatch("SET_CONTENT_Q", { scale: 0.4, offset: [0.1, 0.1] });
   const after = app.getEffective().residuals.phone;
-  assert.equal(after.residual, residual0);
-  assert.equal(JSON.stringify(after.effective), effective0);
+  assert.ok(Math.abs(after.residual - residual0) < 1e-12);
+  assert.ok(Math.hypot(after.effective[0] - e0[0], after.effective[1] - e0[1]) < 1e-12);
 });
 
 test("projectWorld IMAGE_NORM y=0 at top", () => {

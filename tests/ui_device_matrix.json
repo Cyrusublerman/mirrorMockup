@@ -1,0 +1,9 @@
+{
+  "viewports": [
+    { "id": "phone-portrait-360", "width": 360, "height": 800, "gates": ["UI-01", "UI-02"] },
+    { "id": "phone-landscape", "width": 740, "height": 360, "gates": ["UI-07"] },
+    { "id": "tablet", "width": 768, "height": 1024, "gates": ["UI-02", "UI-07"] },
+    { "id": "desktop-four-zone", "width": 1280, "height": 800, "gates": ["UI-18"] }
+  ],
+  "note": "Human visual matrix. Node tests cover contracts; this file is the device checklist, not a pass certificate."
+}

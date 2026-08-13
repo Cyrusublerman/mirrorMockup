@@ -1,5 +1,5 @@
-export function createProposal({ id, kind, description, patch }) {
-  return { id, kind, description, patch, status: "OPEN" };
+export function createProposal({ id, kind, description, patch, parent_id = null }) {
+  return { id, kind, description, patch, parent_id, status: "OPEN" };
 }
 
 export function applyPatch(state, patch) {

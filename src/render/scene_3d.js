@@ -177,6 +177,16 @@ export async function createScene3D(canvas, app, opts = {}) {
   ghostSphere.visible = false;
   scene.add(ghostSphere);
   const bodyMode = { kind: "RIGGED" };
+  const simpleGroup = new THREE.Group();
+  scene.add(simpleGroup);
+  const simpleMat = new THREE.MeshBasicMaterial({ color: 0x181818 });
+  const simpleParts = ["pelvis", "head", "wrist_L", "wrist_R", "ankle_L", "ankle_R"].map((id) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(id === "head" ? 0.11 : 0.07, 10, 8), simpleMat);
+    m.userData.fk = id;
+    simpleGroup.add(m);
+    return m;
+  });
+  const silMat = new THREE.MeshBasicMaterial({ color: 0x181818, side: THREE.DoubleSide });
 
   const inset = opts.insetCanvas || null;
   const insetCtx = inset ? inset.getContext("2d") : null;
@@ -337,10 +347,23 @@ export async function createScene3D(canvas, app, opts = {}) {
       ghostSphere.visible = far;
       if (far) ghostSphere.position.set(...want);
     } else ghostSphere.visible = false;
-    const stick = bodyMode.kind === "STICK" || bodyMode.kind === "SIMPLE";
-    if (gltfScene) gltfScene.visible = !stick;
-    if (gltfRefl) gltfRefl.visible = !stick;
+    const stick = bodyMode.kind === "STICK";
+    const simple = bodyMode.kind === "SIMPLE";
+    const sil = bodyMode.kind === "SILHOUETTE";
+    if (gltfScene) {
+      gltfScene.visible = bodyMode.kind === "RIGGED" || sil;
+      if (sil) gltfScene.traverse((o) => { if (o.isMesh) o.material = silMat; });
+    }
+    if (gltfRefl) gltfRefl.visible = bodyMode.kind === "RIGGED" || sil;
     boneLine.visible = stick || !!vis.SKELETON;
+    simpleGroup.visible = simple;
+    if (simple && skel?.fk) {
+      for (const m of simpleParts) {
+        const p = skel.fk[m.userData.fk];
+        m.visible = !!p;
+        if (p) m.position.set(...p);
+      }
+    }
     if (boneLine.visible && skel?.world) {
       const pts = [];
       for (const [name, xf] of Object.entries(skel.world)) {

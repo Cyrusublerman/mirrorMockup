@@ -46,6 +46,9 @@ export function projectForHud(app) {
       requested: row.requested || t.target,
       effective: row.effective || null,
       residual: typeof row.residual === "number" ? row.residual : null,
+      weight: t.weight_if_soft,
+      weight_origin: t.weight_origin,
+      frame: row.frame || t.frame || "FINAL_CROP",
     };
   });
   const rec = e.recursion || {};
@@ -68,6 +71,11 @@ export function projectForHud(app) {
       detJ: cert?.detJ_probe,
       no_fold: cert?.no_fold,
       pole: cert?.pole,
+      p_log: rec.p_log || cert?.p_log,
+      p_fix: rec.p_fix || cert?.p_fix,
+      output_repeat: rec.output_repeat || cert?.output_repeat || cert?.gamma_abs,
+      loop_state: rec.loop_state,
+      certificate_kind: rec.certificate_kind,
     },
     residuals: residualNums,
     targets,

@@ -36,6 +36,9 @@ export const ACTION_NAMES = [
   "SET_SOLVE_FREEDOMS",
   "SET_RELATION_LOCK",
   "SET_TARGET_TOLERANCE",
+  "SET_TARGET_WEIGHT",
+  "SET_LOCK_CHIP",
+  "SET_MIRROR_FRAME_AUTHORITY",
   "SET_CONTENT_Q",
   "SET_PRINT_GALLERY_MODE",
   "SET_RECURSION_PARAMETER",
@@ -44,6 +47,10 @@ export const ACTION_NAMES = [
   "DOLLY_APPARATUS_DEPTH",
   "ZOOM_TO_PORTAL",
   "EXPORT_IMAGE",
+  "EXPORT_FINAL_CAMERA",
+  "EXPORT_STAGING_PRESCRIPTION",
+  "EXPORT_COMPOSITION_OVERLAY",
+  "EXPORT_REFERENCE_RENDER",
   "CREATE_PROPOSAL",
   "ACCEPT_PROPOSAL",
   "REJECT_PROPOSAL",
@@ -108,23 +115,36 @@ export function applyAction(requested, name, payload = {}) {
       break;
     case "SET_MIRROR_DISTANCE":
       next.apparatus.mirror_distance_request_m = payload.d_M;
+      next.apparatus.apply_distance_request = true;
       break;
     case "SET_MIRROR_APERTURE":
       if (payload.width_m != null) next.mirror.width_m = payload.width_m;
       if (payload.height_m != null) next.mirror.height_m = payload.height_m;
       break;
-    case "PAN_MIRROR_WINDOW":
-      next.apparatus.mirror_pan_uv_request_m = payload.uv.slice();
+    case "PAN_MIRROR_WINDOW": {
+      const prev = requested.apparatus.mirror_pan_uv_request_m || [0, 0];
+      const uv = payload.uv.slice();
+      next.apparatus.mirror_pan_uv_request_m = uv;
+      if (next.mirror.frame_authority === "WORLD" && next.mirror.world_pose?.translation) {
+        next.mirror.world_pose.translation[0] += uv[0] - prev[0];
+        next.mirror.world_pose.translation[2] += uv[1] - prev[1];
+      }
       break;
-    case "PAN_APPARATUS":
-      next.apparatus.apparatus_pan_request_m = payload.pan.slice();
+    }
+    case "PAN_APPARATUS": {
+      const prev = requested.apparatus.apparatus_pan_request_m || [0, 0];
+      const pan = payload.pan.slice();
+      next.phone.transform_request.translation[0] += pan[0] - prev[0];
+      next.phone.transform_request.translation[2] += pan[1] - prev[1];
+      next.apparatus.apparatus_pan_request_m = pan;
       break;
+    }
     case "PAN_OUTER_FRAME":
       next.camera.crop_request.pan = payload.pan;
+      next.camera.crop_request.authored = true;
       break;
     case "PAN_REFLECTED_CONTENT":
-      next.body.pose_targets.root.translation[0] += payload.delta?.[0] || 0;
-      next.body.pose_targets.root.translation[2] += payload.delta?.[1] || 0;
+      next.composition.reflected_content_delta = payload.delta.slice();
       break;
     case "SET_CAMERA_FOV":
       next.camera.hfov_request = payload.hfov;
@@ -134,6 +154,7 @@ export function applyAction(requested, name, payload = {}) {
       break;
     case "SET_PHONE_AUTHORITY":
       next.phone.authority = payload.authority;
+      if (payload.authority === "LOCK_GRIP") next.composition.locks.GRIP = true;
       break;
     case "CHOOSE_IK_BRANCH":
       next.body.ik_branches[payload.chain] = payload.branch;
@@ -178,6 +199,7 @@ export function applyAction(requested, name, payload = {}) {
       next.composition.driver = payload.driver || payload.mode || next.composition.driver;
       if (payload.preserve) next.composition.active_preserve_set = payload.preserve;
       if (payload.freedoms) next.composition.solve_freedoms = payload.freedoms;
+      if (payload.mode === "P0_RECONSTRUCT") next.camera.crop_request.authored = false;
       break;
     case "SET_PRESERVE_SET":
       next.composition.active_preserve_set = payload.preserve || [];
@@ -187,6 +209,7 @@ export function applyAction(requested, name, payload = {}) {
       break;
     case "LOAD_P0_PROFILE":
       next.reference.active_profile = "P0";
+      next.camera.crop_request.authored = false;
       break;
     case "SET_REFERENCE_REGISTRATION":
       Object.assign(next.reference.registration, payload);
@@ -201,6 +224,7 @@ export function applyAction(requested, name, payload = {}) {
       break;
     case "SET_FINAL_CROP":
       Object.assign(next.camera.crop_request, payload);
+      next.camera.crop_request.authored = true;
       break;
     case "SET_BODY_PARAMETER":
       Object.assign(next.body.definition, payload);
@@ -221,8 +245,27 @@ export function applyAction(requested, name, payload = {}) {
     case "SET_RECURSION_POLE_POLICY":
       next.recursion.pole_policy = payload.policy;
       break;
+    case "SET_TARGET_WEIGHT":
+      for (const t of next.composition.targets) {
+        if (t.id === payload.id) {
+          t.weight_if_soft = payload.weight;
+          t.weight_origin = payload.origin || "ARTIST";
+        }
+      }
+      break;
+    case "SET_LOCK_CHIP":
+      next.composition.locks[payload.id] = !!payload.on;
+      if (payload.id === "PHONE_AREA") next.apparatus.mirror_distance_auto_solve = !!payload.on;
+      if (payload.id === "GRIP" && payload.on) next.phone.authority = "LOCK_GRIP";
+      if (payload.id === "SUPPORT") next.body.support_request.pinned = !!payload.on;
+      break;
+    case "SET_MIRROR_FRAME_AUTHORITY":
+      next.mirror.frame_authority = payload.authority;
+      break;
     case "MOVE_POSE_TARGET":
       next.body.pose_targets.endpoint_targets[payload.end] = payload.world;
+      if (payload.orientation) next.body.pose_targets.endpoint_orientations = next.body.pose_targets.endpoint_orientations || {};
+      if (payload.orientation) next.body.pose_targets.endpoint_orientations[payload.end] = payload.orientation;
       break;
     case "LOAD_REFERENCE":
       if (payload.source_id) next.reference.source_id = payload.source_id;

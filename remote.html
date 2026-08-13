@@ -53,56 +53,49 @@
     window.MIRROR_PINNED = PINNED;
   })();
 </script>
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-  }
-}
-</script>
 <style>
   html, body, #app { margin: 0; height: 100%; height: 100dvh; overflow: hidden; overscroll-behavior: none; touch-action: none; font-family: ui-sans-serif, system-ui, sans-serif; background: #F7F5EF; color: #181818; }
   #boot-fail { margin: 24px; max-width: 44rem; }
 </style>
 <body>
 <div id="app"></div>
-<script type="module">
-  const root = document.getElementById("app");
-  function fail(msg, detail) {
-    const box = document.createElement("div");
-    box.id = "boot-fail";
-    box.setAttribute("role", "alert");
-    const p = document.createElement("p");
-    p.textContent = msg;
-    box.appendChild(p);
-    if (detail) {
-      const pre = document.createElement("pre");
-      pre.textContent = detail;
-      box.appendChild(pre);
+<script>
+  (async function () {
+    var root = document.getElementById("app");
+    function fail(msg, detail) {
+      var box = document.createElement("div");
+      box.id = "boot-fail";
+      box.setAttribute("role", "alert");
+      var p = document.createElement("p");
+      p.textContent = msg;
+      box.appendChild(p);
+      if (detail) {
+        var pre = document.createElement("pre");
+        pre.textContent = detail;
+        box.appendChild(pre);
+      }
+      root.replaceChildren(box);
     }
-    root.replaceChildren(box);
-  }
-  if (window.MIRROR_BOOT_ERROR) {
-    fail(window.MIRROR_BOOT_ERROR);
-  } else if (!window.MIRROR_REPO) {
-    fail("no trusted module origin");
-  } else {
-    const repo = window.MIRROR_REPO;
-    let boot;
+    if (window.MIRROR_BOOT_ERROR) { fail(window.MIRROR_BOOT_ERROR); return; }
+    if (!window.MIRROR_REPO) { fail("no trusted module origin"); return; }
+    var repo = window.MIRROR_REPO;
+    var mapText = '{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}';
     try {
-      ({ boot } = await import(new URL("src/app/boot.js", repo).href));
+      var res = await fetch(new URL("importmap.json", repo).href);
+      if (res.ok) mapText = await res.text();
+    } catch (e) {}
+    var map = document.createElement("script");
+    map.type = "importmap";
+    map.textContent = mapText;
+    document.head.appendChild(map);
+    try {
+      var mod = await import(new URL("src/app/boot.js", repo).href);
+      await mod.boot(root);
     } catch (err) {
-      fail("Failed to load modules from " + String(repo), String(err && err.stack || err));
+      fail("Failed to load or start the tool from " + String(repo), String(err && err.stack || err));
       throw err;
     }
-    try {
-      await boot(root);
-    } catch (err) {
-      fail("Failed to start the tool", String(err && err.stack || err));
-      console.error(err);
-    }
-  }
+  })();
 </script>
 </body>
 </html>

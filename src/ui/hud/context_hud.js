@@ -24,11 +24,29 @@ export function mountContextHud(el, workspace, proj, handlers) {
     row.appendChild(chip("PHONE DRIVES", workspace.drive_mode === "PHONE_DRIVES_HAND", () => handlers.setDrive("PHONE_DRIVES_HAND"), "Phone drives hand"));
     row.appendChild(chip("HAND DRIVES", workspace.drive_mode === "HAND_DRIVES_PHONE", () => handlers.setDrive("HAND_DRIVES_PHONE"), "Hand drives phone"));
     row.appendChild(chip("LOCK GRIP", workspace.drive_mode === "LOCK_GRIP", () => handlers.setDrive("LOCK_GRIP"), "Lock grip"));
+    row.appendChild(chip("RELAX GRIP", false, () => handlers.relaxGrip(), "Propose relax grip"));
     if (sel?.kind === "joint" && !["wrist_R", "wrist_L", "head", "ankle_L", "ankle_R"].includes(sel.id)) {
       for (const a of ["BEND", "TILT", "ROTATE"]) {
         row.appendChild(chip(a, workspace.axis === a, () => handlers.setAxis(a), a));
       }
     }
+  }
+  const locks = document.createElement("div");
+  locks.className = "mp-row";
+  const lockIds = [
+    ["PHONE_AREA", "PHONE AREA"],
+    ["REFLECTED_BODY_SCALE", "REFLECTED BODY SCALE"],
+    ["MIRROR_OCCUPANCY", "MIRROR OCCUPANCY"],
+    ["SUPPORT", "SUPPORT"],
+    ["GRIP", "GRIP"],
+    ["P_VALID", "P VALID"],
+  ];
+  const onLocks = proj.requested?.composition?.locks || {};
+  for (const [id, label] of lockIds) {
+    locks.appendChild(chip(label, !!onLocks[id], () => handlers.toggleLock(id), label));
+  }
+  if (workspace.room === "POSE" || workspace.room === "SCENE") {
+    row.appendChild(chip("OPACITY", false, () => handlers.cycleOpacity(), "Reference opacity"));
   }
   if (workspace.room === "SCENE") {
     row.appendChild(chip("d_M", sel?.id === "d_M", () => handlers.select({ kind: "mirror", id: "d_M", label: "Mirror distance" }), "Mirror distance"));
@@ -47,4 +65,5 @@ export function mountContextHud(el, workspace, proj, handlers) {
     row.appendChild(chip("MOVE Q", sel?.kind === "q", () => handlers.select({ kind: "q", id: "q", label: "Q content" }), "Move Q"));
   }
   el.appendChild(row);
+  if (locks.childNodes.length) el.appendChild(locks);
 }

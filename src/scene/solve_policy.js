@@ -7,34 +7,76 @@ export const SOLVE_MODE = {
   MANUAL: "MANUAL",
 };
 
+export const PRODUCTION_LOCKS = Object.freeze([
+  "apparatus_rotation",
+  "camera_rigid_to_phone",
+  "link_lengths",
+]);
+
+export const MODE_TABLE = Object.freeze({
+  POSE_FIRST: {
+    driver: "pose",
+    preserve: [...PRODUCTION_LOCKS, "fov", "R_P"],
+    allowed_to_move: ["pose"],
+  },
+  PHONE_FIRST: {
+    driver: "phone",
+    preserve: [...PRODUCTION_LOCKS, "R_P"],
+    allowed_to_move: ["phone", "pose", "mirror_distance"],
+  },
+  MIRROR_RATIO_FIRST: {
+    driver: "R_P",
+    preserve: [...PRODUCTION_LOCKS, "fov"],
+    allowed_to_move: ["mirror_distance"],
+  },
+  COMPOSITION_FIT: {
+    driver: "composition_targets",
+    preserve: [...PRODUCTION_LOCKS, "support", "grip"],
+    allowed_to_move: ["pose", "phone", "mirror_distance", "crop_pan"],
+  },
+  P0_RECONSTRUCT: {
+    driver: "P0_fixture",
+    preserve: [...PRODUCTION_LOCKS, "crop_aspect"],
+    allowed_to_move: ["pose", "phone", "mirror_distance", "crop_pan"],
+  },
+  MANUAL: {
+    driver: "gesture",
+    preserve: [],
+    allowed_to_move: ["x_decision"],
+  },
+});
+
+export function modeMask(mode) {
+  return MODE_TABLE[mode] || MODE_TABLE.MANUAL;
+}
+
 export function applySolveMode(requested, mode) {
   const next = structuredClone(requested);
+  const row = modeMask(mode);
   next.composition.solve_mode = mode;
-  if (mode === "POSE_FIRST") {
-    next.composition.active_preserve_set = ["apparatus_rotation", "fov", "support"];
-    next.composition.solve_freedoms = ["pose"];
-  } else if (mode === "PHONE_FIRST") {
-    next.composition.solve_freedoms = ["pose", "mirror_distance"];
-  } else if (mode === "MIRROR_RATIO_FIRST") {
+  next.composition.driver = row.driver;
+  const preserve = row.preserve.slice();
+  if (requested.phone?.authority === "LOCK_GRIP" && !preserve.includes("grip")) preserve.push("grip");
+  if (requested.composition?.locks?.R_P && !preserve.includes("R_P")) preserve.push("R_P");
+  next.composition.active_preserve_set = preserve;
+  next.composition.solve_freedoms = row.allowed_to_move.slice();
+  if (mode === "MIRROR_RATIO_FIRST" || (preserve.includes("R_P") && row.allowed_to_move.includes("mirror_distance"))) {
     next.apparatus.mirror_distance_auto_solve = true;
-  } else if (mode === "COMPOSITION_FIT") {
-    next.composition.solve_freedoms = ["mirror_distance", "mirror_pan"];
-    next.composition.active_preserve_set = ["apparatus_rotation", "support"];
-  } else if (mode === "P0_RECONSTRUCT") {
-    next.composition.solve_freedoms = ["pose", "mirror_distance", "phone"];
   }
   return next;
 }
 
-export function nudgeToPhoneTarget(req, residuals) {
-  const phone = residuals?.phone;
-  if (!phone?.effective || !phone.requested) return req;
-  const freedoms = req.composition.solve_freedoms || [];
-  if (!freedoms.includes("mirror_pan") && req.composition.solve_mode !== "COMPOSITION_FIT") return req;
-  const dx = phone.requested[0] - phone.effective[0];
-  const dy = phone.requested[1] - phone.effective[1];
-  const pan = req.apparatus.mirror_pan_uv_request_m;
-  const gain = 0.45;
-  req.apparatus.mirror_pan_uv_request_m = [pan[0] + dx * gain, pan[1] - dy * gain];
-  return req;
+export function allows(req, name) {
+  const f = req.composition?.solve_freedoms || [];
+  if (f.includes("x_decision")) return true;
+  return f.includes(name);
 }
+
+export const LOCK_CHIPS = Object.freeze([
+  { id: "PHONE_AREA", relation: "R_P", target: "preserved_reflected_phone_ratio" },
+  { id: "REFLECTED_BODY_SCALE", relation: "lambda_star", target: "same_anatomy_scale" },
+  { id: "MIRROR_OCCUPANCY", relation: "mirror_occupancy", target: "T-MOCC" },
+  { id: "SUPPORT", relation: "support", target: "support_request" },
+  { id: "GRIP", relation: "grip", target: "grip_relation" },
+  { id: "P_VALID", relation: "carrier_p", target: "carrier_p.valid" },
+]);

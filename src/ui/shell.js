@@ -1,4 +1,4 @@
-const SHELL_CSS = `
+export const SHELL_CSS = `
 :root {
   --mp-canvas: #F7F5EF;
   --mp-panel: #FFFFFF;
@@ -171,14 +171,21 @@ html, body, #app {
 .mp-sheet input { min-height: 44px; max-width: 140px; font: inherit; }
 .mp-menu .mp-row { flex-wrap: wrap; }
 #boot-fail { margin: 24px; max-width: 40rem; }
-@media (min-width: 900px) {
-  .mp-app { display: grid; grid-template-columns: minmax(0,1fr) 300px; grid-template-rows: auto minmax(0,1fr) auto; }
+@media (min-width: 1100px) {
+  .mp-app {
+    display: grid;
+    grid-template-columns: 220px minmax(0,1fr) 300px;
+    grid-template-rows: auto minmax(0,1fr) auto;
+  }
   .mp-strip { grid-column: 1 / -1; }
-  .mp-stage { grid-column: 1; grid-row: 2; min-height: 0; }
-  .mp-hud { grid-column: 1; grid-row: 3; max-height: none; border-radius: 0; }
-  .mp-inspect { position: relative; grid-column: 2; grid-row: 2 / 4; display: block; max-height: none; border-top: 0; border-left: 1px solid var(--mp-line); border-radius: 0; }
+  .mp-stage { grid-column: 2; grid-row: 2; min-height: 0; }
+  .mp-hud { grid-column: 2; grid-row: 3; max-height: none; border-radius: 0; }
+  .mp-inspect { position: relative; grid-column: 3; grid-row: 2 / 4; display: block; max-height: none; border-top: 0; border-left: 1px solid var(--mp-line); border-radius: 0; }
   .mp-inspect:not(.is-open) { display: none; }
   .mp-views { flex-direction: row; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
 }
 `;
 

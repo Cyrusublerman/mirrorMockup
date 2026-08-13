@@ -48,5 +48,16 @@ export function evaluateCamera(phoneWorld, requested) {
   const world = captureCameraWorld(phoneWorld, requested);
   const basis = cameraBasis(world);
   const K = intrinsics(requested);
-  return { world, basis, ...K, epistemic_status: requested.camera.epistemic_status };
+  const rec = requested.camera.calibration_record || {};
+  const distortion = rec.distortion || [0, 0, 0, 0, 0];
+  const distortion_status = rec.distortion ? "CALIBRATED" : "UNCALIBRATED_ZERO";
+  return {
+    world,
+    basis,
+    ...K,
+    crop_request: { ...requested.camera.crop_request },
+    distortion,
+    distortion_status,
+    epistemic_status: requested.camera.epistemic_status,
+  };
 }

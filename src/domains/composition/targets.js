@@ -1,4 +1,9 @@
 import landmarks from "../../../fixtures/P0/landmarks.js";
+import { t } from "../../../fixtures/tolerances.js";
+import { captureToFinal } from "../camera/crop.js";
+import { occupancy as occ } from "./occupancy.js";
+
+export { occupancy } from "./occupancy.js";
 
 export const SUBJECT_MAP = {
   direct_head: { space: "direct", fk: "head" },
@@ -19,27 +24,34 @@ export const SUBJECT_MAP = {
   reflected_ankle_R: { space: "reflected", fk: "ankle_R" },
 };
 
+function featurePoint(f) {
+  return f?.bbox_centre || null;
+}
+
 export function p0Targets() {
-  const t = [];
+  const tLand = t("T-LANDMARK");
+  const out = [];
   for (const [id, f] of Object.entries(landmarks.features)) {
-    t.push({
+    if (f.status === "missing") continue;
+    const pt = featurePoint(f);
+    if (!pt) continue;
+    out.push({
       id,
       subject: id,
       metric: f.tl ? "bbox" : "point",
       coordinate_space: "IMAGE_NORM",
-      target: f.centroid,
+      frame: "FINAL_CROP",
+      target: pt.slice(),
       bbox: f.tl && f.br ? { tl: f.tl, br: f.br } : null,
-      tolerance: 0.04,
-      hard_or_soft: id === "phone" || id === "mirror" ? "soft" : "soft",
+      tolerance: tLand,
+      hard_or_soft: "soft",
       weight_if_soft: 1,
-      source_evidence: "OBSERVED",
+      weight_origin: "DEFAULT_UNIFORM",
+      source_evidence: f.epistemic_status || "OBSERVED",
+      r_p_triggers: false,
     });
   }
-  return t;
-}
-
-export function occupancy(tl, br) {
-  return Math.abs((br[0] - tl[0]) * (br[1] - tl[1]));
+  return out;
 }
 
 function quadCentroid(quad) {
@@ -55,28 +67,34 @@ function quadCentroid(quad) {
   return [x / 4, y / 4];
 }
 
-function measuredPoint(tgt, visibility, carrierP, mirrorImageQuad) {
+function toFinal(p, crop) {
+  if (!p) return null;
+  return crop ? captureToFinal(p, crop) : p;
+}
+
+function measuredPoint(tgt, visibility, carrierP, mirrorImageQuadCapture, crop) {
   const spec = SUBJECT_MAP[tgt.id] || SUBJECT_MAP[tgt.subject];
   if (!spec) return null;
-  if (spec.space === "carrier_p") return quadCentroid(carrierP?.quad);
-  if (spec.space === "mirror_quad") return quadCentroid(mirrorImageQuad);
+  if (spec.space === "carrier_p") return toFinal(quadCentroid(carrierP?.quad_capture || carrierP?.quad), crop);
+  if (spec.space === "mirror_quad") return toFinal(quadCentroid(mirrorImageQuadCapture), crop);
   const report = visibility?.reports?.[spec.fk];
   if (!report) return null;
   if (spec.space === "direct") {
     const proj = report.direct;
-    if (!proj?.valid || !proj.image_norm) return null;
-    return proj.image_norm.slice();
+    if (!proj?.valid) return null;
+    return (proj.image_norm || toFinal(proj.image_norm_capture, crop) || null)?.slice?.() || null;
   }
   if (spec.space === "reflected") {
     const proj = report.reflected?.projection;
-    if (!proj?.valid || !proj.image_norm) return null;
-    return proj.image_norm.slice();
+    if (!proj?.valid) return null;
+    return (proj.image_norm || toFinal(proj.image_norm_capture, crop) || null)?.slice?.() || null;
   }
   return null;
 }
 
-export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad) {
+export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuadCapture) {
   const head = landmarks.features.direct_head;
+  const crop = requested.camera.crop_request;
   const targets = requested?.composition?.targets?.length ? requested.composition.targets : p0Targets();
   const residuals = {};
   let n_valid_residuals = 0;
@@ -85,13 +103,14 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
   let measured_phone = null;
 
   for (const tgt of targets) {
-    const measured = measuredPoint(tgt, visibility, carrierP, mirrorImageQuad);
+    const measured = measuredPoint(tgt, visibility, carrierP, mirrorImageQuadCapture, crop);
     if (!measured) {
       residuals[tgt.id] = {
         requested: tgt.target,
         effective: null,
         residual: null,
         tolerance: tgt.tolerance,
+        frame: "FINAL_CROP",
         reason: "NOT_VISIBLE",
       };
       continue;
@@ -102,6 +121,7 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
       effective: measured,
       residual,
       tolerance: tgt.tolerance,
+      frame: "FINAL_CROP",
     };
     n_valid_residuals += 1;
     if (max_residual === null || residual > max_residual) max_residual = residual;
@@ -109,11 +129,14 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
     if (tgt.id === "phone") measured_phone = measured;
   }
 
+  const areaCapture = Math.abs(carrierP?.area_capture ?? carrierP?.area ?? 0);
   const metrics = {
-    direct_head_centroid: head.centroid,
-    direct_head_occupancy: occupancy(head.tl, head.br),
-    mirror_occupancy: occupancy(landmarks.features.mirror.tl, landmarks.features.mirror.br),
-    phone_occupancy: occupancy(landmarks.features.phone.tl, landmarks.features.phone.br),
+    direct_head_bbox_centre: head.bbox_centre,
+    direct_head_occupancy: occ(head.tl, head.br),
+    mirror_occupancy: occ(landmarks.features.mirror.tl, landmarks.features.mirror.br),
+    phone_occupancy: occ(landmarks.features.phone.tl, landmarks.features.phone.br),
+    R_P_capture: areaCapture,
+    R_P_crop_non_triggering: true,
     carrier_p_area: carrierP?.area ?? null,
     carrier_p_valid: !!carrierP?.valid,
     measured_head,

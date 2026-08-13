@@ -11,6 +11,13 @@ function px(p, w, h) {
   return [p[0] * w, p[1] * h];
 }
 
+function landmarksAnkleClearance(proj) {
+  const a = proj.targets?.find((t) => t.id === "reflected_ankle_L");
+  const m = proj.targets?.find((t) => t.id === "mirror");
+  if (!a?.requested || !m?.bbox?.br) return null;
+  return m.bbox.br[1] - a.requested[1];
+}
+
 export function drawOverlays(ctx, w, h, workspace, proj) {
   const o = workspace.overlays;
   const targets = proj.targets || [];
@@ -19,14 +26,16 @@ export function drawOverlays(ctx, w, h, workspace, proj) {
     ctx.save();
     ctx.strokeStyle = "rgba(24,24,24,0.18)";
     ctx.lineWidth = 1;
-    for (let i = 1; i < 3; i++) {
+    const kind = o.GRID === "pixel" ? "pixel" : o.GRID === "custom" ? "custom" : o.GRID === true || o.GRID === "thirds" ? "thirds" : "norm";
+    const n = kind === "pixel" ? 10 : kind === "custom" ? 5 : 3;
+    for (let i = 1; i < n; i++) {
       ctx.beginPath();
-      ctx.moveTo((w * i) / 3, 0);
-      ctx.lineTo((w * i) / 3, h);
+      ctx.moveTo((w * i) / n, 0);
+      ctx.lineTo((w * i) / n, h);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(0, (h * i) / 3);
-      ctx.lineTo(w, (h * i) / 3);
+      ctx.moveTo(0, (h * i) / n);
+      ctx.lineTo(w, (h * i) / n);
       ctx.stroke();
     }
     ctx.restore();
@@ -78,29 +87,47 @@ export function drawOverlays(ctx, w, h, workspace, proj) {
     ctx.restore();
   }
   if (o.MEASURE) {
-    const stature = proj.requested?.body?.definition?.stature || 1.7;
-    const dM = proj.effective?.apparatus?.d_M;
     ctx.save();
     ctx.strokeStyle = "#395BD6";
-    ctx.beginPath();
-    ctx.moveTo(18, h * 0.2);
-    ctx.lineTo(18, h * 0.8);
-    ctx.stroke();
     ctx.fillStyle = "#395BD6";
     ctx.font = "11px ui-sans-serif,system-ui,sans-serif";
-    ctx.fillText(`stature ${stature.toFixed(2)} m`, 24, h * 0.48);
-    if (Number.isFinite(dM)) ctx.fillText(`d_M ${dM.toFixed(3)} m`, 24, h * 0.52);
+    const phone = targets.find((t) => t.id === "phone");
+    const head = targets.find((t) => t.id === "direct_head");
+    const mir = targets.find((t) => t.id === "mirror");
+    let y = 22;
+    if (phone?.requested && phone?.effective) {
+      ctx.fillText(`phone residual ${phone.residual?.toFixed(4) ?? "—"} IMAGE_NORM final`, 12, y);
+      y += 14;
+    }
+    if (head?.bbox) {
+      const bw = Math.abs(head.bbox.br[0] - head.bbox.tl[0]);
+      const bh = Math.abs(head.bbox.br[1] - head.bbox.tl[1]);
+      ctx.fillText(`head bbox ${bw.toFixed(3)}×${bh.toFixed(3)} frame`, 12, y);
+      y += 14;
+    }
+    const dM = proj.effective?.apparatus?.d_M;
+    if (Number.isFinite(dM)) ctx.fillText(`d_M ${dM.toFixed(3)} m`, 12, y);
+    const ank = landmarksAnkleClearance(proj);
+    if (ank != null) ctx.fillText(`ankle clearance ${ank.toFixed(3)} frame`, 12, y + 14);
     ctx.restore();
   }
   if (o.PERSPECTIVE) {
     ctx.save();
-    ctx.strokeStyle = "rgba(57,91,214,0.45)";
+    ctx.strokeStyle = "rgba(57,91,214,0.55)";
+    const crop = proj.requested?.camera?.crop_request;
+    const pan = crop?.pan || [0, 0];
+    const cx = (0.5 - pan[0]) * w;
+    const cy = (0.5 - pan[1]) * h;
     ctx.beginPath();
-    ctx.moveTo(w * 0.5, h * 0.08);
-    ctx.lineTo(w * 0.12, h);
-    ctx.moveTo(w * 0.5, h * 0.08);
-    ctx.lineTo(w * 0.88, h);
+    ctx.moveTo(cx, 0);
+    ctx.lineTo(0, h);
+    ctx.moveTo(cx, 0);
+    ctx.lineTo(w, h);
     ctx.stroke();
+    ctx.strokeRect(8, 8, w - 16, h - 16);
+    ctx.fillStyle = "#395BD6";
+    ctx.font = "11px ui-sans-serif,system-ui,sans-serif";
+    ctx.fillText(`principal capture (0.5,0.5)  crop pan ${pan[0].toFixed(3)},${pan[1].toFixed(3)}`, 12, h - 8);
     ctx.restore();
   }
   if (o.APPARATUS) drawApparatus(ctx, w, h, proj);

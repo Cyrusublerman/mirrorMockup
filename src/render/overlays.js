@@ -61,8 +61,8 @@ export function drawOverlays(ctx, requested, effective, w, h) {
   if ((vis.REFERENCE || vis.LANDMARKS) && requested.reference.landmarks?.features) {
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     for (const [id, f] of Object.entries(requested.reference.landmarks.features)) {
-      if (!f.centroid) continue;
-      const [x, y] = toCanvas(f.centroid, w, h);
+      if (!f.bbox_centre && !f.centroid) continue;
+      const [x, y] = toCanvas(f.bbox_centre || f.centroid, w, h);
       ctx.fillRect(x - 2, y - 2, 4, 4);
       ctx.font = "10px sans-serif";
       ctx.fillText(id, x + 5, y);

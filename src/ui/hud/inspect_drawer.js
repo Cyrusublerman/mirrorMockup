@@ -35,7 +35,10 @@ export function mountInspectDrawer(el, open, proj, workspace, handlers) {
   body.appendChild(row("DRIVER", String(le.driver || "—")));
   body.appendChild(row("PRESERVE", (le.preserve || []).join(", ") || "—"));
   body.appendChild(row("ALLOWED_TO_MOVE", (le.allowed_to_move || []).join(", ") || "—"));
-  body.appendChild(row("S", proj.rec?.S == null ? "—" : String(proj.rec.S)));
+  body.appendChild(row("output_repeat", proj.rec?.output_repeat == null ? "—" : String(proj.rec.output_repeat)));
+  body.appendChild(row("p_log", proj.rec?.p_log ? JSON.stringify(proj.rec.p_log) : "—"));
+  body.appendChild(row("p_fix", proj.rec?.p_fix ? JSON.stringify(proj.rec.p_fix) : "—"));
+  body.appendChild(row("loop", String(proj.rec?.loop_state || "—")));
   body.appendChild(row("alpha", proj.rec?.alpha == null ? "—" : JSON.stringify(proj.rec.alpha)));
   body.appendChild(row("hand vis", Number(proj.occlusion?.hand_visibility || 0).toFixed(3)));
   body.appendChild(row("face vis", Number(proj.occlusion?.face_visibility || 0).toFixed(3)));
@@ -47,7 +50,7 @@ export function mountInspectDrawer(el, open, proj, workspace, handlers) {
     const band = t.residual == null ? "NONE" : t.residual <= (t.tolerance || 0) ? "IN" : "OUT";
     body.appendChild(row(
       `${t.id} · ${t.class}`,
-      `tol ${t.tolerance}  res ${res}  ${band}`,
+      `tol ${t.tolerance}  res ${res}  ${band}  w ${t.weight ?? 1} (${t.weight_origin || "DEFAULT"})  ${t.frame || ""}`,
     ));
   }
   for (const reason of proj.reasons || []) body.appendChild(row("reason", String(reason)));

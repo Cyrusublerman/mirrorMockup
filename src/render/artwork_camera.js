@@ -9,7 +9,8 @@ export function tauSegments(d_M, fillFraction) {
 
 export function fillFraction(carrierP) {
   if (!carrierP?.quad) return 0;
-  const q = carrierP.quad;
+  const q = carrierP.quad.filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if (!q.length) return 0;
   const xs = q.map((p) => p[0]);
   const ys = q.map((p) => p[1]);
   const w = Math.max(...xs) - Math.min(...xs);

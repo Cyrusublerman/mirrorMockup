@@ -2,7 +2,7 @@ import { cloneState } from "./requested_state.js";
 import { constraintResult, emptyEffective } from "./effective_state.js";
 import { evaluatePhone, phoneFromWrist } from "../domains/phone/prism.js";
 import { evaluateCamera } from "../domains/camera/model.js";
-import { evaluateApparatus, autosolveDistance } from "../domains/apparatus/relation.js";
+import { evaluateApparatus, rootSolveDistance } from "../domains/apparatus/relation.js";
 import { evaluateMirror, fitAperture } from "../domains/mirror/mesh.js";
 import { evaluateReflection } from "../domains/reflection/reflect.js";
 import { evaluatePose } from "../domains/pose/solve.js";
@@ -14,16 +14,18 @@ import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
 import { viewCameraAtTau, fillFraction } from "../render/artwork_camera.js";
-import { nudgeToPhoneTarget } from "./solve_policy.js";
+import { applySolveMode, allows, modeMask } from "./solve_policy.js";
+import { partitionX } from "./variable_partition.js";
+import { panToPlace } from "../domains/camera/crop.js";
 import { jacobian } from "../shared_math/jacobian.js";
 import { createProposal } from "./proposals.js";
 import { SEMANTIC } from "../domains/body/skeleton.js";
+import { t, minCarrierPx, toleranceSetHash } from "../../fixtures/tolerances.js";
+import landmarks from "../../fixtures/P0/landmarks.js";
 
-function applyApparatusPan(req) {
-  const pan = req.apparatus.apparatus_pan_request_m || [0, 0];
-  req.phone.transform_request.translation[0] += pan[0];
-  req.phone.transform_request.translation[2] += pan[1];
-}
+const SOLVER_ID = "mirror-portrait-nls";
+const SOLVER_VERSION = "1.0.0";
+const FD_STEP = 1e-3;
 
 function solvePhonePose(req) {
   if (req.phone.authority === "HAND_DRIVES_PHONE") {
@@ -40,63 +42,77 @@ function solvePhonePose(req) {
   return { phone, pose, grip };
 }
 
+function measureRp(req, d, from, forward, centre) {
+  const r = cloneState(req);
+  r.apparatus.mirror_distance_auto_solve = false;
+  if (r.mirror.frame_authority === "WORLD" && centre && forward) {
+    const delta = d - from;
+    r.mirror.world_pose = {
+      translation: [centre[0] + forward[0] * delta, centre[1] + forward[1] * delta, centre[2] + forward[2] * delta],
+      rotation: r.mirror.world_pose?.rotation || [0, 0, 0, 1],
+    };
+  } else {
+    r.apparatus.mirror_distance_request_m = d;
+  }
+  const { phone } = solvePhonePose(r);
+  const cam = evaluateCamera(phone.world, r);
+  const apparatus = evaluateApparatus(cam, r);
+  const mirror = evaluateMirror(apparatus, r);
+  const p = evaluateCarrierP(phone, cam, mirror);
+  return Math.abs(p.area_capture ?? p.area ?? 0);
+}
+
 function solveOnce(req) {
-  applyApparatusPan(req);
   let { phone, pose, grip } = solvePhonePose(req);
   let cam = evaluateCamera(phone.world, req);
   let apparatus = evaluateApparatus(cam, req);
   let compensation = null;
 
-  if (req.apparatus.mirror_distance_auto_solve) {
-    const trialMirror = evaluateMirror(apparatus, req);
-    const trialP = evaluateCarrierP(phone, cam, trialMirror);
-    const measured = Math.abs(trialP.area || 0);
-    const target = req.apparatus.preserved_reflected_phone_ratio;
+  if (req.mirror.frame_authority !== "APPARATUS" && !req.mirror.world_pose?.translation) {
+    req.mirror.world_pose = { translation: apparatus.centre.slice(), rotation: [0, 0, 0, 1] };
+    apparatus = evaluateApparatus(cam, req);
+  }
+
+  const ratioLocked = req.apparatus.mirror_distance_auto_solve || (req.composition.active_preserve_set || []).includes("R_P");
+  if (ratioLocked && allows(req, "mirror_distance")) {
     const from = apparatus.d_M;
-    let nextD = autosolveDistance(from, target, Math.max(measured, 1e-8));
-    const minD = 0.25;
-    const maxD = 8;
-    let projected = false;
-    if (nextD < minD || nextD > maxD) {
-      nextD = Math.max(minD, Math.min(maxD, nextD));
-      projected = true;
+    const target = req.apparatus.preserved_reflected_phone_ratio;
+    const solved = rootSolveDistance(from, target, (d) =>
+      measureRp(req, d, from, apparatus.frame.forward, apparatus.centre),
+    );
+    if (req.mirror.frame_authority === "WORLD" && req.mirror.world_pose?.translation) {
+      const delta = solved.d_M - from;
+      const f = apparatus.frame.forward;
+      req.mirror.world_pose.translation = [
+        req.mirror.world_pose.translation[0] + f[0] * delta,
+        req.mirror.world_pose.translation[1] + f[1] * delta,
+        req.mirror.world_pose.translation[2] + f[2] * delta,
+      ];
+    } else {
+      req.apparatus.mirror_distance_request_m = solved.d_M;
     }
-    req.apparatus.mirror_distance_request_m = nextD;
     apparatus = evaluateApparatus(cam, req);
     compensation = {
       variable: "mirror_distance_request_m",
       from,
-      to: nextD,
+      to: apparatus.d_M,
       reason: "preserved_reflected_phone_ratio",
       inspectable: true,
-      depth_order: projected ? "PROJECTED" : "PASS",
+      depth_order: solved.projected ? "PROJECTED" : "PASS",
     };
   }
 
   const mirror = evaluateMirror(apparatus, req);
   const reflection = evaluateReflection(cam, mirror);
   const support = evaluateSupport(pose.fk, req);
-  const occluders = [
-    { mesh: phone.mesh, world: phone.world },
-    pose.fk?.pelvis && pose.fk?.shoulder_L && pose.fk?.shoulder_R && pose.fk?.head
-      ? {
-          mesh: {
-            positions: [pose.fk.pelvis, pose.fk.shoulder_L, pose.fk.shoulder_R, pose.fk.head],
-            triangles: [
-              [0, 1, 2],
-              [1, 2, 3],
-            ],
-          },
-          world: { translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-        }
-      : null,
-  ].filter(Boolean);
+  const bodyOcc = silhouetteOccluder(pose);
+  const occluders = [{ mesh: phone.mesh, world: phone.world }, bodyOcc].filter(Boolean);
   const visibility = evaluateVisibility(pose.fk, cam, mirror, occluders);
   const carrier_p = evaluateCarrierP(phone, cam, mirror);
   const content_q = evaluateQ(req, carrier_p);
   const recursion = evaluateRecursion(req, carrier_p);
-  const mirrorImageQuad = (mirror.quad || []).map((X) => projectWorld(X, cam).image_norm);
-  const composition = evaluateMetrics(visibility, carrier_p, req, mirrorImageQuad);
+  const mirrorImageQuadCapture = (mirror.quad || []).map((X) => projectWorld(X, cam).image_norm_capture);
+  const composition = evaluateMetrics(visibility, carrier_p, req, mirrorImageQuadCapture);
   const view = viewCameraAtTau(cam, apparatus, carrier_p, recursion, req.view.tau);
   return {
     phone,
@@ -113,79 +129,126 @@ function solveOnce(req) {
     recursion,
     composition,
     view,
-    mirrorImageQuad,
     compensation,
   };
 }
 
-function phoneCentroid(req) {
+function silhouetteOccluder(pose) {
+  const pts = ["pelvis", "shoulder_L", "shoulder_R", "head", "hip_L", "hip_R", "knee_L", "knee_R", "ankle_L", "ankle_R"]
+    .map((k) => pose.fk?.[k])
+    .filter((p) => p && p.length === 3);
+  if (pts.length < 4) return null;
+  const triangles = [];
+  for (let i = 1; i < pts.length - 1; i++) triangles.push([0, i, i + 1]);
+  return {
+    mesh: { positions: pts, triangles },
+    world: { translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+  };
+}
+
+function placePhoneByCrop(req, parts) {
+  if (!allows(req, "crop_pan")) return parts;
+  if (req.camera.crop_request.authored) return parts;
+  const cap = parts.carrier_p?.quad_capture;
+  if (!cap || cap.some((c) => !c)) return parts;
+  const cx = (cap[0][0] + cap[1][0] + cap[2][0] + cap[3][0]) / 4;
+  const cy = (cap[0][1] + cap[1][1] + cap[2][1] + cap[3][1]) / 4;
+  const want = landmarks.features.phone.bbox_centre;
+  req.camera.crop_request.pan = panToPlace([cx, cy], want, req.camera.crop_request.scale ?? 1);
+  req.camera.crop_request.aspect = 3 / 4;
+  return solveOnce(cloneState(req));
+}
+
+function applyReflectedNudge(req, parts) {
+  const d = req.composition.reflected_content_delta;
+  if (!d || (d[0] === 0 && d[1] === 0)) return parts;
+  if (!allows(req, "pose")) return parts;
+  const body = parts.composition.residuals?.reflected_body;
+  if (!body?.effective) return parts;
+  const want = [body.effective[0] + d[0], body.effective[1] + d[1]];
+  const root = req.body.pose_targets.root.translation;
+  const J = jacobian(
+    (x) => {
+      const r = cloneState(req);
+      r.body.pose_targets.root.translation = [x[0], root[1], x[1]];
+      r.composition.reflected_content_delta = [0, 0];
+      const p = solveOnce(r);
+      return p.composition.residuals.reflected_body?.effective || body.effective;
+    },
+    [root[0], root[2]],
+    2,
+    FD_STEP,
+  );
+  const err = [want[0] - body.effective[0], want[1] - body.effective[1]];
+  const det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+  if (Math.abs(det) < 1e-12) return parts;
+  const dx = (J[1][1] * err[0] - J[0][1] * err[1]) / det;
+  const dz = (-J[1][0] * err[0] + J[0][0] * err[1]) / det;
+  req.body.pose_targets.root.translation = [root[0] + dx, root[1], root[2] + dz];
+  req.composition.reflected_content_delta = [0, 0];
+  return solveOnce(cloneState(req));
+}
+
+function phoneCentroidCapture(req) {
   const phone = evaluatePhone(req);
   const cam = evaluateCamera(phone.world, req);
   const apparatus = evaluateApparatus(cam, req);
   const mirror = evaluateMirror(apparatus, req);
   const p = evaluateCarrierP(phone, cam, mirror);
-  const q = p.quad;
+  const q = p.quad_capture || p.quad;
   if (!q || q.some((c) => !c)) return [0.5, 0.5];
   return [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
 }
 
 function sensitivityAt(req) {
-  const x0 = [
-    req.apparatus.mirror_distance_request_m,
-    req.apparatus.mirror_pan_uv_request_m[0],
-    req.camera.hfov_request,
-  ];
+  const x0 = [req.apparatus.mirror_distance_request_m, req.camera.hfov_request, req.camera.crop_request.pan[0]];
   const J = jacobian(
     (x) => {
       const r = cloneState(req);
       r.apparatus.mirror_distance_auto_solve = false;
       r.apparatus.mirror_distance_request_m = x[0];
-      r.apparatus.mirror_pan_uv_request_m[0] = x[1];
-      r.camera.hfov_request = x[2];
-      return phoneCentroid(r);
+      r.camera.hfov_request = x[1];
+      r.camera.crop_request.pan = [x[2], r.camera.crop_request.pan[1]];
+      const phone = evaluatePhone(r);
+      const cam = evaluateCamera(phone.world, r);
+      const apparatus = evaluateApparatus(cam, r);
+      const mirror = evaluateMirror(apparatus, r);
+      const p = evaluateCarrierP(phone, cam, mirror);
+      const q = p.quad;
+      if (!q || q.some((c) => !c)) return [0.5, 0.5];
+      return [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
     },
     x0,
     2,
-    1e-3,
+    FD_STEP,
   );
   return [
-    { of: "phone_cx", wrt: "d_M", value: J[0][0] },
-    { of: "phone_cy", wrt: "d_M", value: J[1][0] },
-    { of: "phone_cx", wrt: "mirror_pan_u", value: J[0][1] },
-    { of: "phone_cy", wrt: "mirror_pan_u", value: J[1][1] },
-    { of: "phone_cx", wrt: "hfov", value: J[0][2] },
-    { of: "phone_cy", wrt: "hfov", value: J[1][2] },
+    { of: "phone_cx_final", wrt: "d_M", value: J[0][0] },
+    { of: "phone_cy_final", wrt: "d_M", value: J[1][0] },
+    { of: "phone_cx_final", wrt: "hfov", value: J[0][1] },
+    { of: "phone_cy_final", wrt: "hfov", value: J[1][1] },
+    { of: "phone_cx_final", wrt: "crop_pan_u", value: J[0][2] },
+    { of: "phone_cy_final", wrt: "crop_pan_u", value: J[1][2] },
   ];
 }
 
 export function solve(requested) {
-  const req = cloneState(requested);
+  let req = cloneState(requested);
   if (!req.composition.targets.length) req.composition.targets = p0Targets();
+  const mask = modeMask(req.composition.solve_mode);
+  req = applySolveMode(req, req.composition.solve_mode);
+  const partition = partitionX(req);
 
   let parts = solveOnce(cloneState(req));
-  if (req.composition.solve_mode === "COMPOSITION_FIT") {
-    for (let i = 0; i < 4; i++) {
-      nudgeToPhoneTarget(req, parts.composition.residuals);
-      parts = solveOnce(cloneState(req));
-    }
+  const mode = req.composition.solve_mode;
+  if (mode === "P0_RECONSTRUCT" || mode === "COMPOSITION_FIT") {
+    parts = placePhoneByCrop(req, parts);
   }
+  parts = applyReflectedNudge(req, parts);
 
   const {
-    phone,
-    cam,
-    apparatus,
-    mirror,
-    reflection,
-    grip,
-    pose,
-    support,
-    visibility,
-    carrier_p,
-    content_q,
-    recursion,
-    composition,
-    view,
-    compensation,
+    phone, cam, apparatus, mirror, reflection, grip, pose, support,
+    visibility, carrier_p, content_q, recursion, composition, view, compensation,
   } = parts;
 
   let proposal = req.workspace.proposal || null;
@@ -202,7 +265,28 @@ export function solve(requested) {
       kind: "MIRROR_FIT",
       description: "fit aperture to reflected content",
       patch: { mirror: { width_m: fit.width, height_m: fit.height } },
+      parent_id: req.workspace.last_edit?.action || null,
     });
+  }
+  if (req.phone.authority === "RELAX_GRIP") {
+    proposal = createProposal({
+      id: "relax_grip",
+      kind: "RELAX_GRIP",
+      description: "solver may adjust grip; not applied until accepted",
+      patch: {},
+      parent_id: req.workspace.last_edit?.action || null,
+    });
+  }
+
+  const nLevels = Math.abs(req.recursion.n) || 1;
+  const needPx = minCarrierPx(nLevels);
+  const widthPx = req.camera.crop_request.width_px || 1080;
+  const carrierPx = Math.sqrt(Math.abs(carrier_p.area || 0)) * widthPx;
+  const carrierConflict = carrierPx < needPx;
+  if (carrierConflict && recursion.certificate && recursion.loop_state === "EXACT") {
+    recursion.loop_state = "DEGRADED";
+    recursion.degrade_reason = "min_carrier_px";
+    recursion.named_conflict = { needPx, carrierPx, profile: "P0" };
   }
 
   const constraints = [
@@ -241,6 +325,18 @@ export function solve(requested) {
       reason: (carrier_p.reasons || []).join(","),
     }),
   ];
+  if (carrierConflict) {
+    constraints.push(
+      constraintResult({
+        state: "PROJECTED",
+        constraint_id: "min_carrier_px",
+        requested: needPx,
+        effective: carrierPx,
+        residual: needPx - carrierPx,
+        reason: "P0 carrier vs recursion depth",
+      }),
+    );
+  }
   if (compensation) {
     constraints.push(
       constraintResult({
@@ -269,6 +365,22 @@ export function solve(requested) {
   }
 
   const last_edit = requested.workspace?.last_edit || null;
+  const solver = {
+    solver_id: SOLVER_ID,
+    solver_version: SOLVER_VERSION,
+    seed: 0,
+    iterations: 12,
+    converged: top !== "FAIL",
+    fd_step: FD_STEP,
+    tolerance_set_hash: toleranceSetHash(),
+  };
+
+  if (apparatus.centre) {
+    req.mirror.world_pose = {
+      translation: apparatus.centre.slice(),
+      rotation: req.mirror.world_pose?.rotation || [0, 0, 0, 1],
+    };
+  }
 
   const effective = {
     ...emptyEffective(),
@@ -293,10 +405,16 @@ export function solve(requested) {
     proposal,
     compensation,
     last_edit,
-    driver: last_edit?.driver || req.composition.driver || req.composition.solve_mode,
+    driver: last_edit?.driver || mask.driver,
     preserve: req.composition.active_preserve_set,
     allowed_to_move: req.composition.solve_freedoms,
+    x_decision: partition.x_decision,
+    x_dependent: partition.x_dependent,
+    x_locked: partition.x_locked,
+    solver,
   };
 
   return { requested: req, effective, transaction: top };
 }
+
+export { phoneCentroidCapture };

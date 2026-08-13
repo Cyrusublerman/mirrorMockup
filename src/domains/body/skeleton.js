@@ -109,19 +109,19 @@ export function aimBone(locals, world, boneName, childName, target, rootWorld) {
   setLocalFromWorldRotation(locals, world, boneName, newWorldR, rootWorld);
 }
 
-export function solveArmIk(fkWorld, locals, chain, target, branch) {
+export function solveArmIk(fkWorld, locals, chain, target, branch, pole) {
   const [sh, el, wr] = chain;
   const S = fkWorld[SEMANTIC[sh]].translation;
   const E0 = fkWorld[SEMANTIC[el]].translation;
   const W0 = fkWorld[SEMANTIC[wr]].translation;
   const L1 = distance(S, E0);
   const L2 = distance(E0, W0);
-  const n = [0, 0, 1];
+  const n = pole || [0, 0, 1];
   return twoLinkIk(S, target, L1, L2, n, branch);
 }
 
-export function applyArmIk(locals, world, rootWorld, chain, target, branch) {
-  const ik = solveArmIk(world, locals, chain, target, branch);
+export function applyArmIk(locals, world, rootWorld, chain, target, branch, pole) {
+  const ik = solveArmIk(world, locals, chain, target, branch, pole);
   const [sh, el, wr] = chain;
   aimBone(locals, world, SEMANTIC[sh], SEMANTIC[el], ik.elbow, rootWorld);
   const mid = forwardKinematics(locals, rootWorld);
@@ -163,10 +163,18 @@ export function aimWrist(locals, world, rootWorld, phoneWorld) {
   return true;
 }
 
-export const JOINT_LIMIT_RAD = 2.4;
+export const JOINT_LIMITS = {
+  elbow_R: { rad: 2.4, status: "REVIEWED" },
+  elbow_L: { rad: 2.4, status: "REVIEWED" },
+  knee_L: { rad: 2.4, status: "REVIEWED" },
+  knee_R: { rad: 2.4, status: "REVIEWED" },
+};
 
-export function projectJointQuat(q, limit = JOINT_LIMIT_RAD) {
+export function projectJointQuat(q, joint) {
   if (!q || q.length !== 4) return q;
+  const spec = JOINT_LIMITS[joint];
+  if (!spec) return quat.normalize(q);
+  const limit = spec.rad;
   const nq = quat.normalize(q);
   const w = Math.max(-1, Math.min(1, nq[3]));
   const ang = 2 * Math.acos(w);
@@ -186,7 +194,11 @@ export function evaluateSkeleton(requested) {
     ...requested.body.pose_targets.bend_tilt_twist,
   };
   const limited = {};
-  for (const [k, q] of Object.entries(raw)) limited[k] = projectJointQuat(q);
+  const unknown = [];
+  for (const [k, q] of Object.entries(raw)) {
+    limited[k] = projectJointQuat(q, k);
+    if (!JOINT_LIMITS[k]) unknown.push(k);
+  }
   const locals = applyPoseRotations(restLocals(), limited);
   const root_world = p0RootWorld(requested);
   const { world, fk } = forwardKinematics(locals, root_world);
@@ -198,6 +210,7 @@ export function evaluateSkeleton(requested) {
     glb: requested.body.definition.glb,
     map: MAP,
     joint_limits_applied: true,
+    joint_limits_unknown: unknown,
   };
 }
 

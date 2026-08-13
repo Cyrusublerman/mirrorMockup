@@ -161,10 +161,17 @@ def main() -> int:
         "fixtures/P0/landmarks.json",
         "fixtures/optical_special_case/parallel.js",
         "fixtures/recursion/kernel.js",
+        "fixtures/tolerances.js",
+        "importmap.json",
     ]
     for req in required:
         if not (ROOT / req).exists():
             errors.append(f"missing {req}")
+
+    p0 = ROOT / "fixtures" / "P0"
+    if p0.exists():
+        for img in list(p0.rglob("*.png")) + list(p0.rglob("*.jpg")) + list(p0.rglob("*.jpeg")) + list(p0.rglob("*.webp")):
+            errors.append(f"D-01 private P0 image must not be committed: {rel(img)}")
 
     if errors:
         print("FAIL")

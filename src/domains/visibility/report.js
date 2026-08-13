@@ -1,6 +1,7 @@
 import { sub, length } from "../../shared_math/vector.js";
 import { finiteApertureTest, reflectPoint } from "../reflection/reflect.js";
 import { pinholeProject, imageNormFromPx } from "../../shared_math/projection.js";
+import { captureToFinal } from "../camera/crop.js";
 import { segmentTriangle } from "../../shared_math/intersection.js";
 import { transformPoint } from "../../shared_math/transform.js";
 
@@ -16,11 +17,14 @@ export function projectWorld(X, cam) {
     cam.cx,
     cam.cy,
   );
-  if (!p.valid) return { ...p, image_norm: null };
+  if (!p.valid) return { ...p, image_norm: null, image_norm_capture: null };
   const n = imageNormFromPx(p.u, p.v, cam.width_px, cam.height_px);
+  const capture = [n[0], 1 - n[1]];
+  const crop = cam.crop_request;
   return {
     ...p,
-    image_norm: [n[0], 1 - n[1]],
+    image_norm_capture: capture,
+    image_norm: crop ? captureToFinal(capture, crop) : capture,
   };
 }
 

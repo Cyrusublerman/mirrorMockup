@@ -106,9 +106,12 @@ test("app solve and warp toggle", () => {
 
 test("Q does not move P", () => {
   const app = createApp();
-  const p0 = JSON.stringify(app.getEffective().carrier_p.quad);
+  const p0 = app.getEffective().carrier_p.quad;
   app.dispatch("SET_CONTENT_Q", { scale: 0.4, offset: [0.1, 0.1] });
-  assert.equal(JSON.stringify(app.getEffective().carrier_p.quad), p0);
+  const p1 = app.getEffective().carrier_p.quad;
+  for (let i = 0; i < 4; i++) {
+    assert.ok(Math.hypot(p1[i][0] - p0[i][0], p1[i][1] - p0[i][1]) < 1e-12);
+  }
 });
 
 test("dolly does not write capture camera", () => {

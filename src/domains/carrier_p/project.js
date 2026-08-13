@@ -3,6 +3,7 @@ import { area, convex, winding } from "../../shared_math/polygon.js";
 import { projectWorld } from "../visibility/report.js";
 import { reflectPoint } from "../reflection/reflect.js";
 import { finiteApertureTest } from "../reflection/reflect.js";
+import { t } from "../../../fixtures/tolerances.js";
 
 const CANONICAL = [
   [0, 0],
@@ -16,35 +17,41 @@ export function evaluateCarrierP(phone, cam, mirror) {
   const reflected = phone.screen_corners_world.map((c) =>
     reflectPoint(c, mirror.centre, mirror.basis.n),
   );
-  const projected = [];
+  const capture = [];
+  const finalQ = [];
   for (let i = 0; i < 4; i++) {
     const ap = finiteApertureTest(reflected[i], cam.world.translation, mirror);
     if (!ap.visible) reasons.push(`corner_${i}_aperture`);
     const pr = projectWorld(reflected[i], cam);
     if (!pr.valid || pr.depth <= 0) reasons.push(`corner_${i}_depth`);
-    projected.push(pr.image_norm);
+    capture.push(pr.image_norm_capture || pr.image_norm);
+    finalQ.push(pr.image_norm);
   }
-  if (projected.some((p) => !p)) {
-    return { quad: projected, valid: false, reasons, homography: null, condition: Infinity };
+  if (capture.some((p) => !p) || finalQ.some((p) => !p)) {
+    return { quad: finalQ, quad_capture: capture, valid: false, reasons, homography: null, condition: Infinity };
   }
-  const a = area(projected);
-  if (Math.abs(a) < 1e-10) reasons.push("zero_area");
-  if (!convex(projected)) reasons.push("nonconvex");
-  const H = homographyFromPoints(CANONICAL, projected);
+  const aCap = area(capture);
+  const aFin = area(finalQ);
+  if (Math.abs(aCap) < 1e-10) reasons.push("zero_area");
+  if (!convex(capture)) reasons.push("nonconvex");
+  const H = homographyFromPoints(CANONICAL, finalQ);
   const inv = H ? invertHomography(H) : { H: null, condition: Infinity };
   if (!H || !inv.H) reasons.push("homography");
-  if (inv.condition > 1e8) reasons.push("ill_conditioned");
+  if (inv.condition > t("T-HOMO")) reasons.push("ill_conditioned");
   const valid = reasons.length === 0;
   return {
-    quad: projected,
+    quad: finalQ,
+    quad_capture: capture,
     quad_world: reflected,
     valid,
     reasons,
     homography: H,
     inverse: inv.H,
     condition: inv.condition,
-    area: a,
-    winding: winding(projected),
+    area: aFin,
+    area_capture: aCap,
+    R_P: Math.abs(aCap),
+    winding: winding(finalQ),
   };
 }
 

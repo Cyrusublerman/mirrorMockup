@@ -229,8 +229,9 @@ function burnOverlay(rgba, w, h, requested, effective) {
   if (feats) {
     const col = [20, 20, 20];
     for (const f of Object.values(feats)) {
-      if (!f.centroid) continue;
-      drawDot(rgba, w, h, f.centroid[0] * (w - 1), f.centroid[1] * (h - 1), col, 2);
+      if (!f.bbox_centre && !f.centroid) continue;
+      const pt = f.bbox_centre || f.centroid;
+      drawDot(rgba, w, h, pt[0] * (w - 1), pt[1] * (h - 1), col, 2);
     }
   }
 }
@@ -238,15 +239,23 @@ function burnOverlay(rgba, w, h, requested, effective) {
 export function exportImage(requested, effective, opts = {}) {
   const w = opts.width || 512;
   const h = opts.height || 512;
+  const product = opts.product || "EXPORT_IMAGE";
   const field = renderField(effective, requested, w, h);
   const png = encodePng(w, h, field.rgba);
   const cert = effective.recursion?.certificate;
   const sidecar = {
+    product,
     warp: effective.recursion.mode,
     tau: requested.view.tau,
     segment: effective.view.segment,
     p_valid: effective.carrier_p.valid,
     p_reasons: effective.carrier_p.reasons,
+    output_repeat: effective.recursion.output_repeat || cert?.output_repeat || cert?.gamma_abs,
+    p_log: cert?.p_log || cert?.pole,
+    p_fix: cert?.p_fix,
+    loop_state: effective.recursion.loop_state,
+    certificate_kind: effective.recursion.certificate_kind,
+    solver: effective.solver || null,
     certificate: cert && {
       q: cert.q,
       n: cert.n,
@@ -257,13 +266,21 @@ export function exportImage(requested, effective, opts = {}) {
     },
     width: w,
     height: h,
+    private_image_included: false,
   };
   const staging = {
     phone: requested.phone,
     mirror: requested.mirror,
-    apparatus: requested.apparatus,
+    apparatus: {
+      d_M: effective.apparatus?.d_M,
+      pan_uv: effective.apparatus?.pan_uv,
+      frame_authority: effective.apparatus?.frame_authority,
+    },
     body_root: requested.body.pose_targets.root,
     fov: requested.camera.hfov_request,
+    crop: requested.camera.crop_request,
+    support: effective.support,
+    tolerances: effective.solver?.tolerance_set_hash,
   };
   let unwarped = null;
   if (effective.recursion.mode !== "OFF") {
@@ -284,7 +301,21 @@ export function exportImage(requested, effective, opts = {}) {
     const autoEff = { ...effective, recursion: autoRec, view: { ...effective.view, tau: 2, segment: "APPROACH" } };
     recursive_reference = encodePng(w, h, renderField(autoEff, autoReq, w, h).rgba);
   }
-  return { png, unwarped, overlay, recursive_reference, sidecar, staging };
+  return {
+    png,
+    final_camera: png,
+    unwarped,
+    overlay,
+    recursive_reference,
+    sidecar,
+    staging,
+    products: {
+      EXPORT_FINAL_CAMERA: png,
+      EXPORT_STAGING_PRESCRIPTION: staging,
+      EXPORT_COMPOSITION_OVERLAY: overlay,
+      EXPORT_REFERENCE_RENDER: recursive_reference,
+    },
+  };
 }
 
 export function pngToDataUrl(png) {

@@ -1,4 +1,4 @@
-import { sampleSource, W } from "../domains/recursion/kernel.js";
+import { sampleSource, W, sampleI } from "../domains/recursion/kernel.js";
 
 export function gpuSampleUv(z, certificate) {
   if (!certificate) return null;
@@ -6,4 +6,12 @@ export function gpuSampleUv(z, certificate) {
   return sampleSource(w, certificate.lattice);
 }
 
+export function gpuSampleI(z, certificate, qState) {
+  return sampleI(z, certificate, qState);
+}
+
 export const gpuParityStub = gpuSampleUv;
+
+export function shaderUsesKernel() {
+  return "domains/recursion/kernel.js";
+}

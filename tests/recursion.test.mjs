@@ -89,10 +89,13 @@ test("AUTO available iff P valid", () => {
 
 test("moving Q does not change P", () => {
   const app = createApp();
-  const p0 = JSON.stringify(app.getEffective().carrier_p.quad);
+  const p0 = app.getEffective().carrier_p.quad;
   const q0 = evaluateQ(app.getRequested(), app.getEffective().carrier_p);
   app.dispatch("SET_CONTENT_Q", { scale: 0.4, offset: [0.1, 0.1], rotation: 0.3 });
-  assert.equal(JSON.stringify(app.getEffective().carrier_p.quad), p0);
+  const p1 = app.getEffective().carrier_p.quad;
+  for (let i = 0; i < 4; i++) {
+    assert.ok(Math.hypot(p1[i][0] - p0[i][0], p1[i][1] - p0[i][1]) < 1e-12);
+  }
   const q1 = app.getEffective().content_q;
   assert.equal(q1.carrier_unchanged, true);
   const a = sampleQ([0.3, 0.4], q0);

@@ -68,7 +68,7 @@ export function defaultRequestedState() {
         source: "unmeasured P0 image; not a reviewed device record",
       },
       hfov_request: (70 * Math.PI) / 180,
-      crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560, pan: [0, 0] },
+      crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560, pan: [0, 0], scale: 1, authored: false },
       optical_offset_local: [0, 0.055, 0.004],
       epistemic_status: "HYPOTHESIS",
     },
@@ -81,6 +81,8 @@ export function defaultRequestedState() {
       preserved_reflected_phone_ratio: 0.0045,
     },
     mirror: {
+      frame_authority: "WORLD",
+      world_pose: { translation: null, rotation: [0, 0, 0, 1] },
       width_m: 0.62,
       height_m: 0.88,
       aperture_shape: "rect",
@@ -93,9 +95,12 @@ export function defaultRequestedState() {
       solve_freedoms: ["pose", "mirror_distance", "phone"],
       solve_mode: SOLVE_MODE.P0_RECONSTRUCT,
       driver: "P0_RECONSTRUCT",
+      locks: { PHONE_AREA: false, REFLECTED_BODY_SCALE: false, MIRROR_OCCUPANCY: false, SUPPORT: true, GRIP: false, P_VALID: false },
+      reflected_content_delta: [0, 0],
     },
     content_q: {
       fill_mode: "cover",
+      size_basis: "Cover",
       scale: 1,
       offset: [0, 0],
       rotation: 0,
@@ -110,6 +115,7 @@ export function defaultRequestedState() {
       phase: [0, 0],
       singularity_policy: "disk",
       pole_policy: "portal_fixed_point",
+      output_repeat: null,
     },
     view: {
       tau: 0,

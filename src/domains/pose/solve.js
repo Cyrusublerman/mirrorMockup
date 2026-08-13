@@ -3,8 +3,8 @@ import { evaluateGrip } from "../hand_grip/grip.js";
 import { evaluateSupport } from "../support/contact.js";
 import { add, distance, scale, sub } from "../../shared_math/vector.js";
 
-function ikArm(skel, chain, target, branch, id) {
-  const applied = applyArmIk(skel.locals, skel.world, skel.root_world, chain, target, branch);
+function ikArm(skel, chain, target, branch, id, pole) {
+  const applied = applyArmIk(skel.locals, skel.world, skel.root_world, chain, target, branch, pole);
   const next = {
     ...skel,
     locals: applied.locals,
@@ -105,7 +105,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
         constraints.push(right.constraint);
       }
     }
-  } else if (authority === "PHONE_DRIVES_HAND" && phoneGripWorld) {
+  } else if ((authority === "PHONE_DRIVES_HAND" || authority === "LOCK_GRIP") && phoneGripWorld) {
     const target = ends.wrist_R || grip.wrist_target || phoneGripWorld.translation;
     let right = ikArm(
       skel,

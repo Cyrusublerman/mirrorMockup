@@ -83,6 +83,7 @@ export async function bootUi(root, app) {
   insetWrap.append(insetCanvas, insetLab);
   const toast = el("div", "mp-toast");
   toast.setAttribute("role", "status");
+  toast.setAttribute("aria-live", "polite");
   stage.append(canvas, overlay, viewsEl, insetWrap, toast);
   const hud = el("div", "mp-hud");
   const contextEl = el("div");
@@ -122,24 +123,27 @@ export async function bootUi(root, app) {
     return [w, h];
   }
 
-  function exportGuide() {
-    const last = app.dispatch("EXPORT_IMAGE", { width: 640, height: 640 });
+  function exportProduct(name, filename) {
+    const last = app.dispatch(name, { width: 640, height: 640 });
+    if (name === "EXPORT_STAGING_PRESCRIPTION") {
+      const blob = new Blob([JSON.stringify({ staging: last.export.staging, sidecar: last.export.sidecar, build: app.build }, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      return;
+    }
+    const buf = name === "EXPORT_COMPOSITION_OVERLAY" ? last.export.overlay : name === "EXPORT_REFERENCE_RENDER" ? (last.export.recursive_reference || last.export.png) : last.export.png;
     const a = document.createElement("a");
-    a.href = bytesToPngUrl(last.export.png);
-    a.download = "artwork.png";
+    a.href = bytesToPngUrl(buf);
+    a.download = filename;
     a.click();
-    const a2 = document.createElement("a");
-    a2.href = bytesToPngUrl(last.export.overlay || last.export.png);
-    a2.download = "composition-guide.png";
-    a2.click();
-    const blob = new Blob(
-      [JSON.stringify({ sidecar: last.export.sidecar, staging: last.export.staging, build: app.build }, null, 2)],
-      { type: "application/json" },
-    );
-    const a3 = document.createElement("a");
-    a3.href = URL.createObjectURL(blob);
-    a3.download = "composition.json";
-    a3.click();
+  }
+
+  function exportGuide() {
+    exportProduct("EXPORT_FINAL_CAMERA", "artwork.png");
+    exportProduct("EXPORT_COMPOSITION_OVERLAY", "composition-guide.png");
+    exportProduct("EXPORT_STAGING_PRESCRIPTION", "composition.json");
   }
 
   function mountMenu() {
@@ -169,7 +173,10 @@ export async function bootUi(root, app) {
       mk("INSPECT", () => { workspace.menu = false; workspace.inspect = true; paintHud(); }),
       mk("PRECISION", () => { workspace.menu = false; workspace.precision = true; paintHud(); }),
       mk("REFERENCE", () => file.click()),
-      mk("EXPORT GUIDE", () => { workspace.menu = false; exportGuide(); paintHud(); }),
+      mk("EXPORT FINAL", () => { workspace.menu = false; exportProduct("EXPORT_FINAL_CAMERA", "final.png"); paintHud(); }),
+      mk("EXPORT STAGING", () => { workspace.menu = false; exportProduct("EXPORT_STAGING_PRESCRIPTION", "staging.json"); paintHud(); }),
+      mk("EXPORT OVERLAY", () => { workspace.menu = false; exportProduct("EXPORT_COMPOSITION_OVERLAY", "overlay.png"); paintHud(); }),
+      mk("EXPORT RECURSION", () => { workspace.menu = false; exportProduct("EXPORT_REFERENCE_RENDER", "recursion.png"); paintHud(); }),
     );
     const views = el("div", "mp-row");
     for (const kind of ["RIGGED", "STICK", "SIMPLE", "SILHOUETTE"]) {
@@ -182,7 +189,7 @@ export async function bootUi(root, app) {
       }));
     }
     const snaps = el("div", "mp-row");
-    for (const id of ["A", "B", "C"]) {
+    for (const id of ["A", "B", "C", "D", "E"]) {
       snaps.appendChild(mk("SAVE " + id, () => {
         app.dispatch("SAVE_SNAPSHOT", { id });
         workspace.menu = false;
@@ -218,8 +225,25 @@ export async function bootUi(root, app) {
     mountContextHud(contextEl, workspace, proj, {
       setDrive(mode) {
         workspace.drive_mode = mode;
-        const authority = mode === "HAND_DRIVES_PHONE" ? "HAND_DRIVES_PHONE" : "PHONE_DRIVES_HAND";
-        app.dispatch("SET_PHONE_AUTHORITY", { authority }, { label: mode.replaceAll("_", " ") });
+        app.dispatch("SET_PHONE_AUTHORITY", { authority: mode }, { label: mode.replaceAll("_", " ") });
+        paintHud();
+        paintScene();
+      },
+      relaxGrip() {
+        app.dispatch("SET_PHONE_AUTHORITY", { authority: "RELAX_GRIP" }, { label: "Propose relax grip" });
+        paintHud();
+      },
+      toggleLock(id) {
+        const on = !app.getRequested().composition.locks?.[id];
+        app.dispatch("SET_LOCK_CHIP", { id, on }, { label: (on ? "Locked " : "Unlocked ") + id });
+        paintHud();
+        paintScene();
+      },
+      cycleOpacity() {
+        const cur = reference.opacity;
+        const next = cur >= 0.8 ? 0.15 : Math.min(1, cur + 0.25);
+        reference.setOpacity(next);
+        app.dispatch("SET_REFERENCE_REGISTRATION", { opacity: next }, { preview: true });
         paintHud();
         paintScene();
       },
