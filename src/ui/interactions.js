@@ -6,24 +6,36 @@ import { diagnosticsText } from "../render/diagnostics.js";
 import { bindNumeric } from "./numeric_entry.js";
 import { renderContext } from "./contextual_controls.js";
 import { drawReference } from "./reference_overlay.js";
+import { injectShellCss } from "./shell.js";
 
 export async function boot(root) {
+  injectShellCss(root.ownerDocument);
   const app = createApp();
+  root.classList.add("shell");
   root.innerHTML = layout();
   const canvas = root.querySelector("#scene");
   const overlay = root.querySelector("#overlay");
   const hud = root.querySelector("#hud");
   const context = root.querySelector("#context");
   const diag = root.querySelector("#diag");
+  const stage = root.querySelector(".stage");
   const scene3d = await createScene3D(canvas, app);
+
+  function sizeOverlay() {
+    const w = Math.max(1, canvas.clientWidth || stage.clientWidth || 1);
+    const h = Math.max(1, canvas.clientHeight || stage.clientHeight || 1);
+    if (overlay.width !== w) overlay.width = w;
+    if (overlay.height !== h) overlay.height = h;
+    return [w, h];
+  }
 
   function refresh() {
     const req = app.getRequested();
     const eff = app.getEffective();
+    scene3d.resize();
     scene3d.sync();
-    overlay.width = canvas.clientWidth;
-    overlay.height = canvas.clientHeight;
-    drawOverlays(overlay.getContext("2d"), req, eff, overlay.width, overlay.height);
+    const [w, h] = sizeOverlay();
+    drawOverlays(overlay.getContext("2d"), req, eff, w, h);
     drawReference(root.querySelector("#ref"), req);
     hud.textContent = `${req.workspace.mode} · warp ${req.recursion.mode} · ${eff.view.segment} · ${eff.transaction}`;
     diag.textContent = diagnosticsText(eff, req);
@@ -36,6 +48,9 @@ export async function boot(root) {
     const tau = root.querySelector("#tau");
     if (warp) warp.value = req.recursion.mode;
     if (tau) tau.value = String(req.view.tau);
+    root.querySelectorAll("[data-mode]").forEach((b) => {
+      b.setAttribute("aria-current", b.dataset.mode === req.workspace.mode ? "true" : "false");
+    });
   }
 
   function parsePayload(el) {
@@ -114,6 +129,19 @@ export async function boot(root) {
       refresh();
     }
   });
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => {
+      scene3d.resize();
+      scene3d.sync();
+      const [w, h] = sizeOverlay();
+      drawOverlays(overlay.getContext("2d"), app.getRequested(), app.getEffective(), w, h);
+    }).observe(stage);
+  } else {
+    window.addEventListener("resize", () => {
+      scene3d.resize();
+      scene3d.sync();
+    });
+  }
   refresh();
   return app;
 }
@@ -128,22 +156,24 @@ function layout() {
   return `
   <div class="top">
     <div class="modes">
-      ${["POSE", "SCENE", "COMPOSITION", "RECURSION", "INSPECT"].map((m) => `<button data-mode="${m}">${m}</button>`).join("")}
+      ${["POSE", "SCENE", "COMPOSITION", "RECURSION", "INSPECT"].map((m) => `<button type="button" data-mode="${m}">${m}</button>`).join("")}
     </div>
     <label>warp <select id="warp"><option>OFF</option><option>AUTO</option><option>ADVANCED</option></select></label>
     <label>τ <input id="tau" type="range" min="0" max="4" step="0.01" value="0"></label>
-    <button id="export">EXPORT IMAGE</button>
+    <button type="button" id="export">EXPORT IMAGE</button>
     <span id="hud"></span>
   </div>
   <div class="main">
-    <aside id="ref" class="ref"></aside>
     <div class="stage">
       <canvas id="scene"></canvas>
       <canvas id="overlay"></canvas>
     </div>
-    <aside class="right">
-      <div id="context"></div>
-      <pre id="diag"></pre>
-    </aside>
+    <div class="dock">
+      <aside id="ref" class="ref"></aside>
+      <aside class="right">
+        <div id="context"></div>
+        <pre id="diag"></pre>
+      </aside>
+    </div>
   </div>`;
 }

@@ -116,6 +116,7 @@ def main() -> int:
         "src/render/recursion_gpu.js",
         "src/render/diagnostics.js",
         "src/ui/interactions.js",
+        "src/ui/shell.js",
         "src/ui/contextual_controls.js",
         "src/ui/numeric_entry.js",
         "src/ui/reference_overlay.js",

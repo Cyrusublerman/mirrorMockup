@@ -5,5 +5,9 @@ export function drawReference(el, requested) {
     .join("");
   const reg = requested.reference.registration;
   const regHtml = reg ? `<p>registration opacity ${reg.opacity}</p>` : "";
-  el.innerHTML = `<h3>P0 evidence</h3><p>IMAGE_NORM · OBSERVED</p>${regHtml}<table>${rows}</table>`;
+  el.innerHTML = `<details>
+    <summary>P0 evidence · IMAGE_NORM · OBSERVED</summary>
+    ${regHtml}
+    <table>${rows}</table>
+  </details>`;
 }
