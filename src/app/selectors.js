@@ -101,8 +101,12 @@ export function selectWarpState(requested, effective) {
   return { requested: requested.recursion.mode, effective: effective.recursion.mode, available: effective.recursion.available };
 }
 
-export function selectProposal() {
-  return null;
+export function selectOverlays(requested) {
+  return requested.workspace.overlays;
+}
+
+export function selectProposal(effective) {
+  return effective?.proposal ?? null;
 }
 
 export function selectExportSnapshot(effective) {

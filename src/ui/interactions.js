@@ -32,6 +32,31 @@ export async function boot(root) {
       app.dispatch(name, payload);
       refresh();
     });
+    const warp = root.querySelector("#warp");
+    const tau = root.querySelector("#tau");
+    if (warp) warp.value = req.recursion.mode;
+    if (tau) tau.value = String(req.view.tau);
+  }
+
+  function parsePayload(el) {
+    if (!el.dataset.payload) return {};
+    try {
+      return JSON.parse(el.dataset.payload);
+    } catch {
+      return {};
+    }
+  }
+
+  function fireAction(el) {
+    const name = el.dataset.action;
+    if (!ACTION_NAMES.includes(name) && name !== "SET_WORKSPACE_MODE") return;
+    let payload = parsePayload(el);
+    if (el.type === "checkbox") payload = { ...payload, on: el.checked };
+    if (el.tagName === "SELECT" && el.dataset.field) {
+      payload = { ...payload, [el.dataset.field]: el.value };
+    }
+    app.dispatch(name, payload);
+    refresh();
   }
 
   root.querySelectorAll("[data-mode]").forEach((b) => {
@@ -63,8 +88,31 @@ export async function boot(root) {
   root.addEventListener("click", (e) => {
     const t = e.target.closest("[data-action]");
     if (!t) return;
-    const name = t.dataset.action;
-    if (!ACTION_NAMES.includes(name) && name !== "SET_WORKSPACE_MODE") return;
+    if (t.tagName === "SELECT") return;
+    fireAction(t);
+  });
+  root.addEventListener("change", (e) => {
+    const t = e.target.closest("[data-action]");
+    if (!t || t.tagName !== "SELECT") return;
+    fireAction(t);
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.target.closest?.("input, textarea, select")) return;
+    const meta = e.ctrlKey || e.metaKey;
+    if (!meta) return;
+    if ((e.key === "z" || e.key === "Z") && e.shiftKey && ACTION_NAMES.includes("REDO")) {
+      e.preventDefault();
+      app.dispatch("REDO");
+      refresh();
+    } else if ((e.key === "z" || e.key === "Z") && ACTION_NAMES.includes("UNDO")) {
+      e.preventDefault();
+      app.dispatch("UNDO");
+      refresh();
+    } else if ((e.key === "y" || e.key === "Y") && ACTION_NAMES.includes("REDO")) {
+      e.preventDefault();
+      app.dispatch("REDO");
+      refresh();
+    }
   });
   refresh();
   return app;
