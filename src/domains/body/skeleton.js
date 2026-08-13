@@ -1,5 +1,5 @@
-import MAP from "../../../fixtures/P0/skeleton_map.json" with { type: "json" };
-import GLB_NODES from "../../../fixtures/P0/glb_nodes.json" with { type: "json" };
+import MAP from "../../../fixtures/P0/skeleton_map.js";
+import GLB_NODES from "../../../fixtures/P0/glb_nodes.js";
 import * as quat from "../../shared_math/quaternion.js";
 import * as xform from "../../shared_math/transform.js";
 import { twoLinkIk } from "../../shared_math/numerical.js";

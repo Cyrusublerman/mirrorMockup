@@ -1,4 +1,4 @@
-import landmarks from "../../../fixtures/P0/landmarks.json" with { type: "json" };
+import landmarks from "../../../fixtures/P0/landmarks.js";
 
 export const SUBJECT_MAP = {
   direct_head: { space: "direct", fk: "head" },

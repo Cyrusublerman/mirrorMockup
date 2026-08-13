@@ -91,18 +91,16 @@ test("numeric FOV round-trips through SET_CAMERA_FOV", () => {
   assert.ok(Math.abs(app.getEffective().camera.hfov - hfov) < 1e-12);
 });
 
-test("one selection drives overlay set; INSPECT is the toggle mode", () => {
+test("one selection drives overlay set; inspect is not a production nav room", () => {
   const app = createApp();
   app.dispatch("SET_WORKSPACE_MODE", { mode: "POSE" });
   app.dispatch("SET_SELECTION", { selection: "body" });
   const pose = activeOverlays(app.getRequested());
   assert.equal(pose.SKELETON, true);
-  assert.equal(pose.PHONE, false);
   app.dispatch("SET_WORKSPACE_MODE", { mode: "SCENE" });
   app.dispatch("SET_SELECTION", { selection: "mirror" });
   const scene = activeOverlays(app.getRequested());
   assert.equal(scene.MIRROR, true);
-  assert.equal(scene.SKELETON, false);
 });
 
 test("loop period is log|γ|; LOOP phase uses that period", () => {

@@ -2,19 +2,55 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://raw.githack.com; object-src 'none'; base-uri 'none'">
 <title>P0 composition tool (remote repo)</title>
 <script>
   (function () {
+    window.addEventListener("error", function (e) {
+      if (window.MIRROR_BOOT_ERROR) return;
+      window.MIRROR_BOOT_ERROR = String(e && e.message || e);
+    });
+    window.addEventListener("unhandledrejection", function (e) {
+      if (window.MIRROR_BOOT_ERROR) return;
+      window.MIRROR_BOOT_ERROR = String(e && e.reason || e);
+    });
+    var OWNER = "Cyrusublerman";
+    var REPO = "mirrorMockup";
+    var PINNED = "40d10f2ec201d311030d13d8d11d5a5f491de3d0";
+    var LOCAL = { "127.0.0.1": 1, "localhost": 1, "[::1]": 1 };
     var params = new URLSearchParams(location.search);
-    var q = params.get("repo");
-    var ref = params.get("ref") || "main";
-    var repo = (q || (params.get("cdn") === "jsdelivr"
-      ? ("https://cdn.jsdelivr.net/gh/Cyrusublerman/mirrorMockup@" + ref + "/")
-      : ("https://raw.githack.com/Cyrusublerman/mirrorMockup/" + ref + "/"))).replace(/\/?$/, "/");
-    var base = document.createElement("base");
-    base.href = repo;
-    document.head.appendChild(base);
-    window.MIRROR_REPO = repo;
+    var repo = params.get("repo");
+    var origin = null;
+    var err = null;
+    function slash(u) {
+      var x = new URL(u, location.href);
+      if (!x.pathname.endsWith("/")) x.pathname += "/";
+      x.search = "";
+      x.hash = "";
+      return x.href;
+    }
+    if (repo) {
+      try {
+        var u = new URL(repo, location.href);
+        if (!LOCAL[u.hostname]) throw new Error("repo host not allowed");
+        if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("repo protocol not allowed");
+        origin = slash(u.href);
+      } catch (e) {
+        err = String(e && e.message || e);
+      }
+    } else {
+      var ref = params.get("ref") || PINNED;
+      if (!/^[0-9a-f]{7,40}$/i.test(ref)) {
+        err = "ref must be a commit SHA";
+        ref = PINNED;
+      }
+      origin = params.get("cdn") === "jsdelivr"
+        ? ("https://cdn.jsdelivr.net/gh/" + OWNER + "/" + REPO + "@" + ref + "/")
+        : ("https://raw.githack.com/" + OWNER + "/" + REPO + "/" + ref + "/");
+    }
+    window.MIRROR_BOOT_ERROR = err;
+    window.MIRROR_REPO = origin;
+    window.MIRROR_PINNED = PINNED;
   })();
 </script>
 <script type="importmap">
@@ -26,30 +62,46 @@
 }
 </script>
 <style>
-  html, body { margin: 0; height: 100%; height: 100dvh; font-family: ui-sans-serif, system-ui, sans-serif; background: #f6f4ef; }
-  #app { height: 100%; display: flex; flex-direction: column; }
-  .stage { position: relative; flex: 1 1 auto; min-height: 55vh; min-height: 55dvh; background: #d9d4cb; }
-  #scene, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  #overlay { pointer-events: none; }
-  #boot-fail { margin: 24px; max-width: 44rem; color: #111; }
+  html, body, #app { margin: 0; height: 100%; height: 100dvh; overflow: hidden; overscroll-behavior: none; touch-action: none; font-family: ui-sans-serif, system-ui, sans-serif; background: #F7F5EF; color: #181818; }
+  #boot-fail { margin: 24px; max-width: 44rem; }
 </style>
 <body>
 <div id="app"></div>
 <script type="module">
-  const repo = window.MIRROR_REPO;
   const root = document.getElementById("app");
-  try {
-    const { boot } = await import(new URL("src/ui/interactions.js", repo).href);
-    await boot(root);
-  } catch (err) {
-    root.innerHTML = `<div id="boot-fail">
-      <p>Failed to load <code>${repo}</code></p>
-      <p>Copy this file anywhere. It loads the tool from GitHub (jsDelivr). Network required.</p>
-      <p>Re-download this file after a merge, or pass <code>?ref=&lt;commit&gt;</code> to skip a stale CDN cache.</p>
-      <p>Local clone: serve the repo, then <code>?repo=http://127.0.0.1:8765/</code></p>
-      <pre>${String(err && err.stack || err)}</pre>
-    </div>`;
-    console.error(err);
+  function fail(msg, detail) {
+    const box = document.createElement("div");
+    box.id = "boot-fail";
+    box.setAttribute("role", "alert");
+    const p = document.createElement("p");
+    p.textContent = msg;
+    box.appendChild(p);
+    if (detail) {
+      const pre = document.createElement("pre");
+      pre.textContent = detail;
+      box.appendChild(pre);
+    }
+    root.replaceChildren(box);
+  }
+  if (window.MIRROR_BOOT_ERROR) {
+    fail(window.MIRROR_BOOT_ERROR);
+  } else if (!window.MIRROR_REPO) {
+    fail("no trusted module origin");
+  } else {
+    const repo = window.MIRROR_REPO;
+    let boot;
+    try {
+      ({ boot } = await import(new URL("src/app/boot.js", repo).href));
+    } catch (err) {
+      fail("Failed to load modules from " + String(repo), String(err && err.stack || err));
+      throw err;
+    }
+    try {
+      await boot(root);
+    } catch (err) {
+      fail("Failed to start the tool", String(err && err.stack || err));
+      console.error(err);
+    }
   }
 </script>
 </body>
