@@ -1,5 +1,6 @@
 import { BONE_PARENT } from "../domains/body/skeleton.js";
 import { renderField } from "../domains/export/image.js";
+import { activeOverlays } from "./overlays.js";
 
 function geometryFromMesh(THREE, mesh) {
   const geo = new THREE.BufferGeometry();
@@ -137,7 +138,9 @@ export async function createScene3D(canvas, app) {
     phoneMesh.position.set(...pw.translation);
     phoneMesh.quaternion.set(pw.rotation[0], pw.rotation[1], pw.rotation[2], pw.rotation[3]);
     phoneMesh.scale.set(1, 1, 1);
-    phoneMesh.visible = !!req.workspace.overlays.PHONE;
+    const vis = activeOverlays(req);
+    phoneMesh.visible = !!vis.PHONE;
+
 
     const field = renderField(eff, req, 64, 64);
     fieldTex.image.data.set(field.rgba);
@@ -154,7 +157,7 @@ export async function createScene3D(canvas, app) {
     }
     mirrorMesh3.position.set(0, 0, 0);
     mirrorMesh3.quaternion.identity();
-    mirrorMesh3.visible = !!req.workspace.overlays.MIRROR;
+    mirrorMesh3.visible = !!vis.MIRROR;
 
     const view = eff.view;
     const camE = eff.camera;
@@ -188,7 +191,7 @@ export async function createScene3D(canvas, app) {
       gltfScene.updateMatrixWorld(true);
     }
 
-    const showSkel = !!req.workspace.overlays.SKELETON;
+    const showSkel = !!vis.SKELETON;
     boneLine.visible = showSkel;
     if (showSkel && skel?.world) {
       const pts = [];

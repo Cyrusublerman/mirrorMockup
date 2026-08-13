@@ -8,6 +8,7 @@ const SOLVE_MODES = [
   "MANUAL",
 ];
 const AUTHORITIES = ["PHONE_DRIVES_HAND", "HAND_DRIVES_PHONE"];
+const BTT_JOINTS = ["spine", "head", "shoulder_R"];
 
 function jp(obj) {
   return JSON.stringify(obj);
@@ -23,6 +24,9 @@ function deg(rad) {
 }
 
 function overlayToggles(requested) {
+  if (requested.workspace.mode !== "INSPECT") {
+    return `<div class="panel"><p>selection ${requested.workspace.selection || "—"} · overlays follow selection</p></div>`;
+  }
   const o = requested.workspace.overlays || {};
   return `<div class="panel">
       <h3>Overlays</h3>
@@ -66,11 +70,23 @@ function posePanel(requested) {
   const r = requested.body.pose_targets.root;
   const def = requested.body.definition;
   const auth = requested.phone.authority;
+  const euler = requested.body.pose_targets.btt_euler || {};
+  const btt = BTT_JOINTS.map((j) => {
+    const e = euler[j] || { bend: 0, tilt: 0, twist: 0 };
+    return `<p>${j}
+      <label>Bend <input data-num="SET_ANATOMICAL_DOF" data-joint="${j}" data-field="bend" type="number" step="0.02" value="${num(e.bend, 3)}"></label>
+      <label>Tilt <input data-num="SET_ANATOMICAL_DOF" data-joint="${j}" data-field="tilt" type="number" step="0.02" value="${num(e.tilt, 3)}"></label>
+      <label>Twist <input data-num="SET_ANATOMICAL_DOF" data-joint="${j}" data-field="twist" type="number" step="0.02" value="${num(e.twist, 3)}"></label>
+    </p>`;
+  }).join("");
   return `
       <div class="panel">
         <h3>Pose</h3>
+        <p>
+          <button type="button" data-action="SET_SELECTION" data-payload='${jp({ selection: "body" })}'>select body</button>
+        </p>
         <p>rig ${def.glb.split("/").pop()}</p>
-        <p>stature ${num(def.stature, 3)} m</p>
+        <p>stature ${num(def.stature, 3)} m · ${def.provenance}</p>
         <label>root x <input data-num="SET_BODY_FRAME_TARGET" data-field="x" type="number" step="0.01" value="${r.translation[0]}"></label>
         <label>root y <input data-num="SET_BODY_FRAME_TARGET" data-field="y" type="number" step="0.01" value="${r.translation[1]}"></label>
         <label>root z <input data-num="SET_BODY_FRAME_TARGET" data-field="z" type="number" step="0.01" value="${r.translation[2]}"></label>
@@ -81,6 +97,8 @@ function posePanel(requested) {
             ${AUTHORITIES.map((a) => `<option value="${a}" ${a === auth ? "selected" : ""}>${a}</option>`).join("")}
           </select>
         </label>
+        <h3>Bend / Tilt / Twist</h3>
+        ${btt}
       </div>`;
 }
 
@@ -92,6 +110,10 @@ function scenePanel(requested) {
   return `
       <div class="panel">
         <h3>Phone / mirror</h3>
+        <p>
+          <button type="button" data-action="SET_SELECTION" data-payload='${jp({ selection: "phone" })}'>select phone</button>
+          <button type="button" data-action="SET_SELECTION" data-payload='${jp({ selection: "mirror" })}'>select mirror</button>
+        </p>
         <label>phone x <input data-num="MOVE_PHONE" data-vec="0" type="number" step="0.01" value="${t[0]}"></label>
         <label>phone y <input data-num="MOVE_PHONE" data-vec="1" type="number" step="0.01" value="${t[1]}"></label>
         <label>phone z <input data-num="MOVE_PHONE" data-vec="2" type="number" step="0.01" value="${t[2]}"></label>
@@ -180,6 +202,8 @@ function inspectPanel(requested, effective) {
           ${rows || "<tr><td colspan='3'>none</td></tr>"}
         </table>
         <p>d_M req ${num(reqDm, 3)} · eff ${num(effDm, 3)}</p>
+        <p>compensate ${effective.compensation ? `${effective.compensation.variable} ${num(effective.compensation.from, 3)}→${num(effective.compensation.to, 3)} ${effective.compensation.reason}` : "none"}</p>
+        <p>last driver ${effective.last_edit?.driver || "—"} · allowed ${effective.allowed_to_move?.join(",") || "—"}</p>
         <p>hfov req ${reqHfov != null ? `${deg(reqHfov)}°` : "—"} · eff ${effHfov != null ? `${deg(effHfov)}°` : "—"}</p>
         <p>P ${p.valid ? "valid" : "invalid"} ${((p.reasons || [])).join("|") || ""}</p>
         <p>warp req ${warpReq} · eff ${warpEff} · available ${effective.recursion?.available}</p>

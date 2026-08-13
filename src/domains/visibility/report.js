@@ -1,6 +1,8 @@
-import { add, scale, sub, length } from "../../shared_math/vector.js";
+import { sub, length } from "../../shared_math/vector.js";
 import { finiteApertureTest, reflectPoint } from "../reflection/reflect.js";
 import { pinholeProject, imageNormFromPx } from "../../shared_math/projection.js";
+import { segmentTriangle } from "../../shared_math/intersection.js";
+import { transformPoint } from "../../shared_math/transform.js";
 
 export function projectWorld(X, cam) {
   const p = pinholeProject(
@@ -60,15 +62,44 @@ function fkTranslation(p) {
   return null;
 }
 
-export function evaluateVisibility(fk, cam, mirror) {
+export function occludesSegment(origin, target, mesh, worldXf) {
+  if (!mesh?.positions || !mesh?.triangles) return false;
+  const pts = mesh.positions.map((p) => transformPoint(worldXf, p));
+  const dirLen = length(sub(target, origin));
+  if (dirLen < 1e-9) return false;
+  for (const tri of mesh.triangles) {
+    const hit = segmentTriangle(origin, target, pts[tri[0]], pts[tri[1]], pts[tri[2]]);
+    if (hit && hit.t > 1e-3 && hit.t < 0.999) return true;
+  }
+  return false;
+}
+
+export function evaluateVisibility(fk, cam, mirror, occluders = []) {
   const reports = {};
+  const C = cam.world.translation;
   for (const [name, p] of Object.entries(fk)) {
     const X = fkTranslation(p);
     if (!X) continue;
+    const reflected = reflectedVisibility(X, cam, mirror);
+    let occluded = false;
+    const hitPt = reflected.world_reflected;
+    for (const occ of occluders) {
+      if (!occ?.mesh || !occ?.world) continue;
+      if (occludesSegment(C, hitPt, occ.mesh, occ.world)) {
+        occluded = true;
+        break;
+      }
+    }
+    const vis = reflected.visible && !occluded;
     reports[name] = {
       direct: projectWorld(X, cam),
-      reflected: reflectedVisibility(X, cam, mirror),
+      reflected: { ...reflected, occluded, visible: vis },
     };
   }
-  return { reports };
+  const armFlags = ["shoulder_R", "elbow_R", "wrist_R"].map((n) => !!reports[n]?.reflected?.visible);
+  return {
+    reports,
+    occlusion: { hand_phone_body: occluders.length > 0 },
+    disjoint: { arm_R: disjointIntervals(armFlags) },
+  };
 }

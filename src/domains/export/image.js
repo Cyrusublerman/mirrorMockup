@@ -138,8 +138,8 @@ export function renderField(effective, requested, width = 256, height = 256) {
   let viewCert = cert;
   if (cert && mode && mode !== "OFF") {
     const b = cert.beta || [0, 0];
-    // LOOP view phase: beta' = certificate.beta + [max(0, tau-2), 0]
-    viewCert = { ...cert, beta: [b[0] + Math.max(0, tau - 2), b[1]] };
+    const phase = effective.view?.phase || [Math.max(0, tau - 2) * (effective.view?.loop_period || 0), 0];
+    viewCert = { ...cert, beta: [b[0] + phase[0], b[1] + (phase[1] || 0)] };
   }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

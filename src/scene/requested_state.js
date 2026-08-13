@@ -40,6 +40,7 @@ export function defaultRequestedState() {
         family: "P0",
         root: { translation: [0, 0.85, 0.02], yaw: Math.PI },
         bend_tilt_twist: {},
+        btt_euler: { spine: { bend: 0, tilt: 0, twist: 0 }, head: { bend: 0, tilt: 0, twist: 0 }, shoulder_R: { bend: 0, tilt: 0, twist: 0 } },
         endpoint_targets: {},
       },
       ik_branches: { arm_R: 1, arm_L: 1, leg_R: 1, leg_L: 1 },
@@ -58,7 +59,13 @@ export function defaultRequestedState() {
       screen_inset_m: { left: 0.003, right: 0.003, top: 0.004, bottom: 0.008 },
     },
     camera: {
-      calibration_id: null,
+      calibration_id: "HYPOTHESIS_P0_FRONT",
+      calibration_record: {
+        kind: "HYPOTHESIS",
+        hfov_deg: 70,
+        principal: "centre",
+        source: "unmeasured P0 image; not a reviewed device record",
+      },
       hfov_request: (70 * Math.PI) / 180,
       crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560, pan: [0, 0] },
       optical_offset_local: [0, 0.055, 0.004],
@@ -84,6 +91,7 @@ export function defaultRequestedState() {
       active_preserve_set: ["apparatus_rotation", "support"],
       solve_freedoms: ["pose", "mirror_distance", "phone"],
       solve_mode: SOLVE_MODE.P0_RECONSTRUCT,
+      driver: "P0_RECONSTRUCT",
     },
     content_q: {
       fill_mode: "cover",
@@ -106,14 +114,11 @@ export function defaultRequestedState() {
       tau: 0,
       warp_visible: true,
     },
-    domain_warp: { mode: "IDENTITY", protect: [] },
-    panel_space: { cuts: [], transforms: [], connectors: [], routing: [] },
-    correspondence: { pairs: [] },
-    contradiction: { enabled: false, ops: [] },
     workspace: {
       mode: "POSE",
-      selection: null,
-      overlays: { REFERENCE: true, SKELETON: true, PHONE: true, MIRROR: true, P: true },
+      selection: "body",
+      last_edit: null,
+      overlays: { REFERENCE: false, SKELETON: true, PHONE: true, MIRROR: true, P: false },
     },
   };
 }

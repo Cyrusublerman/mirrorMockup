@@ -1,9 +1,9 @@
 import { cloneState } from "./requested_state.js";
 import { constraintResult, emptyEffective } from "./effective_state.js";
-import { evaluatePhone } from "../domains/phone/prism.js";
+import { evaluatePhone, phoneFromWrist } from "../domains/phone/prism.js";
 import { evaluateCamera } from "../domains/camera/model.js";
 import { evaluateApparatus, autosolveDistance } from "../domains/apparatus/relation.js";
-import { evaluateMirror } from "../domains/mirror/mesh.js";
+import { evaluateMirror, fitAperture } from "../domains/mirror/mesh.js";
 import { evaluateReflection } from "../domains/reflection/reflect.js";
 import { evaluatePose } from "../domains/pose/solve.js";
 import { evaluateSupport } from "../domains/support/contact.js";
@@ -13,16 +13,11 @@ import { evaluateCarrierP } from "../domains/carrier_p/project.js";
 import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
-import { evaluateLayers } from "../domains/composition/layers.js";
-import { evaluateDomainWarp } from "../domains/domain_warp/warp.js";
-import { evaluatePanelSpace } from "../domains/panel_space/operator.js";
-import { evaluateCorrespondence } from "../domains/correspondence/morph.js";
-import { evaluateContradiction } from "../domains/contradiction/layer.js";
 import { viewCameraAtTau, fillFraction } from "../render/artwork_camera.js";
 import { nudgeToPhoneTarget } from "./solve_policy.js";
 import { jacobian } from "../shared_math/jacobian.js";
-import { fitAperture } from "../domains/mirror/mesh.js";
 import { createProposal } from "./proposals.js";
+import { SEMANTIC } from "../domains/body/skeleton.js";
 
 function applyApparatusPan(req) {
   const pan = req.apparatus.apparatus_pan_request_m || [0, 0];
@@ -30,38 +25,78 @@ function applyApparatusPan(req) {
   req.phone.transform_request.translation[2] += pan[1];
 }
 
+function solvePhonePose(req) {
+  if (req.phone.authority === "HAND_DRIVES_PHONE") {
+    const pose = evaluatePose(req, null, null);
+    const wristXf = pose.world?.[SEMANTIC.wrist_R];
+    const phoneWorld = wristXf ? phoneFromWrist(wristXf, req.phone.grip_relation) : null;
+    const phone = evaluatePhone(req, phoneWorld || undefined);
+    const grip = evaluateGrip(phone, req);
+    return { phone, pose, grip };
+  }
+  const phone = evaluatePhone(req);
+  const grip = evaluateGrip(phone, req);
+  const pose = evaluatePose(req, phone.grip_world, grip);
+  return { phone, pose, grip };
+}
+
 function solveOnce(req) {
   applyApparatusPan(req);
-  const phone = evaluatePhone(req);
+  let { phone, pose, grip } = solvePhonePose(req);
   let cam = evaluateCamera(phone.world, req);
   let apparatus = evaluateApparatus(cam, req);
+  let compensation = null;
 
   if (req.apparatus.mirror_distance_auto_solve) {
     const trialMirror = evaluateMirror(apparatus, req);
     const trialP = evaluateCarrierP(phone, cam, trialMirror);
     const measured = Math.abs(trialP.area || 0);
     const target = req.apparatus.preserved_reflected_phone_ratio;
-    const nextD = autosolveDistance(apparatus.d_M, target, Math.max(measured, 1e-8));
+    const from = apparatus.d_M;
+    let nextD = autosolveDistance(from, target, Math.max(measured, 1e-8));
+    const minD = 0.25;
+    const maxD = 8;
+    let projected = false;
+    if (nextD < minD || nextD > maxD) {
+      nextD = Math.max(minD, Math.min(maxD, nextD));
+      projected = true;
+    }
     req.apparatus.mirror_distance_request_m = nextD;
     apparatus = evaluateApparatus(cam, req);
+    compensation = {
+      variable: "mirror_distance_request_m",
+      from,
+      to: nextD,
+      reason: "preserved_reflected_phone_ratio",
+      inspectable: true,
+      depth_order: projected ? "PROJECTED" : "PASS",
+    };
   }
 
   const mirror = evaluateMirror(apparatus, req);
   const reflection = evaluateReflection(cam, mirror);
-  const grip = evaluateGrip(phone, req);
-  const pose = evaluatePose(req, phone.grip_world, grip);
   const support = evaluateSupport(pose.fk, req);
-  const visibility = evaluateVisibility(pose.fk, cam, mirror);
+  const occluders = [
+    { mesh: phone.mesh, world: phone.world },
+    pose.fk?.pelvis && pose.fk?.shoulder_L && pose.fk?.shoulder_R && pose.fk?.head
+      ? {
+          mesh: {
+            positions: [pose.fk.pelvis, pose.fk.shoulder_L, pose.fk.shoulder_R, pose.fk.head],
+            triangles: [
+              [0, 1, 2],
+              [1, 2, 3],
+            ],
+          },
+          world: { translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        }
+      : null,
+  ].filter(Boolean);
+  const visibility = evaluateVisibility(pose.fk, cam, mirror, occluders);
   const carrier_p = evaluateCarrierP(phone, cam, mirror);
   const content_q = evaluateQ(req, carrier_p);
   const recursion = evaluateRecursion(req, carrier_p);
   const mirrorImageQuad = (mirror.quad || []).map((X) => projectWorld(X, cam).image_norm);
   const composition = evaluateMetrics(visibility, carrier_p, req, mirrorImageQuad);
-  const layers = evaluateLayers(cam, mirrorImageQuad, carrier_p, recursion);
-  const domain_warp = evaluateDomainWarp(req, layers);
-  const panel_space = evaluatePanelSpace(req);
-  const correspondence = evaluateCorrespondence(req, layers);
-  const contradiction = evaluateContradiction(req);
   const view = viewCameraAtTau(cam, apparatus, carrier_p, recursion, req.view.tau);
   return {
     phone,
@@ -79,11 +114,7 @@ function solveOnce(req) {
     composition,
     view,
     mirrorImageQuad,
-    layers,
-    domain_warp,
-    panel_space,
-    correspondence,
-    contradiction,
+    compensation,
   };
 }
 
@@ -102,6 +133,7 @@ function sensitivityAt(req) {
   const x0 = [
     req.apparatus.mirror_distance_request_m,
     req.apparatus.mirror_pan_uv_request_m[0],
+    req.camera.hfov_request,
   ];
   const J = jacobian(
     (x) => {
@@ -109,6 +141,7 @@ function sensitivityAt(req) {
       r.apparatus.mirror_distance_auto_solve = false;
       r.apparatus.mirror_distance_request_m = x[0];
       r.apparatus.mirror_pan_uv_request_m[0] = x[1];
+      r.camera.hfov_request = x[2];
       return phoneCentroid(r);
     },
     x0,
@@ -120,6 +153,8 @@ function sensitivityAt(req) {
     { of: "phone_cy", wrt: "d_M", value: J[1][0] },
     { of: "phone_cx", wrt: "mirror_pan_u", value: J[0][1] },
     { of: "phone_cy", wrt: "mirror_pan_u", value: J[1][1] },
+    { of: "phone_cx", wrt: "hfov", value: J[0][2] },
+    { of: "phone_cy", wrt: "hfov", value: J[1][2] },
   ];
 }
 
@@ -150,11 +185,7 @@ export function solve(requested) {
     recursion,
     composition,
     view,
-    layers,
-    domain_warp,
-    panel_space,
-    correspondence,
-    contradiction,
+    compensation,
   } = parts;
 
   let proposal = req.workspace.proposal || null;
@@ -163,7 +194,9 @@ export function solve(requested) {
     for (const r of Object.values(visibility.reports || {})) {
       if (r.reflected?.aperture?.uv) uvs.push(r.reflected.aperture.uv);
     }
-    const fit = uvs.length ? fitAperture(uvs, req.mirror.fit_margin_m) : { width: req.mirror.width_m, height: req.mirror.height_m };
+    const fit = uvs.length
+      ? fitAperture(uvs, req.mirror.fit_margin_m)
+      : { width: req.mirror.width_m, height: req.mirror.height_m };
     proposal = createProposal({
       id: "mirror_fit",
       kind: "MIRROR_FIT",
@@ -180,6 +213,7 @@ export function solve(requested) {
         requested: null,
         effective: null,
         residual: c.residual,
+        moved_variables: pose.coupled?.moved || [],
       }),
     ),
     ...support.reports.map((r) =>
@@ -207,6 +241,19 @@ export function solve(requested) {
       reason: (carrier_p.reasons || []).join(","),
     }),
   ];
+  if (compensation) {
+    constraints.push(
+      constraintResult({
+        state: compensation.depth_order,
+        constraint_id: "autosolve_d_M",
+        requested: compensation.from,
+        effective: compensation.to,
+        residual: compensation.to - compensation.from,
+        reason: compensation.reason,
+        moved_variables: [compensation.variable],
+      }),
+    );
+  }
 
   const top = constraints.some((c) => c.state === "FAIL")
     ? "FAIL"
@@ -220,6 +267,8 @@ export function solve(requested) {
   } catch {
     sensitivity = [];
   }
+
+  const last_edit = requested.workspace?.last_edit || null;
 
   const effective = {
     ...emptyEffective(),
@@ -242,11 +291,11 @@ export function solve(requested) {
     transaction: top,
     sensitivity,
     proposal,
-    layers,
-    domain_warp,
-    panel_space,
-    correspondence,
-    contradiction,
+    compensation,
+    last_edit,
+    driver: last_edit?.driver || req.composition.driver || req.composition.solve_mode,
+    preserve: req.composition.active_preserve_set,
+    allowed_to_move: req.composition.solve_freedoms,
   };
 
   return { requested: req, effective, transaction: top };

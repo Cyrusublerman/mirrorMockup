@@ -1,6 +1,7 @@
 import { cloneState } from "../scene/requested_state.js";
 import { applySolveMode } from "../scene/solve_policy.js";
 import { createProposal, acceptProposal, rejectProposal, applyPatch } from "../scene/proposals.js";
+import { anatomicalQuat } from "../domains/body/skeleton.js";
 
 export const ACTION_NAMES = [
   "LOAD_P0_PROFILE",
@@ -61,6 +62,26 @@ function setPath(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 
+function driverOf(name, payload, composition) {
+  if (name === "SET_DRIVER") return payload.driver || payload.mode || composition.driver;
+  if (name === "MOVE_PHONE" || name === "ROTATE_PHONE") return "phone";
+  if (name === "MOVE_POSE_TARGET" || name === "SET_ANATOMICAL_DOF" || name === "SET_BODY_FRAME_TARGET") return "pose";
+  if (name === "SET_MIRROR_DISTANCE" || name === "PAN_MIRROR_WINDOW" || name === "SET_MIRROR_APERTURE") return "mirror";
+  if (name === "SET_CAMERA_FOV" || name === "PAN_OUTER_FRAME") return "camera";
+  if (name === "SET_CONTENT_Q") return "content_q";
+  if (name === "SET_PRINT_GALLERY_MODE" || name === "SET_RECURSION_PARAMETER") return "recursion";
+  return composition.driver || composition.solve_mode;
+}
+
+function tagEdit(next, name, payload) {
+  next.workspace.last_edit = {
+    action: name,
+    driver: driverOf(name, payload, next.composition),
+    preserve: (next.composition.active_preserve_set || []).slice(),
+    allowed_to_move: (next.composition.solve_freedoms || []).slice(),
+  };
+}
+
 export function applyAction(requested, name, payload = {}) {
   if (name === "ROTATE" + "_MIRROR") {
     return { requested, error: "mirror rotation is not a production action" };
@@ -117,9 +138,20 @@ export function applyAction(requested, name, payload = {}) {
     case "CHOOSE_IK_BRANCH":
       next.body.ik_branches[payload.chain] = payload.branch;
       break;
-    case "SET_ANATOMICAL_DOF":
-      next.body.pose_targets.bend_tilt_twist[payload.joint] = payload.quat;
+    case "SET_ANATOMICAL_DOF": {
+      const joint = payload.joint;
+      if (payload.quat) {
+        next.body.pose_targets.bend_tilt_twist[joint] = payload.quat;
+      } else {
+        const bend = payload.bend || 0;
+        const tilt = payload.tilt || 0;
+        const twist = payload.twist || 0;
+        next.body.pose_targets.btt_euler = next.body.pose_targets.btt_euler || {};
+        next.body.pose_targets.btt_euler[joint] = { bend, tilt, twist };
+        next.body.pose_targets.bend_tilt_twist[joint] = anatomicalQuat(bend, tilt, twist);
+      }
       break;
+    }
     case "SET_BODY_FRAME_TARGET":
       next.body.pose_targets.root = { ...next.body.pose_targets.root, ...payload };
       break;
@@ -142,11 +174,16 @@ export function applyAction(requested, name, payload = {}) {
       next.workspace.selection = payload.selection;
       break;
     case "SET_DRIVER":
-    case "SET_PRESERVE_SET":
-    case "SET_SOLVE_FREEDOMS":
-      next.composition = applySolveMode(next, payload.mode || next.composition.solve_mode).composition;
+      if (payload.mode) next.composition = applySolveMode(next, payload.mode).composition;
+      next.composition.driver = payload.driver || payload.mode || next.composition.driver;
       if (payload.preserve) next.composition.active_preserve_set = payload.preserve;
       if (payload.freedoms) next.composition.solve_freedoms = payload.freedoms;
+      break;
+    case "SET_PRESERVE_SET":
+      next.composition.active_preserve_set = payload.preserve || [];
+      break;
+    case "SET_SOLVE_FREEDOMS":
+      next.composition.solve_freedoms = payload.freedoms || [];
       break;
     case "LOAD_P0_PROFILE":
       next.reference.active_profile = "P0";
@@ -160,6 +197,7 @@ export function applyAction(requested, name, payload = {}) {
     case "SET_CAMERA_CALIBRATION":
       next.camera.calibration_id = payload.id;
       next.camera.epistemic_status = payload.epistemic_status || "CALIBRATED";
+      if (payload.record) next.camera.calibration_record = payload.record;
       break;
     case "SET_FINAL_CROP":
       Object.assign(next.camera.crop_request, payload);
@@ -219,6 +257,7 @@ export function applyAction(requested, name, payload = {}) {
     default:
       break;
   }
+  tagEdit(next, name, payload);
   return { requested: next };
 }
 

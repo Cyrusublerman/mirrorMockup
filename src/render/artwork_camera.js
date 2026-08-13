@@ -1,4 +1,5 @@
 import { add, scale } from "../shared_math/vector.js";
+import { loopPeriod, loopPhase } from "../domains/recursion/kernel.js";
 
 export function tauSegments(d_M, fillFraction) {
   const tau_M = 1;
@@ -43,7 +44,8 @@ export function viewCameraAtTau(captureCam, apparatus, carrierP, recursion, tau)
     extraScale = zoomFill;
     segment = recursion?.mode && recursion.mode !== "OFF" ? "LOOP" : "CLAMP";
     if (segment === "LOOP" && recursion.certificate) {
-      phase = [tau - tau_P, 0];
+      phase = loopPhase(recursion.certificate, tau, tau_P);
+      extraScale = zoomFill;
     }
   }
   return {
@@ -55,6 +57,7 @@ export function viewCameraAtTau(captureCam, apparatus, carrierP, recursion, tau)
     tau_P,
     extraScale,
     phase,
+    loop_period: recursion?.certificate ? loopPeriod(recursion.certificate) : null,
     hfov: captureCam.hfov / extraScale,
     mutates_capture: false,
   };

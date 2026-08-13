@@ -27,6 +27,12 @@ export function bindNumeric(root, dispatch) {
         });
         return;
       }
+      if (name === "SET_ANATOMICAL_DOF") {
+        const joint = el.dataset.joint;
+        const g = (f) => Number(root.querySelector(`input[data-num="SET_ANATOMICAL_DOF"][data-joint="${joint}"][data-field="${f}"]`).value);
+        dispatch(name, { joint, bend: g("bend"), tilt: g("tilt"), twist: g("twist") });
+        return;
+      }
       if (name === "CHOOSE_IK_BRANCH") {
         dispatch(name, { chain: "arm_R", branch: v < 0 ? -1 : 1 });
         return;

@@ -77,8 +77,22 @@ export function worldCorners(localCorners, worldXf) {
   return localCorners.map((p) => xform.transformPoint(worldXf, p));
 }
 
-export function evaluatePhone(requested) {
-  const world = phoneWorldTransform(requested.phone);
+export function phoneFromWrist(wristWorld, gripRelation) {
+  const gripLocal = {
+    translation: (gripRelation?.offset || [0, 0, 0]).slice(),
+    rotation: (gripRelation?.rotation || [0, 0, 0, 1]).slice(),
+    scale: [1, 1, 1],
+  };
+  const gripWorld = {
+    translation: wristWorld.translation.slice(),
+    rotation: wristWorld.rotation.slice(),
+    scale: [1, 1, 1],
+  };
+  return xform.compose(gripWorld, xform.invert(gripLocal));
+}
+
+export function evaluatePhone(requested, worldOverride) {
+  const world = worldOverride || phoneWorldTransform(requested.phone);
   const dims = requested.phone.body_dimensions_m;
   const inset = requested.phone.screen_inset_m;
   const screenLocal = localScreenCorners(dims, inset);

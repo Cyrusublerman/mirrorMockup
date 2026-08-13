@@ -116,3 +116,11 @@ export function selectExportSnapshot(effective) {
     mode: effective.recursion.mode,
   };
 }
+
+export function selectLastEdit(effective) {
+  return effective.last_edit;
+}
+
+export function selectCompensation(effective) {
+  return effective.compensation;
+}

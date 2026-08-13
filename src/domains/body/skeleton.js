@@ -163,11 +163,31 @@ export function aimWrist(locals, world, rootWorld, phoneWorld) {
   return true;
 }
 
+export const JOINT_LIMIT_RAD = 2.4;
+
+export function projectJointQuat(q, limit = JOINT_LIMIT_RAD) {
+  if (!q || q.length !== 4) return q;
+  const nq = quat.normalize(q);
+  const w = Math.max(-1, Math.min(1, nq[3]));
+  const ang = 2 * Math.acos(w);
+  if (!(ang > limit)) return nq;
+  const axisLen = Math.hypot(nq[0], nq[1], nq[2]);
+  if (axisLen < 1e-9) return quat.identity();
+  return quat.fromAxisAngle([nq[0] / axisLen, nq[1] / axisLen, nq[2] / axisLen], limit);
+}
+
+export function anatomicalQuat(bend = 0, tilt = 0, twist = 0) {
+  return quat.bendTiltTwist(bend, tilt, twist);
+}
+
 export function evaluateSkeleton(requested) {
-  const locals = applyPoseRotations(restLocals(), {
+  const raw = {
     ...p0PoseRotations(),
     ...requested.body.pose_targets.bend_tilt_twist,
-  });
+  };
+  const limited = {};
+  for (const [k, q] of Object.entries(raw)) limited[k] = projectJointQuat(q);
+  const locals = applyPoseRotations(restLocals(), limited);
   const root_world = p0RootWorld(requested);
   const { world, fk } = forwardKinematics(locals, root_world);
   return {
@@ -177,6 +197,7 @@ export function evaluateSkeleton(requested) {
     root_world,
     glb: requested.body.definition.glb,
     map: MAP,
+    joint_limits_applied: true,
   };
 }
 
