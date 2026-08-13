@@ -4,28 +4,31 @@ overview: Build the Governing Spec v1 tool to §27 completion. Spec layout only.
 todos:
   - id: graph-math-fixtures
     content: Create spec §26 tree, validate.py, shared_math, P0 IMAGE_NORM fixture, recursion kernel fixture (§18 / §25.8)
-    status: pending
+    status: completed
   - id: body-pose-ik
-    content: Body definition, P0 pose family, support, coupled IK (§§6–7, tests §25.2)
-    status: pending
+    content: Drive pose from fixtures/P0/base_female_rigged.glb Mixamo skeleton; support; coupled IK (§§6–7, tests §25.2)
+    status: completed
+  - id: primitive-meshes
+    content: Phone as rectangular prism from body_dimensions_m; mirror as a simple aperture quad/thin plane mesh
+    status: completed
   - id: apparatus
     content: Phone, camera T_WC=T_WP T_PC, apparatus-locked mirror, FOV as network variable (§§5, 8–9, tests §25.3–25.4)
-    status: pending
+    status: completed
   - id: reflection-p
     content: Reflection, visibility, derived carrier P with validity gates (§§11, 16, tests §25.5)
-    status: pending
+    status: completed
   - id: composition-net
     content: IMAGE_NORM targets, named solve modes, P0_RECONSTRUCT residuals (§§12–13, tests §25.6)
-    status: pending
+    status: completed
   - id: recursion-view-export
     content: Q, warp OFF|AUTO|ADVANCED, AUTO loop from P, artwork dolly→phone→loop, PNG export (§§17–20, §27.19)
-    status: pending
+    status: completed
   - id: facade-ui
     content: Spec §22 actions/selectors, five modes, overlays, warp toggle and view scrub in RECURSION (§§14, 21–24, tests §25.9)
-    status: pending
+    status: completed
   - id: persistence-done
     content: Save/restore requested state plus warp/view; full export suite; stop only when §27.1–27.19 hold
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -96,6 +99,9 @@ Do not expose the same degree of freedom twice.
 - general mirror plane — `domains/mirror` for tests/calibration only
 - P — DERIVED from reflected physical screen
 - Q — authored; never moves P or the apparatus
+- body mesh — `fixtures/P0/base_female_rigged.glb` (skinned Mixamo); pose writes that skeleton
+- phone mesh — rectangular prism from `body_dimensions_m`; screen is the front-face inset
+- mirror mesh — simple quad (finite aperture) in the apparatus plane; not a second rig
 - artwork view — `render/artwork_camera.js`; must not write capture camera
 - Print Gallery field — `domains/recursion`, `I(z)=F(W(z))`
 

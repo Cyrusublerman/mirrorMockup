@@ -1,0 +1,84 @@
+import { add, scale, sub, vec3 } from "../../shared_math/vector.js";
+import * as quat from "../../shared_math/quaternion.js";
+import * as xform from "../../shared_math/transform.js";
+
+export function phoneWorldTransform(phoneRequest) {
+  const t = phoneRequest.transform_request.translation;
+  const r = quat.yawPitchRoll(
+    phoneRequest.transform_request.yaw,
+    phoneRequest.transform_request.pitch,
+    phoneRequest.transform_request.roll,
+  );
+  return { translation: t.slice(), rotation: r, scale: [1, 1, 1] };
+}
+
+export function localScreenCorners(dims, inset) {
+  const hx = dims.width / 2;
+  const hy = dims.height / 2;
+  const z = dims.depth / 2;
+  const l = -hx + inset.left;
+  const r = hx - inset.right;
+  const t = hy - inset.top;
+  const b = -hy + inset.bottom;
+  return [
+    [l, z, t],
+    [r, z, t],
+    [r, z, b],
+    [l, z, b],
+  ];
+}
+
+export function prismCorners(dims) {
+  const hx = dims.width / 2;
+  const hy = dims.height / 2;
+  const hz = dims.depth / 2;
+  const c = [];
+  for (const x of [-hx, hx]) for (const y of [-hz, hz]) for (const z of [-hy, hy]) c.push([x, y, z]);
+  return c;
+}
+
+export function prismMesh(dims) {
+  const hx = dims.width / 2;
+  const hy = dims.height / 2;
+  const hz = dims.depth / 2;
+  const positions = [
+    [-hx, -hz, -hy], [hx, -hz, -hy], [hx, hz, -hy], [-hx, hz, -hy],
+    [-hx, -hz, hy], [hx, -hz, hy], [hx, hz, hy], [-hx, hz, hy],
+  ];
+  const faces = [
+    [0, 1, 2, 3],
+    [4, 7, 6, 5],
+    [0, 4, 5, 1],
+    [2, 6, 7, 3],
+    [0, 3, 7, 4],
+    [1, 5, 6, 2],
+  ];
+  const triangles = [];
+  for (const f of faces) {
+    triangles.push([f[0], f[1], f[2]], [f[0], f[2], f[3]]);
+  }
+  return { positions, triangles, kind: "rectangular_prism" };
+}
+
+export function worldCorners(localCorners, worldXf) {
+  return localCorners.map((p) => xform.transformPoint(worldXf, p));
+}
+
+export function evaluatePhone(requested) {
+  const world = phoneWorldTransform(requested.phone);
+  const dims = requested.phone.body_dimensions_m;
+  const inset = requested.phone.screen_inset_m;
+  const screenLocal = localScreenCorners(dims, inset);
+  return {
+    world,
+    mesh: prismMesh(dims),
+    screen_corners_local: screenLocal,
+    screen_corners_world: worldCorners(screenLocal, world),
+    prism_corners_world: worldCorners(prismCorners(dims), world),
+    grip_world: xform.compose(world, {
+      translation: requested.phone.grip_relation.offset,
+      rotation: requested.phone.grip_relation.rotation,
+      scale: [1, 1, 1],
+    }),
+  };
+}

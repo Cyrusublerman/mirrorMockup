@@ -1,0 +1,11 @@
+{
+  "name": "mirror-portrait-tool",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "validate": "python3 tools/validate.py",
+    "start": "python3 -m http.server 8765"
+  }
+}

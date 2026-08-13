@@ -1,0 +1,39 @@
+{
+  "asset": "fixtures/P0/base_female_rigged.glb",
+  "source": "Sketchfab Base Female Game Ready Rigged Low Poly CC-BY-4.0",
+  "gltf_up": "Y",
+  "world_up": "Z",
+  "semantic_to_glb": {
+    "root": "Root_01",
+    "pelvis": "Hips_00",
+    "spine_lower": "Spine.001_010",
+    "spine_mid": "Spine1_011",
+    "ribcage": "Spine2_012",
+    "neck": "Neck_032",
+    "head": "Head_033",
+    "clavicle_L": "Shoulder.L_013",
+    "shoulder_L": "Arm.L_014",
+    "elbow_L": "ForeArm.L_015",
+    "wrist_L": "Hand.L_016",
+    "clavicle_R": "Shoulder.R_034",
+    "shoulder_R": "Arm.R_035",
+    "elbow_R": "ForeArm.R_036",
+    "wrist_R": "Hand.R_037",
+    "hip_L": "UpLeg.L_02",
+    "knee_L": "Leg.L_03",
+    "ankle_L": "Foot.L_04",
+    "toe_L": "ToeBase.L_05",
+    "hip_R": "UpLeg.R_06",
+    "knee_R": "Leg.R_07",
+    "ankle_R": "Foot.R_08",
+    "toe_R": "ToeBase.R_09",
+    "hand_L": "Hand.L_016",
+    "hand_R": "Hand.R_037"
+  },
+  "ik_chains": {
+    "arm_L": ["shoulder_L", "elbow_L", "wrist_L"],
+    "arm_R": ["shoulder_R", "elbow_R", "wrist_R"],
+    "leg_L": ["hip_L", "knee_L", "ankle_L"],
+    "leg_R": ["hip_R", "knee_R", "ankle_R"]
+  }
+}
