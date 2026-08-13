@@ -4,5 +4,5 @@ export const BUILD = {
   core: "1.0.0",
   spec_ui: "Final Polished UI Build Authority v1",
   spec_core: "Governing Build Specification v1",
-  commit: "5e0881e4bc4a4758657e52474d893b045785e61f",
+  commit: "49632d9779cbbea22ec37e1eb3dc9fa61dd09465",
 };
