@@ -33,8 +33,8 @@ test("PHONE_DRIVES_HAND writes GLB arm toward the phone prism", () => {
   const eff = app.getEffective();
   assert.equal(app.getRequested().body.definition.glb, "fixtures/P0/base_female_rigged.glb");
   const wrist = eff.skeleton.fk.wrist_R;
-  const grip = eff.phone.grip_world.translation;
-  assert.ok(distance(wrist, grip) < 0.03);
+  const gripTarget = eff.grip?.wrist_target || eff.phone.grip_world.translation;
+  assert.ok(distance(wrist, gripTarget) < 0.03);
   const restElbow = restLocals()[SEMANTIC.elbow_R].rotation;
   const posedElbow = eff.skeleton.locals[SEMANTIC.elbow_R].rotation;
   assert.ok(distance(posedElbow.slice(0, 3), restElbow.slice(0, 3)) > 1e-4 || Math.abs(posedElbow[3] - restElbow[3]) > 1e-4);
@@ -46,4 +46,5 @@ test("P0 reconstruct residuals are explicit", () => {
   assert.ok(res.direct_head);
   assert.ok("residual" in res.direct_head);
   assert.ok("requested" in res.phone);
+  assert.equal(typeof app.getEffective().support.plant_delta_z, "number");
 });

@@ -3,7 +3,7 @@ import GLB_NODES from "../../../fixtures/P0/glb_nodes.json" with { type: "json" 
 import * as quat from "../../shared_math/quaternion.js";
 import * as xform from "../../shared_math/transform.js";
 import { twoLinkIk } from "../../shared_math/numerical.js";
-import { distance, normalize, sub } from "../../shared_math/vector.js";
+import { add, distance, dot, normalize, sub } from "../../shared_math/vector.js";
 
 export const SEMANTIC = MAP.semantic_to_glb;
 
@@ -135,6 +135,32 @@ export function applyArmIk(locals, world, rootWorld, chain, target, branch) {
     fk: posed.fk,
     residual: wrist ? distance(wrist, target) : ik.residual,
   };
+}
+
+export function aimWrist(locals, world, rootWorld, phoneWorld) {
+  const boneName = SEMANTIC.wrist_R;
+  const bone = world[boneName];
+  if (!bone || !phoneWorld) return false;
+  const des = normalize(quat.rotateVec(phoneWorld.rotation, [0, 0, -1]));
+  if (des[0] === 0 && des[1] === 0 && des[2] === 0) return false;
+
+  const node = nodeByName(boneName);
+  const childIdx = node?.children?.[0];
+  const childName = childIdx != null ? GLB_NODES.nodes[childIdx]?.name : null;
+  const child = childName ? world[childName] : null;
+  const cur = child
+    ? normalize(sub(child.translation, bone.translation))
+    : normalize(quat.rotateVec(bone.rotation, [0, 1, 0]));
+  if (cur[0] === 0 && cur[1] === 0 && cur[2] === 0) return false;
+  if (dot(cur, des) < -0.95) return false;
+
+  if (childName && child) {
+    aimBone(locals, world, boneName, childName, add(bone.translation, des), rootWorld);
+  } else {
+    const newWorldR = quat.multiply(quat.fromTo(cur, des), bone.rotation);
+    setLocalFromWorldRotation(locals, world, boneName, newWorldR, rootWorld);
+  }
+  return true;
 }
 
 export function evaluateSkeleton(requested) {
