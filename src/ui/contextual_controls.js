@@ -11,6 +11,19 @@ export function renderContext(requested, effective) {
         <label>S <input data-num="SET_RECURSION_PARAMETER" data-field="source_period" type="number" value="${requested.recursion.source_period}"></label>
       </div>`;
   }
+  if (requested.workspace.mode === "POSE") {
+    const r = requested.body.pose_targets.root;
+    return `
+      <div class="panel">
+        <h3>Pose</h3>
+        <p>rig ${requested.body.definition.glb.split("/").pop()}</p>
+        <label>root x <input data-num="SET_BODY_FRAME_TARGET" data-field="x" type="number" step="0.01" value="${r.translation[0]}"></label>
+        <label>root y <input data-num="SET_BODY_FRAME_TARGET" data-field="y" type="number" step="0.01" value="${r.translation[1]}"></label>
+        <label>root z <input data-num="SET_BODY_FRAME_TARGET" data-field="z" type="number" step="0.01" value="${r.translation[2]}"></label>
+        <label>yaw deg <input data-num="SET_BODY_FRAME_TARGET" data-field="yaw_deg" type="number" step="1" value="${(r.yaw * 180 / Math.PI).toFixed(1)}"></label>
+        <label>arm_R branch <input data-num="CHOOSE_IK_BRANCH" data-field="branch" type="number" step="2" value="${requested.body.ik_branches.arm_R}"></label>
+      </div>`;
+  }
   if (requested.workspace.mode === "SCENE") {
     const t = requested.phone.transform_request.translation;
     return `

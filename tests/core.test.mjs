@@ -71,12 +71,15 @@ test("phone is rectangular prism", () => {
   const m = prismMesh({ width: 0.07, height: 0.14, depth: 0.008 });
   assert.equal(m.kind, "rectangular_prism");
   assert.equal(m.positions.length, 8);
+  assert.equal(m.triangles.length, 12);
 });
 
 test("mirror is simple aperture mesh", () => {
   const m = mirrorMesh([0, 1, 1], { u: [1, 0, 0], v: [0, 0, 1], n: [0, -1, 0] }, 0.6, 0.8, 0.01);
   assert.equal(m.kind, "aperture_slab");
   assert.equal(m.quad.length, 4);
+  assert.equal(m.positions.length, 8);
+  assert.equal(m.triangles.length, 12);
 });
 
 test("parallel special case diagnostic", () => {
@@ -89,7 +92,10 @@ test("app solve and warp toggle", () => {
   const app = createApp();
   const a = app.getEffective();
   assert.ok(a.phone.mesh.kind === "rectangular_prism");
+  assert.equal(a.phone.mesh.triangles.length, 12);
+  assert.equal(a.phone.screen_mesh.kind, "screen_quad");
   assert.ok(a.mirror.mesh.kind === "aperture_slab");
+  assert.equal(a.mirror.mesh.positions.length, 8);
   assert.equal(a.view.mutates_capture, false);
   const before = structuredClone(app.getRequested().phone);
   app.dispatch("SET_PRINT_GALLERY_MODE", { mode: "AUTO" });

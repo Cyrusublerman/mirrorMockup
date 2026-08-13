@@ -60,6 +60,19 @@ export function prismMesh(dims) {
   return { positions, triangles, kind: "rectangular_prism" };
 }
 
+export function screenMesh(dims, inset) {
+  const lift = 4e-4;
+  const positions = localScreenCorners(dims, inset).map((p) => [p[0], p[1] + lift, p[2]]);
+  return {
+    kind: "screen_quad",
+    positions,
+    triangles: [
+      [0, 1, 2],
+      [0, 2, 3],
+    ],
+  };
+}
+
 export function worldCorners(localCorners, worldXf) {
   return localCorners.map((p) => xform.transformPoint(worldXf, p));
 }
@@ -72,6 +85,7 @@ export function evaluatePhone(requested) {
   return {
     world,
     mesh: prismMesh(dims),
+    screen_mesh: screenMesh(dims, inset),
     screen_corners_local: screenLocal,
     screen_corners_world: worldCorners(screenLocal, world),
     prism_corners_world: worldCorners(prismCorners(dims), world),

@@ -3,9 +3,17 @@ import GLB_NODES from "../../../fixtures/P0/glb_nodes.json" with { type: "json" 
 import * as quat from "../../shared_math/quaternion.js";
 import * as xform from "../../shared_math/transform.js";
 import { twoLinkIk } from "../../shared_math/numerical.js";
-import { distance } from "../../shared_math/vector.js";
+import { distance, normalize, sub } from "../../shared_math/vector.js";
 
 export const SEMANTIC = MAP.semantic_to_glb;
+
+export const BONE_PARENT = (() => {
+  const p = {};
+  for (const n of GLB_NODES.nodes) {
+    for (const c of n.children || []) p[GLB_NODES.nodes[c].name] = n.name;
+  }
+  return p;
+})();
 
 function nodeByName(name) {
   return GLB_NODES.nodes.find((n) => n.name === name);
@@ -25,7 +33,7 @@ export function restLocals() {
   return locals;
 }
 
-export function applyPoseRotations(locals, poseRotations) {
+export function applyPoseRotations(locals, poseDeltas) {
   const out = {};
   for (const [k, v] of Object.entries(locals)) {
     out[k] = {
@@ -36,9 +44,10 @@ export function applyPoseRotations(locals, poseRotations) {
       index: v.index,
     };
   }
-  for (const [semantic, q] of Object.entries(poseRotations)) {
-    const glb = SEMANTIC[semantic];
-    if (glb && out[glb]) out[glb].rotation = q.slice();
+  for (const [semantic, q] of Object.entries(poseDeltas)) {
+    const glb = SEMANTIC[semantic] || semantic;
+    if (!out[glb]) continue;
+    out[glb].rotation = quat.normalize(quat.multiply(out[glb].rotation, q));
   }
   return out;
 }
@@ -79,8 +88,25 @@ export function p0PoseRotations() {
     elbow_R: quat.fromAxisAngle([1, 0, 0], ((180 - 132.95) * Math.PI) / 180),
     knee_L: quat.fromAxisAngle([1, 0, 0], ((180 - 178.21) * Math.PI) / 180),
     knee_R: quat.fromAxisAngle([1, 0, 0], ((180 - 174.01) * Math.PI) / 180),
-    shoulder_R: quat.fromAxisAngle([0, 0, 1], -0.6),
   };
+}
+
+function setLocalFromWorldRotation(locals, world, name, worldRot, rootWorld) {
+  const parent = BONE_PARENT[name];
+  const parentR = parent && world[parent] ? world[parent].rotation : rootWorld.rotation;
+  locals[name].rotation = quat.normalize(quat.multiply(quat.invert(parentR), worldRot));
+}
+
+export function aimBone(locals, world, boneName, childName, target, rootWorld) {
+  const bone = world[boneName];
+  const child = world[childName];
+  if (!bone || !child) return;
+  const cur = normalize(sub(child.translation, bone.translation));
+  const des = normalize(sub(target, bone.translation));
+  if (cur[0] === 0 && cur[1] === 0 && cur[2] === 0) return;
+  if (des[0] === 0 && des[1] === 0 && des[2] === 0) return;
+  const newWorldR = quat.multiply(quat.fromTo(cur, des), bone.rotation);
+  setLocalFromWorldRotation(locals, world, boneName, newWorldR, rootWorld);
 }
 
 export function solveArmIk(fkWorld, locals, chain, target, branch) {
@@ -94,12 +120,38 @@ export function solveArmIk(fkWorld, locals, chain, target, branch) {
   return twoLinkIk(S, target, L1, L2, n, branch);
 }
 
+export function applyArmIk(locals, world, rootWorld, chain, target, branch) {
+  const ik = solveArmIk(world, locals, chain, target, branch);
+  const [sh, el, wr] = chain;
+  aimBone(locals, world, SEMANTIC[sh], SEMANTIC[el], ik.elbow, rootWorld);
+  const mid = forwardKinematics(locals, rootWorld);
+  aimBone(locals, mid.world, SEMANTIC[el], SEMANTIC[wr], ik.wrist, rootWorld);
+  const posed = forwardKinematics(locals, rootWorld);
+  const wrist = posed.fk[wr];
+  return {
+    ...ik,
+    locals,
+    world: posed.world,
+    fk: posed.fk,
+    residual: wrist ? distance(wrist, target) : ik.residual,
+  };
+}
+
 export function evaluateSkeleton(requested) {
   const locals = applyPoseRotations(restLocals(), {
     ...p0PoseRotations(),
     ...requested.body.pose_targets.bend_tilt_twist,
   });
-  const root = p0RootWorld(requested);
-  const { world, fk } = forwardKinematics(locals, root);
-  return { locals, world, fk, glb: requested.body.definition.glb, map: MAP };
+  const root_world = p0RootWorld(requested);
+  const { world, fk } = forwardKinematics(locals, root_world);
+  return {
+    locals,
+    world,
+    fk,
+    root_world,
+    glb: requested.body.definition.glb,
+    map: MAP,
+  };
 }
+
+export { nodeByName };

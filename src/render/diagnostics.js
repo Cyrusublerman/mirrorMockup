@@ -6,6 +6,9 @@ export function diagnosticsText(effective, requested) {
     `warp ${effective.recursion.mode}`,
     `dM ${effective.apparatus.d_M.toFixed(3)} m`,
     `view ${effective.view.segment} τ=${requested.view.tau.toFixed(3)}`,
+    `body ${requested.body.definition.glb.split("/").pop()}`,
+    `phone ${effective.phone.mesh.kind} ${effective.phone.mesh.positions.length}v`,
+    `mirror ${effective.mirror.mesh.kind} ${effective.mirror.mesh.positions.length}v`,
     c ? `γ |${c.gamma_abs.toFixed(4)}| arg ${(c.gamma_arg * 180 / Math.PI).toFixed(2)}°` : "γ —",
   ].join("\n");
 }

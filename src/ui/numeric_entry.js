@@ -16,6 +16,18 @@ export function bindNumeric(root, dispatch) {
         dispatch(name, { d_M: v });
         return;
       }
+      if (name === "SET_BODY_FRAME_TARGET") {
+        const g = (f) => Number(root.querySelector(`input[data-num="SET_BODY_FRAME_TARGET"][data-field="${f}"]`).value);
+        dispatch(name, {
+          translation: [g("x"), g("y"), g("z")],
+          yaw: (g("yaw_deg") * Math.PI) / 180,
+        });
+        return;
+      }
+      if (name === "CHOOSE_IK_BRANCH") {
+        dispatch(name, { chain: "arm_R", branch: v < 0 ? -1 : 1 });
+        return;
+      }
       const field = el.dataset.field;
       dispatch(name, { [field]: v });
     };
