@@ -1,12 +1,16 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>P0 composition tool (remote repo)</title>
 <script>
   (function () {
-    var q = new URLSearchParams(location.search).get("repo");
-    var repo = (q || "https://cdn.jsdelivr.net/gh/Cyrusublerman/mirrorMockup@main/").replace(/\/?$/, "/");
+    var params = new URLSearchParams(location.search);
+    var q = params.get("repo");
+    var ref = params.get("ref") || "main";
+    var repo = (q || (params.get("cdn") === "jsdelivr"
+      ? ("https://cdn.jsdelivr.net/gh/Cyrusublerman/mirrorMockup@" + ref + "/")
+      : ("https://raw.githack.com/Cyrusublerman/mirrorMockup/" + ref + "/"))).replace(/\/?$/, "/");
     var base = document.createElement("base");
     base.href = repo;
     document.head.appendChild(base);
@@ -22,10 +26,12 @@
 }
 </script>
 <style>
-  html, body { margin: 0; height: 100%; font-family: ui-sans-serif, system-ui, sans-serif; background: #f6f4ef; }
-  #app { height: 100%; }
+  html, body { margin: 0; height: 100%; height: 100dvh; font-family: ui-sans-serif, system-ui, sans-serif; background: #f6f4ef; }
+  #app { height: 100%; display: flex; flex-direction: column; }
+  .stage { position: relative; flex: 1 1 auto; min-height: 55vh; min-height: 55dvh; background: #d9d4cb; }
+  #scene, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #overlay { pointer-events: none; }
   #boot-fail { margin: 24px; max-width: 44rem; color: #111; }
-  #boot-fail code { font-size: 13px; }
 </style>
 <body>
 <div id="app"></div>
@@ -38,8 +44,9 @@
   } catch (err) {
     root.innerHTML = `<div id="boot-fail">
       <p>Failed to load <code>${repo}</code></p>
-      <p>This file can live outside the clone. It loads the tool from the GitHub repo (jsDelivr). Network required.</p>
-      <p>Against a local server of this repo: <code>?repo=http://127.0.0.1:8765/</code></p>
+      <p>Copy this file anywhere. It loads the tool from GitHub (jsDelivr). Network required.</p>
+      <p>Re-download this file after a merge, or pass <code>?ref=&lt;commit&gt;</code> to skip a stale CDN cache.</p>
+      <p>Local clone: serve the repo, then <code>?repo=http://127.0.0.1:8765/</code></p>
       <pre>${String(err && err.stack || err)}</pre>
     </div>`;
     console.error(err);
