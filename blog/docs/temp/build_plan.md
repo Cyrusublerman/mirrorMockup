@@ -1,193 +1,184 @@
 ---
 title: mirrorMockup build plan
 object_type: execution_plan
-status: proposed
+status: current
 date: 2026-08-13
-authority: Mega Build Authority 13 Aug 2026 (Parts I–IV) + source release v1.4 HANDOVER
+supersedes: 2026-08-13 plan under Mega Build Authority Parts I–IV
+authority: Governing Build Specification v1 (Coupled Composition + Print Gallery Tool), 13 Aug 2026
 repo_state: LICENSE only (CC0). No src, tests, or dist.
 ---
 
-# 0. Object and constraints
+# 0. Authority change
 
-**Product.** One artist-facing composition system: ordinary bathroom/mirror-selfie first, certified Print Gallery recursion and declared contradiction later. Final authority is a 2D camera-frame image. 3D exists only to make that 2D coherent.
+The Coupled Composition spec **replaces** Mega Build as build authority for this repo. Mega Build remains a recovered source (spec E.1.6), not the product contract.
 
-**Repo now.** `Cyrusublerman/mirrorMockup` contains `LICENSE` (CC0 1.0). Library path `03_PROJECTS/Art/print_gallery_mirror_portrait/` is not fetchable from this environment (404). v1.4 modular source is therefore reconstructed from Mega Build Parts II–III plus HANDOVER module inventory, not copied from an existing tree.
+Status labels in that spec are binding: ALREADY_GOVERNED, RECOVERED, CONFLICT_RESOLVED, NEW_REQUIREMENT, DIAGNOSTIC_ONLY, OUT_OF_SCOPE.
 
-**Locked decisions (do not reopen).**
+**Product purpose (verbatim object).** Reconstruct and redesign the composition of canonical reference P0 with one physically coherent body, phone/camera and finite mirror, such that exact Print Gallery recursion arises automatically from the reflected phone screen whenever that screen is validly visible.
 
-1. Periodicity route = **author Q periodic, composite into P** (HANDOVER §3 route 3). Paste and retouch are rejected as production paths.
-2. P (physical carrier) and Q (recursive content) meet only at a versioned `integration/` handoff. No shared scene model.
-3. Transaction vocabulary in product code: `PASS | PROJECTED | FAIL`. Map v1.4 `SATISFIED → PASS`, `MODIFIED → PROJECTED`, `INFEASIBLE → FAIL`. Requested state is never silently overwritten.
-4. Part I governs review and intent records. It cannot override physical or mathematical truth. No affect/erotic/misaddress scalars.
-5. Standalone HTML is generated output. Modular `src/` is implementation authority. `dist/` is never hand-edited.
-6. Do not add a twelfth ad-hoc tool. Existing v1.4 tool set (`validate.py`, `build_all.py`, per-app tests, `reference/verify.py`) is the validation surface; extend it, do not replace it.
+The governing object is a **coupled constraint network**, not a pipeline and not two apps.
 
-**Human-only blockers (software cannot close).** Shoot a real plate; measure `S_scr`, `d_cam`, mirror distance, `hfov`; bracket `M`. Device calibration residuals. Ordinary-read / misaddress / gallery-scale reviews. Private address fields.
+# 1. What the previous plan got wrong
 
-**Staging fact to encode, not “fix”.** Stock poses fail `depth_of_field` and related capture gates. Near subject ≥ 0.70 m or stacked exposure. Hyperfocal 1.107 m; 0.70–2.80 m closes; 0.30–2.80 m does not.
+| Previous lock | Spec verdict | Action |
+|---|---|---|
+| Mega Build Parts I–IV govern the repo | Part I artistic theory, panel-space, contradiction, Paint Guide-as-OS are OUT_OF_SCOPE for this tool | Drop Phases 8 (panel/correspondence/contradiction), 9 (intent/G0–G8), Mega-Build CLOS matrix as completion |
+| Reconstruct Mirror Rig + Loop Lab as dual trees, then `integration/` handoff | One facade, one scene, P derived / Q authored / AUTO portal | No dual apps. No Loop Lab product. `integration/` is not a third program |
+| Route 3 (author Q, composite into P) as first falsifiable artefact | AUTO: valid reflected P **is** the portal; no manual Droste rectangle | Route 3 survives only as P≠Q. First artefact is P0 reconstruction + AUTO attach |
+| Solve as dependency graph / left-to-right order | CONFLICT_RESOLVED: simultaneous net; eval order is numerical only | `solve_network.js`, not `dependency_graph.js` |
+| Artist-facing general mirror yaw/pitch/roll (v1.4) | NEW_REQUIREMENT: production rotation relation-locked `n_M = −f_C` | No `ROTATE_MIRROR` in facade. General plane stays test/calibration only |
+| Mirror as world XYZ | Production: `M = C + d_M f + p_u r + p_v u` | Apparatus domain is first-class |
+| Startup from stock poses (stand/twist/kneel/…) | Startup is P0 family + P0 observed IMAGE_NORM profile | Stock seeds are regression only |
+| Composition after physics (old Phase 6+9) | Composition is first-class state from day 1 | P0 profile is a domain, not a later UI |
+| Fourier `periodic_phase_warp` as production Q path | Exotic/Fourier warp OUT_OF_SCOPE in ordinary UI | Q is authored periodic content; kernel is one-centre log map |
+| L0/L1/L2 as a major product layer | Topology is `phone/front-camera → subject → mirror` | Keep direct vs reflected vs screen as projections of one state, not three content worlds |
+| HandoVER physical_limits as headline v1.4 port | Feasible set requires screen-facing, footprint, aperture inclusion | Keep as P-validity gates, not a separate product chapter |
+| `α = n − qθ/2π − i qL/2π` (handover) vs spec `α = n + qθ_s/2π − i qL/2π` | Sign of θ term disagrees | Do not lock either sign until S17/`γ` fixture decides |
 
-# 1. Authority map
+# 2. What survives
 
-Precedence: Part III sharpens overlapping Part II; Part I constrains product behaviour without changing solvers; Part IV is the only `Axx`/`Sxx` key.
+- P ≠ Q. P is DERIVED from reflected physical screen. Q never moves body/phone/camera/mirror/P.
+- Requested ≠ effective. `PASS | PROJECTED | FAIL`. No silent clamp. Proposals for out-of-policy moves.
+- Facade → actions/selectors → solve → isolated domains → shared_math. UI never owns truth.
+- ES modules. Maths free of Three.js types. CPU kernel authority; GPU UV parity is a tolerance.
+- Published de Smit/Lenstra `S=256` regression remains a kernel fixture.
+- Evidence ≠ metric 3D truth. P0 landmarks are OBSERVED composition targets. 3D pose is INFERRED/MODELLED until calibrated.
+- Do not invent unmeasured FOV/mirror-mm as MEASURED.
+- No aesthetic score.
+- Human-only: real device calibration, measured body links, whether P0 is uniquely realisable (it is not).
 
-| ID | Role in this repo |
-|---|---|
-| S22, A01, A02, S19, S04, A05 | identity, laws, ordinary-first, composition hierarchy |
-| S07, S08, S05, S06 | facade, shared state, versioning, APP v1 gates |
-| S01, S02, S03 | workbench, metrics/control, UI interaction |
-| S09–S16 | optics, calibration, pose evidence, support, hand, visibility, P carrier |
-| S17, S18 | frozen kernel and panel-space fixtures |
-| S20, S21 | orthogonal metadata; promotion TODO |
-| E01–E20 | contextual fact-check only; never solver targets |
+# 3. Locked production rules (do not reopen)
 
-Non-negotiable separations (Part II §0.2): requested≠effective; world≠image; skeleton≠visible mass; anatomical L/R ≠ display L/R; wrist/hand/grip/phone/screen/optical-centre; aperture≠reflected scale; HFOV≠source period S; **P≠Q**; L0≠L1≠L2; O ≠ p_T ≠ p_W; recursive_depth ≠ temporal_index; exact loop ≠ optional warp; panel topology ≠ transform ≠ connector ≠ route; valid base ≠ declared contradiction; hard feasibility ≠ soft preference.
+1. Coupled net, not a chain. Every edit declares DRIVER / PRESERVE / ALLOWED_TO_MOVE.
+2. Relation vocabulary: FREE, LOCKED, RELATION_LOCKED, DERIVED, AUTO_SOLVED, TARGETED, BOUNDED, EXPLORATORY.
+3. Production apparatus: `T_WC = T_WP T_PC`; mirror parallel, `n_M = −f_C`. Duplicate DOF forbidden (distance vs independent XYZ).
+4. Three pans are distinct actions: `PAN_MIRROR_WINDOW`, `PAN_REFLECTED_CONTENT`, `PAN_APPARATUS` / `PAN_OUTER_FRAME`.
+5. Print Gallery: `OFF | AUTO | ADVANCED`. AUTO requires no manual portal. ADVANCED never detaches from physical P.
+6. Physical portal size ≠ recursive `|γ|`. Do not label S and `|γ|` as one scale.
+7. World: +X ∥ default mirror, +Y depth along default mirror normal, +Z up, floor Z=0.
+8. Anatomical L/R is semantic; never inferred from screen side or mirror parity.
+9. Two-bone IK is a seed. Production solve is coupled (shoulder, elbow, wrist, clavicle, ribcage, root, optional grip).
+10. Parallel axial formulae (§10.2) are DIAGNOSTIC_ONLY, used for seeds/sensitivity checks, not as the solver.
+11. I01 P0 digitisation is default composition-coordinate authority. Earlier flattened shape register is diagnostic only (§24.3).
 
-# 2. Target source layout
+# 4. Explicitly out of this repo
 
-Match Part II §3. ES modules. Maths free of Three.js/WebGL types.
+Broad painting/gallery theory; misaddress; material paint strategy; water/hair/bathroom as conceptual devices; illusion catalogues; panel-space / stepped-hex; Penrose/Cafe Wall/eye/mouth experiments; multi-centre, dipole, figure-eight, Fourier, exotic warps; environment beyond floor/support/occlusion/reference; ARTWORK intent panel; G0–G8 artistic gates; standalone Loop Lab.
+
+# 5. Target source layout
+
+Match spec §26.
 
 ```
 src/
-  app/          bootstrap, facade, actions, selectors, project_io
-  scene/        requested, effective, orchestrator, solve_policy, history, proposals, dependency_graph
-  domains/      pose body support hand_grip phone camera mirror reflection
-                visibility constraints composition reference_alignment
-                carrier_p canonical_content recursion domain_warp
-                panel_space correspondence contradiction export
-  shared_math/  scalar vector matrix frames quaternion geometry
-                intersection polygon projection homography complex
-                optimisation numerical
-  render/       scene camera_frame diagnostics recursion_gpu panel_space overlays hit_testing
-  ui/           shell workspace context_hud drawers interactions exact_entry file_input
-  workers/      scene_solver recursion_cpu export
-  intent/       Part I records only (no solver imports of geometry)
-integration/    versioned P→Q handoff schema + route-3 composite
-tools/          validate.py build_all.py
-tests/          domain + facade + CLOS-* + frozen fixtures
-reference/      generated verification artefacts only
-dist/           generated standalone HTML
-releases/       APP/UI/CORE manifests + sha256
+  app/        facade actions selectors project_io
+  scene/      requested_state effective_state solve_network
+              solve_policy history proposals
+  domains/    body pose support hand_grip phone camera
+              apparatus mirror reflection visibility
+              composition carrier_p content_q recursion export
+  shared_math/ vector quaternion transform projection intersection
+               polygon homography complex numerical jacobian
+  render/     scene_3d artwork_camera overlays recursion_gpu diagnostics
+  ui/         interactions contextual_controls numeric_entry reference_overlay
+  workers/    network_solve_worker recursion_cpu_worker export_worker
+fixtures/
+  P0/         source hash, IMAGE_NORM landmarks, pose seed, profile
+  optical_special_case/
+  recursion/  S=256 kernel
+tools/        validate.py
+tests/
 ```
 
-Temporary dual trees `mirror_rig/` and `loop_lab/` are allowed **only** while reconstructing v1.4 parity. After facade exists they become `domains/*` plus `integration/`. Duplicate maths is a validation failure (Part III §17.6).
+No `intent/`, `panel_space/`, `correspondence/`, `contradiction/`, `domain_warp/`, `mirror_rig/`, `loop_lab/`.
 
-# 3. Build sequence
+# 6. Build sequence
 
-Each phase has an exit gate. Later phases may not start until the gate is green, except where marked parallel.
+Exit gates are spec §25 tests and, at the end, §27 workflow. Later phases do not start until the gate is green.
 
 ## Phase 0 — Governance skeleton
 
-Install: `tools/validate.py` (module graph, no-cycle, no UI→solver, no duplicate projection/reflection/homography authorities, hashes); APP/UI/CORE identity files; changelog category stubs; `.gitignore` for `dist/` as generated.
+`tools/validate.py`: one-way imports, no UI→solver, no duplicate projection/reflection/homography/apparatus authorities, no `ROTATE_MIRROR` on the production facade. Identity files may exist but APP v1 is not a phase goal until §27 is true.
 
-Exit: empty graph validates; identity `CORE 0.0.0 / UI 0.0.0 / APP unreleased`.
+Exit: empty graph validates.
 
-## Phase 1 — Shared maths + frozen fixtures
+## Phase 1 — Shared maths + kernel + P0 fixture data
 
-Implement `shared_math/*`. Freeze S17 kernel fixture: `S=256`, `alpha = n − i·q·L/2π` with real correction `alpha = (n − q·θ/2π) − i·qL/2π` when source rotation θ ≠ 0. Target published `|gamma|=22.5836845286`, `arg=157.6255960832°`. Pole `(I − kR)⁻¹t` from fixture, not a free `loop.pole`. Freeze S18 panel graph 469/900/432/72 identity.
+`shared_math/*` per §25.1. Freeze recursion fixture: lattice Λ, integer (q,n), log map, published `|γ|` and arg; **resolve α θ-sign against that oracle**. Store P0 observed table from spec §1.1 as `fixtures/P0/` (IMAGE_NORM, 2D elbow/knee observations tagged OBSERVED, not 3D joints). Parallel special-case equations as `fixtures/optical_special_case/` DIAGNOSTIC_ONLY.
 
-Exit: CLOS-18 31/31 + 16/16; Cauchy–Riemann residual bound; det J > 0 on sample set; CLOS-19 identity fixture consumed unchanged.
+Exit: §25.1; kernel reconstruction residual; P0 table round-trips; α sign locked by fixture not by prose.
 
-## Phase 2 — Physical carrier P (v1.4 Mirror Rig)
+## Phase 2 — Body, pose, support, coupled IK
 
-Domains: pose (three trunk frames, torso twist, two-bone IK with branch report, joint limits); support contact; skeleton integrity; finite mirror aperture + reflection rays; camera frustum; visibility as midline arc length **and** S15 two-segment mirror-path enum; P four-corner projection + homography + inverse (S16); mirror-fit proposals requiring accept; `physical_limits` (DoF, lens_conformality, portal_resolution, display_aliasing, mirror_ghost, display_beat). Provenance tags on `CAPTURE_PRESET`: MEASURED / EMPIRICAL / REFERENCE / FREE.
+Minimum skeleton §6.2. BodyDefinition ≠ PoseState. Bend/Tilt/Twist. Two-link reach shell + branch stability. Support pins; P0 may use a horizontal plane at modelled tub height. Phone-driven and hand-driven grip, never both hidden. Coupled IK uses two-bone as seed.
 
-Map constraint records to PASS/PROJECTED/FAIL with numeric residual. No silent clamp.
+Startup pose = P0 family (near-upright rear, bent phone-arm elbow ~132.95° **as 2D evidence**, near-straight knees). Other seeds are tests only.
 
-Exit: v1.4-equivalent pose suite + physical_limits suite; stock poses report unshootable as staged; CLOS-13/14/15 structural tests.
+Exit: §25.2.
 
-## Phase 3 — Recursive content Q (v1.4 Loop Lab)
+## Phase 3 — Apparatus: phone, camera, mirror
 
-Grid fixture; exact one-pole loop; `periodic_phase_warp` + `periodic_mask_solver` (Fourier torus, Λ-periodic by construction, bisection for max feasible amplitude). Fold/mask violation → PROJECTED with surviving scale, never silent repair. Certifier. Export.
+Rigid phone; four metric screen corners independent of Q. `T_WC = T_WP T_PC`. FOV is a network variable. Mirror domain evaluates a general plane; **production parameterisation is apparatus** (`d_M`, `p_u`, `p_v`, width, height). Default `p_u=p_v=0`. Autosolve `d_M` to a reflected-phone ratio reports old/new `d_M`, target, residual, compensating variable. No silent aperture growth; fit is a proposal.
 
-Exit: 8-file Loop Lab equivalent; n,q integer family in lattice; orientation-preserving torus (preview flip ∘ mirror flip); phone tilt φ → source θ = 2φ.
+World convention §4.
 
-## Phase 4 — Route-3 integration (first falsifiable artefact)
+Exit: §25.3 and §25.4, including: phone rotation rotates camera and mirror; no production yaw/pitch/roll drift; autosolve cannot invert depth order; parallel-case signs match general solver when conditions match.
 
-Versioned `integration/` record: P carrier quads, k, homography, sceneDepth; Q periodic source + certificate; composite; certify. Small raster only (≪ print master). Depth range of plate must equal S is a **gate**, not a default.
+## Phase 4 — Reflection, visibility, P carrier
 
-Exit: Scenario E (P/Q independence) and Scenario G (kernel) pass on the composite. This is the first artefact the project can be wrong about.
+Point reflection; virtual-camera equivalence; finite-aperture hit; disjoint visibility intervals; same-anatomy `λ*` on a named interval; occlusion tests §11.6. P projection chain §16.1. P validity gates §16.2 (corner order, +depth, convex area, homography condition, pixel footprint, facing, aperture inclusion, occlusion policy).
 
-## Phase 5 — Facade, state, evidence metadata
+Exit: §25.5; moving phone/mirror changes P; changing Q does not.
 
-One semantic scene. UI talks only through actions/selectors. Requested / effective / workspace / locks / proposals / history (S07, S08). Orthogonal parameter metadata: origin, role, epistemic state, mutability (S20 / CLOS-05). Reference load cannot mutate requested scene (CLOS-06). Intent actions that only write semantic records may PASS without invoking the physical solver.
+## Phase 5 — Composition profile + constraint net + named solve modes
 
-Exit: architecture validator rejects UI importing solver internals; CLOS-05, CLOS-06.
+CompositionTarget in IMAGE_NORM. P0_PROFILE from §12.2. Metrics §12.3; no scalar score. Hard vs soft §12.4. Relation classes §2.3. Every action carries DRIVER/PRESERVE/ALLOWED_TO_MOVE. Modes: POSE_FIRST, PHONE_FIRST, MIRROR_RATIO_FIRST, COMPOSITION_FIT, P0_RECONSTRUCT, MANUAL. Layered numerical strategy §13.3 without claiming a conceptual pipeline. Sensitivity `S_ij` and influence ranking; robustness margins. Proposals §3.4.
 
-## Phase 6 — Workbench UI (not APP v1 yet)
+**First falsifiable artefact:** P0_RECONSTRUCT reports residuals for every §25.6 landmark/bbox. Zero residual is not required. Hidden trade-offs are a fail.
 
-Home = Pose + Mirror. Authoritative camera frame centre. Modes: POSE | SCENE | COMPOSITION | RECURSION | INSPECT. One selection, one overlay. Requested ghost / effective solid / branch ghosts. Plan view edits the same requested scene (CLOS-11). Recursion UI: P/Q/fixed-point/q,n primary; coefficients in INSPECT (CLOS-17). Sparse visual language is UI-only.
+Exit: §25.6; Appendix C examples C.1–C.4 as named tests.
 
-Exit: CLOS-01, CLOS-02, CLOS-03, CLOS-11, CLOS-12, CLOS-17. Planning checkpoint, not APP v1.
+## Phase 6 — Q + AUTO recursion
 
-## Phase 7 — Calibration, pose promotion, inverse metrics
+Q fill/contain/cover, scale, offset, rotation, crop. PRINT_GALLERY OFF/AUTO/ADVANCED. AUTO: if P valid → rectify → similarity-compatible canonicalisation if possible → exact one-centre loop → certify → render; else named unavailability. Inverse portal design §18.8; reject incompatible S≤1 or non-similarity portals instead of faking a loop. Finite-portal uniformisation only when physical geometry requires it (§19.4 priority). Inverse-map sampling, Jacobian/no-fold, mip/footprint filtering; no fixed blur. CPU reference renderer.
 
-Device calibration record + residuals + preview/save parity (S10 / CLOS-07). Pose evidence states; monocular links are image-space only (S11–S12). Promotion requires calibrated reprojection + support + hand + visibility (CLOS-08). Named metrics ν_D, ν_R, λ*, mirror/body/phone/screen; ν_D=0.438 remains tagged UNVERIFIED until measured. Sensitivity ranking and robustness margins (CLOS-09, CLOS-10). Composition vector ≠ aesthetic score.
+Exit: §25.7 and §25.8. AUTO never needs a second aligned rectangle.
 
-Exit: CLOS-04, CLOS-07–10.
+## Phase 7 — Facade, overlays, UI contract
 
-## Phase 8 — L0/L1/L2, warp, panel, correspondence, contradiction
+Actions/selectors exactly §22 (no production `ROTATE_MIRROR`). Modes POSE/SCENE/COMPOSITION/RECURSION/INSPECT. One selection, one overlay. Required overlay stack §14; sparse default, all available. Automatic compensation must be inspectable (§14.1) or it is a UI failure. Four pan verbs. Requested ghost / effective solid. P0 loaded at startup per §24.1 with provenance-labelled body/device, FOV HYPOTHESIS if uncalibrated.
 
-Canonical rectification on import (closes HANDOVER gap: `distortionCorrected: true` is currently a lie). Scenario F. Protected domain warp (Scenario H). Panel cuts/connectors/holonomy (Scenario I) consuming S18 fixture. Correspondence residuals before blend. Contradiction ops non-destructive over valid base; each promoted op has law tag + hierarchy role (Part I A4, A17.6).
+Exit: §25.9; §27 items 1–13 as interaction, not styling.
 
-Exit: Scenarios F, H, I; CLOS-18/19 still green.
+## Phase 8 — Persistence, export, completion
 
-## Phase 9 — Intent layer (Part I)
+Save/restore requested state without semantic drift. Export: physical staging prescription, composition overlay, recursive reference render. That is the export product; not Mega Build Paint Guide OS.
 
-`src/intent/` + ARTWORK panel. Records: OrdinaryReadReview, IntentClaim, EffectIntent, AddressIntent (private, public_export=false), composition roles, quiet zones, water path OPEN default, hair field, RecursiveStateIntent, MaterialRegionIntent, PerceptualEventPlan. Gates G0–G8 as review states, disjoint from scene PASS/PROJECTED/FAIL. Selectors listed in A16.4. No solver scores for misaddress/tenderness/humour.
+Exit: spec §27 items 1–19 simultaneously. A build that re-aligns a Droste rectangle after moving the phone, independently rotates the mirror in production, or hides compensation is non-conformant.
 
-Exit: Part I A21 items 1–12 as data+UI capability (human PASS of G1/G6/G7 remains human).
+# 7. v1.4 code: reuse, do not resurrect as product shape
 
-## Phase 10 — Paint Guide, persistence, scale
+Reuse as domain maths if reconstructed: IK primitives, reflection, frustum, homography, kernel constants, visibility intervals, P validity.
 
-Paint Guide: UV/pixel/mm, staging sheet, 1:1 details, viewing-distance bands (CLOS-16). Deterministic project package (Scenario J). Worker split: main thread UI; scene solver / recursion CPU / export in workers. Print-resolution path: required masters ~28,500 px; implement tiled/offline export, do not preview at master size.
+Do not port: dual-app packaging; artist-facing general mirror SO(3); stock-pose home screen; Loop Lab warp UI; `distortionCorrected: true` without rectify (rectify lives inside AUTO mapping, Phase 6).
 
-Exit: CLOS-16; Scenario J; export checksums.
+Capture limits (DoF, aliasing, ghost, beat) may attach to P-validity / staging export as named residuals. They are not a reason to delay P0+AUTO.
 
-## Phase 11 — Governed APP v1
+# 8. Stop-doing (updated)
 
-Only after: facade-only UI; kernel+panel fixtures; P/Q independence; calibration import path (even if device record is UNKNOWN); promotion gates coded; manifest with parent, sha256, known_failures, validation_status. First identity: APP v1 / UI v1.0.0 / CORE v1.0.0. Bytes immutable after test use.
+- Dual apps, `integration/` as a third program, ARTWORK/intent layer, panel-space, contradiction catalogue.
+- Dependency-chain architecture diagrams as implementation truth.
+- Independent mirror rotation in production UI.
+- Duplicate DOF (distance plus unconstrained mirror XYZ).
+- Dragging a reflected-phone sprite or editing P as a 2D portal.
+- Treating FOV as zoom.
+- Using mirror aperture as a proxy for reflected-body magnification.
+- One ambiguous “pan”.
+- Fourier/exotic warp UI.
+- Hiding guessed millimetres as MEASURED.
+- Claiming unique 3D from P0 pixels.
+- Aesthetic scores.
 
-Exit: CLOS-20 plus Part III §20 items 1–12, with known_failures listing unshot plate, unverified ν_D, unvalidated SKIN/STANDOFF, no real-scene photograph.
+# 9. Immediate next implementation step
 
-# 4. v1.4 reconstruction inventory
-
-Rebuild these capabilities; do not invent extra solvers.
-
-**P / Mirror Rig (38 modules, 12 tests).** Trunk frames + twist; two-bone IK + branches; joint limits; support; skeleton integrity; finite aperture + rays; camera frustum; midline visibility; carrier homography ± inverse; mirror-fit accept; SVG frame export; `scene/physical_limits.js`.
-
-**Q / Loop Lab (36 modules, 8 tests).** Fixture; loop; periodic phase warp + mask solver; certifier; export.
-
-**Handover gaps → phase mapping.**
-
-| gap | phase |
-|---|---|
-| no rectification on import | 8 |
-| no capture model staging→shoot→import→verify | 7 + human shoot |
-| no provenance on pose angles | 5 metadata; angles remain INVENTION until tagged |
-| ν_D = 0.438 unverified | 7, tagged, not a hidden default optimum |
-| SKIN, STANDOFF, thresholds unvalidated | 2, tagged FREE/EMPIRICAL |
-| no print-resolution render | 10 |
-| composition untouched | 6 + 9 |
-| no photograph of actual scene | human; software exposes UNKNOWN |
-
-# 5. Test surface
-
-Keep `node tests/**/*.mjs` and `python3 tools/validate.py`. Add CLOS-01…20 as named cases. Part II §36 scenarios A–J are the e2e suite. Part I A18 tests are human protocols stored as review records, except geometric subclauses.
-
-CPU kernel is authority. GPU UV parity is a tolerance check, not a second maths.
-
-# 6. Stop-doing
-
-- New standalone apps besides the one workbench.
-- Aesthetic scores, saliency-as-proof, “more loops = better”.
-- Promoting reference pixels to metric bone lengths.
-- Invented load/pressure/contact geometry (S13).
-- Hand-editing `dist/`.
-- Reusing an APP identity after a byte change.
-- Treating fixture PASS as physical evidence (Part III §16.5).
-- Klein-bottle / unmirrored preview unless explicitly EXPERIMENT_ONLY.
-- Closing water into a decorative loop when OPEN is the active hypothesis.
-
-# 7. Immediate next implementation step
-
-Phase 0 skeleton + Phase 1 `shared_math` + S17 fixture. Do not start UI. Do not start a new tool. After Phase 4 exists, the project has something that can fail for a reason other than missing files.
+Phase 0 + Phase 1 only: validate graph, shared_math, kernel fixture with α-sign resolved by `|γ|`, P0 IMAGE_NORM table on disk. No UI. No second app. No intent schema.
