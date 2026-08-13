@@ -13,6 +13,11 @@ import { evaluateCarrierP } from "../domains/carrier_p/project.js";
 import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
+import { evaluateLayers } from "../domains/composition/layers.js";
+import { evaluateDomainWarp } from "../domains/domain_warp/warp.js";
+import { evaluatePanelSpace } from "../domains/panel_space/operator.js";
+import { evaluateCorrespondence } from "../domains/correspondence/morph.js";
+import { evaluateContradiction } from "../domains/contradiction/layer.js";
 import { viewCameraAtTau, fillFraction } from "../render/artwork_camera.js";
 import { nudgeToPhoneTarget } from "./solve_policy.js";
 import { jacobian } from "../shared_math/jacobian.js";
@@ -52,6 +57,11 @@ function solveOnce(req) {
   const recursion = evaluateRecursion(req, carrier_p);
   const mirrorImageQuad = (mirror.quad || []).map((X) => projectWorld(X, cam).image_norm);
   const composition = evaluateMetrics(visibility, carrier_p, req, mirrorImageQuad);
+  const layers = evaluateLayers(cam, mirrorImageQuad, carrier_p, recursion);
+  const domain_warp = evaluateDomainWarp(req, layers);
+  const panel_space = evaluatePanelSpace(req);
+  const correspondence = evaluateCorrespondence(req, layers);
+  const contradiction = evaluateContradiction(req);
   const view = viewCameraAtTau(cam, apparatus, carrier_p, recursion, req.view.tau);
   return {
     phone,
@@ -69,6 +79,11 @@ function solveOnce(req) {
     composition,
     view,
     mirrorImageQuad,
+    layers,
+    domain_warp,
+    panel_space,
+    correspondence,
+    contradiction,
   };
 }
 
@@ -135,6 +150,11 @@ export function solve(requested) {
     recursion,
     composition,
     view,
+    layers,
+    domain_warp,
+    panel_space,
+    correspondence,
+    contradiction,
   } = parts;
 
   let proposal = req.workspace.proposal || null;
@@ -222,6 +242,11 @@ export function solve(requested) {
     transaction: top,
     sensitivity,
     proposal,
+    layers,
+    domain_warp,
+    panel_space,
+    correspondence,
+    contradiction,
   };
 
   return { requested: req, effective, transaction: top };

@@ -106,6 +106,10 @@ export function defaultRequestedState() {
       tau: 0,
       warp_visible: true,
     },
+    domain_warp: { mode: "IDENTITY", protect: [] },
+    panel_space: { cuts: [], transforms: [], connectors: [], routing: [] },
+    correspondence: { pairs: [] },
+    contradiction: { enabled: false, ops: [] },
     workspace: {
       mode: "POSE",
       selection: null,
