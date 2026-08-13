@@ -1,4 +1,4 @@
-import landmarks from "../../fixtures/P0/landmarks.json" with { type: "json" };
+import landmarks from "../../fixtures/P0/landmarks.js";
 
 export const RELATION = Object.freeze({
   FREE: "FREE",

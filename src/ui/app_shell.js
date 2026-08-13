@@ -1,5 +1,3 @@
-import { createApp } from "../app/facade.js";
-import { createScene3D } from "../render/scene_3d.js";
 import { injectShellCss } from "./shell.js";
 import { createWorkspaceState } from "./state/workspace_state.js";
 import { createInteractionMachine } from "./state/interaction_state_machine.js";
@@ -7,27 +5,23 @@ import { createDispatchAdapter } from "./adapters/action_dispatch_adapter.js";
 import { projectForHud } from "./adapters/selector_projection_adapter.js";
 import { mountTopModeStrip } from "./hud/top_mode_strip.js";
 import { mountContextHud } from "./hud/context_hud.js";
-import { mountValidityStrip } from "./hud/validity_strip.js";
-import { mountCertificateBadge } from "./hud/certificate_badge.js";
+import { mountValidityStrip, humanCompensation } from "./hud/validity_strip.js";
 import { mountInspectDrawer } from "./hud/inspect_drawer.js";
 import { mountPrecisionSheet } from "./hud/precision_sheet.js";
 import { mountViewStrip } from "./hud/view_strip.js";
-import { mountOverlayStrip } from "./hud/overlay_strip.js";
 import { drawOverlays } from "./overlays/composition_overlay_stack.js";
 import { createReferenceLayer } from "./overlays/reference_layer.js";
 import { bindInsetSwap, insetPinchHfov } from "./viewport/artwork_camera_inset.js";
 import { createEditorViewport } from "./viewport/editor_viewport.js";
 import { hitFromEvent } from "./viewport/scene_hit_test.js";
 import { labelForHit } from "./viewport/manipulator_layer.js";
-import { poseChrome } from "./rooms/pose_room.js";
-import { sceneChrome } from "./rooms/scene_room.js";
-import { recursionChrome } from "./rooms/recursion_room.js";
 import { applySemanticJoint } from "./manipulators/semantic_joint.js";
 import { applyEndpointIk } from "./manipulators/endpoint_ik.js";
 import { applyRigidPhone } from "./manipulators/rigid_phone.js";
 import { applyMirrorDistance, applyMirrorWindow } from "./manipulators/mirror_aperture.js";
 import { applyCropPan } from "./manipulators/crop.js";
 import { applyQOffset } from "./manipulators/q_portal.js";
+import { createScene3D } from "../render/scene_3d.js";
 
 const IK_JOINTS = new Set(["wrist_R", "wrist_L", "head", "ankle_L", "ankle_R"]);
 
@@ -37,39 +31,29 @@ function bytesToPngUrl(png) {
   return `data:image/png;base64,${btoa(s)}`;
 }
 
-function layout() {
-  const root = document.createElement("div");
-  root.className = "mp-app";
-  root.innerHTML = `
-    <div class="mp-strip" data-strip></div>
-    <div class="mp-stage">
-      <canvas id="scene"></canvas>
-      <canvas id="overlay"></canvas>
-      <div class="mp-inset" data-inset>
-        <canvas id="inset"></canvas>
-      </div>
-    </div>
-    <div class="mp-hud">
-      <div data-views></div>
-      <div data-overlays></div>
-      <div data-context></div>
-      <div class="mp-hint" data-hint></div>
-      <div class="mp-ghost" data-ghost></div>
-      <div class="mp-muted mp-res" data-res></div>
-      <div class="mp-foot">
-        <div data-valid></div>
-        <div data-cert></div>
-      </div>
-    </div>
-    <div class="mp-inspect" data-inspect></div>
-    <div class="mp-sheet" data-sheet></div>
-  `;
-  return root;
+function el(tag, cls) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  return n;
 }
 
-export async function boot(root) {
+function fail(root, msg, detail) {
+  const box = el("div");
+  box.id = "boot-fail";
+  box.setAttribute("role", "alert");
+  const p = el("p");
+  p.textContent = msg;
+  box.appendChild(p);
+  if (detail) {
+    const pre = el("pre");
+    pre.textContent = detail;
+    box.appendChild(pre);
+  }
+  root.replaceChildren(box);
+}
+
+export async function bootUi(root, app) {
   injectShellCss(root.ownerDocument);
-  const app = createApp();
   const workspace = createWorkspaceState();
   const machine = createInteractionMachine();
   const dispatch = createDispatchAdapter(app);
@@ -79,49 +63,52 @@ export async function boot(root) {
   workspace.n = app.getRequested().recursion.n;
   workspace.drive_mode = app.getRequested().phone.authority;
 
-  root.replaceChildren();
-  const shell = layout();
-  root.appendChild(shell);
-
-  const canvas = shell.querySelector("#scene");
-  const overlay = shell.querySelector("#overlay");
-  const insetCanvas = shell.querySelector("#inset");
-  const insetWrap = shell.querySelector("[data-inset]");
-  const strip = shell.querySelector("[data-strip]");
-  const viewsEl = shell.querySelector("[data-views]");
-  const overlaysEl = shell.querySelector("[data-overlays]");
-  const contextEl = shell.querySelector("[data-context]");
-  const hintEl = shell.querySelector("[data-hint]");
-  const ghostEl = shell.querySelector("[data-ghost]");
-  const resEl = shell.querySelector("[data-res]");
-  const validEl = shell.querySelector("[data-valid]");
-  const certEl = shell.querySelector("[data-cert]");
-  const inspectEl = shell.querySelector("[data-inspect]");
-  const sheetEl = shell.querySelector("[data-sheet]");
-  const stage = shell.querySelector(".mp-stage");
-
-  const inspectBtn = document.createElement("button");
-  inspectBtn.type = "button";
-  inspectBtn.className = "mp-icon";
-  inspectBtn.textContent = "INSPECT";
-  const exportBtn = document.createElement("button");
-  exportBtn.type = "button";
-  exportBtn.className = "mp-chip";
-  exportBtn.textContent = "EXPORT";
-  const refBtn = document.createElement("button");
-  refBtn.type = "button";
-  refBtn.className = "mp-chip";
-  refBtn.textContent = "REFERENCE";
-  const file = document.createElement("input");
+  const shell = el("div", "mp-app");
+  const strip = el("div");
+  strip.setAttribute("data-strip", "");
+  const stage = el("div", "mp-stage");
+  const canvas = el("canvas");
+  canvas.id = "scene";
+  canvas.setAttribute("aria-label", "Scene viewport");
+  const overlay = el("canvas");
+  overlay.id = "overlay";
+  const viewsEl = el("div");
+  const insetWrap = el("div", "mp-inset");
+  insetWrap.setAttribute("data-inset", "");
+  insetWrap.setAttribute("aria-label", "Capture camera inset, tap to swap");
+  const insetCanvas = el("canvas");
+  insetCanvas.id = "inset";
+  const insetLab = el("div", "mp-inset-lab");
+  insetLab.textContent = "CAPTURE";
+  insetWrap.append(insetCanvas, insetLab);
+  const toast = el("div", "mp-toast");
+  toast.setAttribute("role", "status");
+  stage.append(canvas, overlay, viewsEl, insetWrap, toast);
+  const hud = el("div", "mp-hud");
+  const contextEl = el("div");
+  const validEl = el("div");
+  hud.append(contextEl, validEl);
+  const inspectEl = el("div", "mp-inspect");
+  const sheetEl = el("div", "mp-sheet");
+  const menuEl = el("div", "mp-menu");
+  const more = el("button", "mp-more");
+  more.type = "button";
+  more.textContent = "···";
+  more.setAttribute("aria-label", "More");
+  const file = el("input");
   file.type = "file";
   file.accept = "image/*";
   file.hidden = true;
-  const precBtn = document.createElement("button");
-  precBtn.type = "button";
-  precBtn.className = "mp-chip";
-  precBtn.textContent = "PRECISION";
+  shell.append(strip, stage, hud, inspectEl, sheetEl, menuEl, file);
+  root.replaceChildren(shell);
 
-  const scene3d = await createScene3D(canvas, app, { insetCanvas });
+  let scene3d;
+  try {
+    scene3d = await createScene3D(canvas, app, { insetCanvas });
+  } catch (err) {
+    fail(root, "Viewport failed to start. WebGL is required.", String(err && err.stack || err));
+    throw err;
+  }
   scene3d.setEditorView(workspace.editor_view);
 
   let euler = { bend: 0, tilt: 0, twist: 0 };
@@ -135,6 +122,58 @@ export async function boot(root) {
     return [w, h];
   }
 
+  function exportGuide() {
+    const last = app.dispatch("EXPORT_IMAGE", { width: 640, height: 640 });
+    const a = document.createElement("a");
+    a.href = bytesToPngUrl(last.export.png);
+    a.download = "artwork.png";
+    a.click();
+    const a2 = document.createElement("a");
+    a2.href = bytesToPngUrl(last.export.overlay || last.export.png);
+    a2.download = "composition-guide.png";
+    a2.click();
+    const blob = new Blob(
+      [JSON.stringify({ sidecar: last.export.sidecar, staging: last.export.staging, build: app.build }, null, 2)],
+      { type: "application/json" },
+    );
+    const a3 = document.createElement("a");
+    a3.href = URL.createObjectURL(blob);
+    a3.download = "composition.json";
+    a3.click();
+  }
+
+  function mountMenu() {
+    menuEl.className = "mp-menu" + (workspace.menu ? " is-open" : "");
+    menuEl.replaceChildren();
+    if (!workspace.menu) return;
+    const head = el("header");
+    const h = el("strong");
+    h.textContent = "MORE";
+    const x = el("button", "mp-chip");
+    x.type = "button";
+    x.textContent = "Close";
+    x.addEventListener("click", () => {
+      workspace.menu = false;
+      paintHud();
+    });
+    head.append(h, x);
+    const row = el("div", "mp-row");
+    const mk = (label, fn) => {
+      const b = el("button", "mp-chip");
+      b.type = "button";
+      b.textContent = label;
+      b.addEventListener("click", fn);
+      return b;
+    };
+    row.append(
+      mk("INSPECT", () => { workspace.menu = false; workspace.inspect = true; paintHud(); }),
+      mk("PRECISION", () => { workspace.menu = false; workspace.precision = true; paintHud(); }),
+      mk("REFERENCE", () => file.click()),
+      mk("EXPORT GUIDE", () => { workspace.menu = false; exportGuide(); paintHud(); }),
+    );
+    menuEl.append(head, row);
+  }
+
   function paintHud() {
     const proj = projectForHud(app);
     mountTopModeStrip(strip, workspace, (room) => {
@@ -142,15 +181,11 @@ export async function boot(root) {
       app.dispatch("SET_WORKSPACE_MODE", { mode: room }, { preview: true });
       paintHud();
     });
-    strip.append(inspectBtn, exportBtn, refBtn, precBtn, file);
+    if (!strip.contains(more)) strip.appendChild(more);
     mountViewStrip(viewsEl, workspace, (id) => {
       workspace.editor_view = id;
       scene3d.setEditorView(id);
-      scene3d.sync();
-      paintHud();
-    });
-    mountOverlayStrip(overlaysEl, workspace, (id) => {
-      workspace.overlays[id] = !workspace.overlays[id];
+      insetLab.textContent = id === "CAMERA" ? "EDITOR" : "CAPTURE";
       paintHud();
       paintScene();
     });
@@ -158,19 +193,19 @@ export async function boot(root) {
       setDrive(mode) {
         workspace.drive_mode = mode;
         const authority = mode === "HAND_DRIVES_PHONE" ? "HAND_DRIVES_PHONE" : "PHONE_DRIVES_HAND";
-        app.dispatch("SET_PHONE_AUTHORITY", { authority }, { label: mode });
+        app.dispatch("SET_PHONE_AUTHORITY", { authority }, { label: mode.replaceAll("_", " ") });
         paintHud();
         paintScene();
       },
       setWarp(mode) {
-        const pOk = !!proj.portal?.valid;
-        if (mode === "AUTO" && !pOk) {
-          workspace.warp = app.getEffective().recursion.mode;
+        if (mode === "AUTO" && !proj.portal?.valid) {
+          toast.textContent = "AUTO refused — " + (proj.reasons[0] || "P invalid");
+          toast.classList.add("is-on");
           paintHud();
           return;
         }
         workspace.warp = mode;
-        app.dispatch("SET_PRINT_GALLERY_MODE", { mode }, { label: `Warp ${mode}` });
+        app.dispatch("SET_PRINT_GALLERY_MODE", { mode }, { label: "Warp " + mode });
         paintHud();
         paintScene();
       },
@@ -197,26 +232,20 @@ export async function boot(root) {
         paintHud();
       },
     });
-    const chrome =
-      workspace.room === "SCENE" ? sceneChrome() : workspace.room === "RECURSION" ? recursionChrome(proj) : poseChrome(workspace);
-    hintEl.textContent = chrome.hint;
-    const r = proj.residuals || {};
-    const bits = Object.keys(r).slice(0, 4).map((k) => `${k} ${Number(r[k]).toFixed(3)}`);
-    resEl.textContent = bits.join("  ·  ") || "no residual";
-    const want = proj.requested?.body?.pose_targets?.endpoint_targets?.wrist_R;
-    const got = proj.pose?.fk?.wrist_R;
-    if (want && got && Math.hypot(want[0] - got[0], want[1] - got[1], want[2] - got[2]) > 0.03) {
-      const arm = (proj.pose.constraints || []).find((c) => c.id === "arm_R_reach");
-      ghostEl.textContent = `ghost: requested wrist  residual ${Number(arm?.residual ?? r.arm_R_reach ?? 0).toFixed(3)}`;
-    } else ghostEl.textContent = "";
     mountValidityStrip(validEl, proj);
-    mountCertificateBadge(certEl, proj);
-    mountInspectDrawer(inspectEl, workspace.inspect, proj, () => {
-      workspace.inspect = false;
-      paintHud();
+    if (proj.compensation) {
+      toast.textContent = humanCompensation(proj.compensation);
+      toast.classList.add("is-on");
+    }
+    mountInspectDrawer(inspectEl, workspace.inspect, proj, workspace, {
+      close() { workspace.inspect = false; paintHud(); },
+      toggleOverlay(id) {
+        workspace.overlays[id] = !workspace.overlays[id];
+        paintHud();
+        paintScene();
+      },
     });
-    const fields = precisionFields();
-    mountPrecisionSheet(sheetEl, workspace.precision, fields, (out) => {
+    mountPrecisionSheet(sheetEl, workspace.precision, precisionFields(), (out) => {
       applyPrecision(out);
       workspace.precision = false;
       paintHud();
@@ -225,6 +254,7 @@ export async function boot(root) {
       workspace.precision = false;
       paintHud();
     });
+    mountMenu();
   }
 
   function precisionFields() {
@@ -233,22 +263,20 @@ export async function boot(root) {
     if (sel?.kind === "joint") {
       const e = req.body.pose_targets.btt_euler?.[sel.id] || { bend: 0, tilt: 0, twist: 0 };
       return [
-        { key: "bend", label: "Bend", value: e.bend },
-        { key: "tilt", label: "Tilt", value: e.tilt },
-        { key: "twist", label: "Rotate", value: e.twist },
+        { key: "bend", label: "Bend (rad)", value: e.bend },
+        { key: "tilt", label: "Tilt (rad)", value: e.tilt },
+        { key: "twist", label: "Rotate (rad)", value: e.twist },
       ];
     }
     if (sel?.kind === "phone") {
       const t = req.phone.transform_request.translation;
       return [
-        { key: "x", label: "X", value: t[0] },
-        { key: "y", label: "Y", value: t[1] },
-        { key: "z", label: "Z", value: t[2] },
+        { key: "x", label: "X (m)", value: t[0] },
+        { key: "y", label: "Y (m)", value: t[1] },
+        { key: "z", label: "Z (m)", value: t[2] },
       ];
     }
-    if (sel?.id === "d_M") {
-      return [{ key: "d_M", label: "d_M (m)", value: req.apparatus.mirror_distance_request_m }];
-    }
+    if (sel?.id === "d_M") return [{ key: "d_M", label: "d_M (m)", value: req.apparatus.mirror_distance_request_m }];
     if (sel?.kind === "crop") {
       const p = req.camera.crop_request.pan;
       return [
@@ -256,13 +284,13 @@ export async function boot(root) {
         { key: "v", label: "Crop V", value: p[1] },
       ];
     }
-    return [{ key: "hfov_deg", label: "HFOV °", value: (req.camera.hfov_request * 180) / Math.PI }];
+    return [{ key: "hfov_deg", label: "HFOV (deg)", value: (req.camera.hfov_request * 180) / Math.PI }];
   }
 
   function applyPrecision(out) {
     const sel = workspace.selected;
     if (sel?.kind === "joint") {
-      app.dispatch("SET_ANATOMICAL_DOF", { joint: sel.id, bend: out.bend || 0, tilt: out.tilt || 0, twist: out.twist || 0 }, { label: `Precision ${sel.id}` });
+      app.dispatch("SET_ANATOMICAL_DOF", { joint: sel.id, bend: out.bend || 0, tilt: out.tilt || 0, twist: out.twist || 0 }, { label: "Precision " + sel.id });
       return;
     }
     if (sel?.kind === "phone") {
@@ -277,9 +305,7 @@ export async function boot(root) {
       app.dispatch("PAN_OUTER_FRAME", { pan: [out.u, out.v] }, { label: "Precision crop" });
       return;
     }
-    if (out.hfov_deg != null) {
-      app.dispatch("SET_CAMERA_FOV", { hfov: (out.hfov_deg * Math.PI) / 180 }, { label: "Precision HFOV" });
-    }
+    if (out.hfov_deg != null) app.dispatch("SET_CAMERA_FOV", { hfov: (out.hfov_deg * Math.PI) / 180 }, { label: "Precision HFOV" });
   }
 
   function paintScene() {
@@ -288,41 +314,26 @@ export async function boot(root) {
     const [w, h] = sizeOverlay();
     const ctx = overlay.getContext("2d");
     const proj = projectForHud(app);
+    ctx.clearRect(0, 0, w, h);
     reference.draw(ctx, w, h);
     drawOverlays(ctx, w, h, workspace, proj);
   }
 
-  inspectBtn.addEventListener("click", () => {
-    workspace.inspect = !workspace.inspect;
+  more.addEventListener("click", () => {
+    workspace.menu = !workspace.menu;
     paintHud();
   });
-  exportBtn.addEventListener("click", () => {
-    const last = app.dispatch("EXPORT_IMAGE", { width: 640, height: 640 });
-    const a = document.createElement("a");
-    a.href = bytesToPngUrl(last.export.png);
-    a.download = "artwork.png";
-    a.click();
-    const blob = new Blob([JSON.stringify({ ...last.export.sidecar, staging: last.export.staging }, null, 2)], { type: "application/json" });
-    const a2 = document.createElement("a");
-    a2.href = URL.createObjectURL(blob);
-    a2.download = "composition.json";
-    a2.click();
-  });
-  refBtn.addEventListener("click", () => file.click());
   file.addEventListener("change", async () => {
     const f = file.files?.[0];
     if (!f) return;
     await reference.loadFile(f);
     paintScene();
   });
-  precBtn.addEventListener("click", () => {
-    workspace.precision = !workspace.precision;
-    paintHud();
-  });
 
   bindInsetSwap(canvas, insetWrap, () => {
     scene3d.swapInset();
     workspace.editor_view = scene3d.workspace.editor_view;
+    insetLab.textContent = workspace.editor_view === "CAMERA" ? "EDITOR" : "CAPTURE";
     paintHud();
     paintScene();
   });
@@ -330,7 +341,7 @@ export async function boot(root) {
     insetWrap,
     () => app.getRequested().camera.hfov_request,
     (hfov) => {
-      dispatch.startGesture("Set HFOV");
+      dispatch.startGesture("Changed FOV");
       dispatch.preview("SET_CAMERA_FOV", { hfov });
       paintScene();
     },
@@ -353,28 +364,30 @@ export async function boot(root) {
           drag = { kind: "phone", translation: req.phone.transform_request.translation.slice(), started: false };
         } else if (hit.kind === "mirror") {
           const id = workspace.selected?.id === "window" ? "window" : "d_M";
-          workspace.selected = { kind: "mirror", id, label: id === "window" ? "Mirror window" : "Mirror distance" };
-          drag = {
-            kind: id,
-            d_M: req.apparatus.mirror_distance_request_m,
-            uv: req.apparatus.mirror_pan_uv_request_m.slice(),
-            started: false,
-          };
-        } else {
-          drag = { kind: "orbit", started: false };
-        }
+          workspace.selected = { kind: "mirror", id, label: id === "window" ? "Mirror window pan" : "Mirror distance" };
+          drag = { kind: id, d_M: req.apparatus.mirror_distance_request_m, uv: req.apparatus.mirror_pan_uv_request_m.slice(), started: false };
+        } else drag = { kind: "orbit", started: false };
         machine.beginSelect(p.id, p);
         paintHud();
         return;
       }
-      if (workspace.room === "RECURSION" && workspace.selected?.kind === "q") {
-        const off = app.getRequested().content_q.offset.slice();
-        drag = { kind: "q", offset: off, started: false };
+      if (workspace.selected?.kind === "q") {
+        drag = { kind: "q", offset: app.getRequested().content_q.offset.slice(), started: false };
         machine.beginSelect(p.id, p);
         return;
       }
       if (workspace.selected?.kind === "crop") {
         drag = { kind: "crop", pan: app.getRequested().camera.crop_request.pan.slice(), started: false };
+        machine.beginSelect(p.id, p);
+        return;
+      }
+      if (workspace.selected?.id === "apparatus") {
+        drag = { kind: "apparatus", pan: app.getRequested().apparatus.apparatus_pan_request_m.slice(), started: false };
+        machine.beginSelect(p.id, p);
+        return;
+      }
+      if (workspace.selected?.id === "reflected") {
+        drag = { kind: "reflected", started: false };
         machine.beginSelect(p.id, p);
         return;
       }
@@ -389,18 +402,18 @@ export async function boot(root) {
     onMove(ev, p) {
       const step = machine.move(p.id, p);
       if (!step || !drag) return;
-      const dist = Math.hypot(p.x - (machine.gesture ? p.x : 0), step.dx) + Math.abs(step.dy);
-      if (!drag.started && Math.hypot(step.dx, step.dy) < 2 && dist < 2) return;
+      if (!drag.started && Math.hypot(step.dx, step.dy) < 2) return;
       if (!drag.started) {
         const labels = {
-          ik: `Move ${drag.end}`,
-          joint: `Rotate ${drag.joint}`,
-          phone: "Move phone",
-          d_M: "Set d_M",
-          window: "Pan mirror window",
-          crop: "Pan crop",
-          q: "Move Q",
-          orbit: "Orbit editor",
+          ik: "Moved " + drag.end,
+          joint: "Rotated " + drag.joint,
+          phone: "Moved phone",
+          d_M: "Changed mirror distance",
+          window: "Panned mirror window",
+          crop: "Panned crop",
+          q: "Moved Q",
+          apparatus: "Panned apparatus",
+          reflected: "Panned reflected content",
         };
         if (drag.kind !== "orbit") dispatch.startGesture(labels[drag.kind] || "Edit");
         drag.started = true;
@@ -431,6 +444,11 @@ export async function boot(root) {
       } else if (drag.kind === "q") {
         drag.offset = [drag.offset[0] + step.dx * 0.001, drag.offset[1] - step.dy * 0.001];
         applyQOffset(dispatch, drag.offset, true);
+      } else if (drag.kind === "apparatus") {
+        drag.pan = [drag.pan[0] + step.dx * 0.001, drag.pan[1] - step.dy * 0.001];
+        dispatch.preview("PAN_APPARATUS", { pan: drag.pan });
+      } else if (drag.kind === "reflected") {
+        dispatch.preview("PAN_REFLECTED_CONTENT", { delta: [step.dx * 0.001, -step.dy * 0.001] });
       }
       paintScene();
     },
@@ -449,34 +467,65 @@ export async function boot(root) {
   });
 
   window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      workspace.precision = false;
+      workspace.inspect = false;
+      workspace.menu = false;
+      machine.clear();
+      paintHud();
+      return;
+    }
     if (e.target.closest?.("input, textarea, select")) return;
     const meta = e.ctrlKey || e.metaKey;
-    if (!meta) return;
-    if ((e.key === "z" || e.key === "Z") && e.shiftKey) {
+    if (meta && (e.key === "z" || e.key === "Z") && e.shiftKey) {
       e.preventDefault();
       app.dispatch("REDO");
       paintHud();
       paintScene();
-    } else if (e.key === "z" || e.key === "Z") {
+      return;
+    }
+    if (meta && (e.key === "z" || e.key === "Z")) {
       e.preventDefault();
       app.dispatch("UNDO");
       paintHud();
       paintScene();
-    } else if (e.key === "y" || e.key === "Y") {
+      return;
+    }
+    if (meta && (e.key === "y" || e.key === "Y")) {
       e.preventDefault();
       app.dispatch("REDO");
       paintHud();
       paintScene();
+      return;
     }
+    const sel = workspace.selected;
+    if (!sel || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const dx = e.key === "ArrowLeft" ? -0.01 : e.key === "ArrowRight" ? 0.01 : 0;
+    const dy = e.key === "ArrowDown" ? -0.01 : e.key === "ArrowUp" ? 0.01 : 0;
+    if (sel.kind === "phone") {
+      const t = app.getRequested().phone.transform_request.translation.slice();
+      app.dispatch("MOVE_PHONE", { translation: [t[0] + dx, t[1], t[2] + dy] }, { label: "Nudge phone" });
+    } else if (sel.kind === "joint" && IK_JOINTS.has(sel.id)) {
+      const w = (app.getRequested().body.pose_targets.endpoint_targets[sel.id] || app.getEffective().skeleton.fk[sel.id]).slice();
+      app.dispatch("MOVE_POSE_TARGET", { end: sel.id, world: [w[0] + dx, w[1], w[2] + dy] }, { label: "Nudge " + sel.id });
+    } else if (sel.id === "d_M") {
+      const d = app.getRequested().apparatus.mirror_distance_request_m + dy;
+      app.dispatch("SET_MIRROR_DISTANCE", { d_M: Math.max(0.25, d) }, { label: "Nudge d_M" });
+    }
+    paintHud();
+    paintScene();
   });
 
-  if (typeof ResizeObserver === "function") {
-    new ResizeObserver(() => paintScene()).observe(stage);
-  } else {
-    window.addEventListener("resize", paintScene);
-  }
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => paintScene()).observe(stage);
+  else window.addEventListener("resize", paintScene);
 
   paintHud();
   paintScene();
   return app;
+}
+
+export async function boot(root) {
+  const { createApp } = await import("../app/facade.js");
+  return bootUi(root, createApp());
 }

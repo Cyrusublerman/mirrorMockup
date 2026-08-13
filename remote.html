@@ -2,9 +2,18 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://raw.githack.com; object-src 'none'; base-uri 'none'">
 <title>P0 composition tool (remote repo)</title>
 <script>
   (function () {
+    window.addEventListener("error", function (e) {
+      if (window.MIRROR_BOOT_ERROR) return;
+      window.MIRROR_BOOT_ERROR = String(e && e.message || e);
+    });
+    window.addEventListener("unhandledrejection", function (e) {
+      if (window.MIRROR_BOOT_ERROR) return;
+      window.MIRROR_BOOT_ERROR = String(e && e.reason || e);
+    });
     var OWNER = "Cyrusublerman";
     var REPO = "mirrorMockup";
     var PINNED = "5e0881e4bc4a4758657e52474d893b045785e61f";
@@ -13,12 +22,19 @@
     var repo = params.get("repo");
     var origin = null;
     var err = null;
+    function slash(u) {
+      var x = new URL(u, location.href);
+      if (!x.pathname.endsWith("/")) x.pathname += "/";
+      x.search = "";
+      x.hash = "";
+      return x.href;
+    }
     if (repo) {
       try {
-        var u = new URL(repo);
+        var u = new URL(repo, location.href);
         if (!LOCAL[u.hostname]) throw new Error("repo host not allowed");
         if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("repo protocol not allowed");
-        origin = repo.replace(/\/?$/, "/");
+        origin = slash(u.href);
       } catch (e) {
         err = String(e && e.message || e);
       }
@@ -33,13 +49,8 @@
         : ("https://raw.githack.com/" + OWNER + "/" + REPO + "/" + ref + "/");
     }
     window.MIRROR_BOOT_ERROR = err;
-    if (origin) {
-      var base = document.createElement("base");
-      base.href = origin;
-      document.head.appendChild(base);
-      window.MIRROR_REPO = origin;
-      window.MIRROR_PINNED = PINNED;
-    }
+    window.MIRROR_REPO = origin;
+    window.MIRROR_PINNED = PINNED;
   })();
 </script>
 <script type="importmap">
@@ -51,8 +62,7 @@
 }
 </script>
 <style>
-  html, body { margin: 0; height: 100%; height: 100dvh; overflow: hidden; font-family: system-ui, sans-serif; background: #F7F5EF; color: #181818; }
-  #app { height: 100%; }
+  html, body, #app { margin: 0; height: 100%; height: 100dvh; overflow: hidden; overscroll-behavior: none; touch-action: none; font-family: ui-sans-serif, system-ui, sans-serif; background: #F7F5EF; color: #181818; }
   #boot-fail { margin: 24px; max-width: 44rem; }
 </style>
 <body>
@@ -62,6 +72,7 @@
   function fail(msg, detail) {
     const box = document.createElement("div");
     box.id = "boot-fail";
+    box.setAttribute("role", "alert");
     const p = document.createElement("p");
     p.textContent = msg;
     box.appendChild(p);
@@ -74,13 +85,21 @@
   }
   if (window.MIRROR_BOOT_ERROR) {
     fail(window.MIRROR_BOOT_ERROR);
+  } else if (!window.MIRROR_REPO) {
+    fail("no trusted module origin");
   } else {
     const repo = window.MIRROR_REPO;
+    let boot;
     try {
-      const { boot } = await import(new URL("src/ui/interactions.js", repo).href);
+      ({ boot } = await import(new URL("src/app/boot.js", repo).href));
+    } catch (err) {
+      fail("Failed to load modules from " + String(repo), String(err && err.stack || err));
+      throw err;
+    }
+    try {
       await boot(root);
     } catch (err) {
-      fail("Failed to load " + String(repo), String(err && err.stack || err));
+      fail("Failed to start the tool", String(err && err.stack || err));
       console.error(err);
     }
   }

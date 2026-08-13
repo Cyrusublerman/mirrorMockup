@@ -90,12 +90,13 @@ test("no ROTATE_MIRROR in production UI modules", () => {
 
 test("remote launcher pins SHA and does not exec arbitrary repo", () => {
   const html = readFileSync(new URL("../remote.html", import.meta.url), "utf8");
-  assert.equal(/raw\.githack\.com\/Cyrusublerman\/mirrorMockup\/" \+ ref/.test(html) || html.includes("PINNED"), true);
   assert.match(html, /PINNED/);
   assert.match(html, /repo host not allowed/);
   assert.equal(html.includes("innerHTML"), false);
   assert.match(html, /textContent/);
   assert.doesNotMatch(html, /@main/);
+  assert.doesNotMatch(html, /<base/);
+  assert.match(html, /src\/app\/boot\.js/);
 });
 
 test("app shell is a three-room HUD not a five-mode form", () => {
@@ -103,8 +104,12 @@ test("app shell is a three-room HUD not a five-mode form", () => {
   assert.match(js, /mp-app/);
   assert.doesNotMatch(js, /data-mode="INSPECT"/);
   assert.doesNotMatch(js, /data-mode="COMPOSITION"/);
+  assert.match(js, /PRODUCTION_ROOMS|POSE/);
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /interactions\.js/);
+  assert.match(html, /src\/app\/boot\.js/);
+  const strip = readFileSync(new URL("../src/ui/hud/top_mode_strip.js", import.meta.url), "utf8");
+  assert.match(strip, /POSE.*SCENE.*RECURSION/s);
+  assert.doesNotMatch(strip, /EXPORT/);
 });
 
 test("P0 photograph is not in public fixtures", () => {

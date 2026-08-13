@@ -1,3 +1,5 @@
+import { CATALOGUE } from "../overlays/composition_overlay_stack.js";
+
 function row(k, v) {
   const d = document.createElement("div");
   d.className = "mp-kv";
@@ -9,7 +11,7 @@ function row(k, v) {
   return d;
 }
 
-export function mountInspectDrawer(el, open, proj, onClose) {
+export function mountInspectDrawer(el, open, proj, workspace, handlers) {
   el.className = "mp-inspect" + (open ? " is-open" : "");
   el.replaceChildren();
   if (!open) return;
@@ -18,28 +20,38 @@ export function mountInspectDrawer(el, open, proj, onClose) {
   h.textContent = "INSPECT";
   const x = document.createElement("button");
   x.type = "button";
+  x.className = "mp-chip";
   x.textContent = "Close";
-  x.addEventListener("click", onClose);
+  x.addEventListener("click", handlers.close);
   head.append(h, x);
   el.appendChild(head);
   const body = document.createElement("div");
-  body.className = "mp-inspect-body";
   const b = proj.build || {};
   body.appendChild(row("APP", String(b.APP)));
   body.appendChild(row("UI", String(b.UI)));
   body.appendChild(row("CORE", String(b.CORE)));
   body.appendChild(row("commit", String(b.commit || "")));
-  body.appendChild(row("valid", String(proj.valid)));
+  body.appendChild(row("transaction", String(proj.effective?.transaction || "")));
   body.appendChild(row("last_edit", JSON.stringify(proj.last_edit || {})));
-  const rec = proj.rec || {};
-  body.appendChild(row("S", rec.S == null ? "—" : String(rec.S)));
-  body.appendChild(row("alpha", rec.alpha == null ? "—" : JSON.stringify(rec.alpha)));
-  const occ = proj.occlusion || {};
-  body.appendChild(row("hand vis", occ.hand_visibility == null ? "—" : Number(occ.hand_visibility).toFixed(3)));
-  body.appendChild(row("face vis", occ.face_visibility == null ? "—" : Number(occ.face_visibility).toFixed(3)));
+  body.appendChild(row("S", proj.rec?.S == null ? "—" : String(proj.rec.S)));
+  body.appendChild(row("alpha", proj.rec?.alpha == null ? "—" : JSON.stringify(proj.rec.alpha)));
+  body.appendChild(row("hand vis", Number(proj.occlusion?.hand_visibility || 0).toFixed(3)));
+  body.appendChild(row("face vis", Number(proj.occlusion?.face_visibility || 0).toFixed(3)));
   for (const [k, v] of Object.entries(proj.residuals || {})) {
     body.appendChild(row(k, Number(v).toFixed(6)));
   }
   for (const reason of proj.reasons || []) body.appendChild(row("reason", String(reason)));
+  const ov = document.createElement("div");
+  ov.className = "mp-row";
+  for (const id of CATALOGUE) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "mp-chip" + (workspace.overlays[id] ? " is-on" : "");
+    chip.textContent = id;
+    chip.setAttribute("aria-pressed", workspace.overlays[id] ? "true" : "false");
+    chip.addEventListener("click", () => handlers.toggleOverlay(id));
+    ov.appendChild(chip);
+  }
+  body.appendChild(ov);
   el.appendChild(body);
 }

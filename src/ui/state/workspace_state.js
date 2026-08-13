@@ -7,8 +7,9 @@ export function createWorkspaceState() {
     selected: null,
     precision: false,
     inspect: false,
+    menu: false,
     overlays: {
-      GRID: true,
+      GRID: false,
       BBOX: false,
       CENTROID: false,
       MEASURE: false,
@@ -20,11 +21,9 @@ export function createWorkspaceState() {
       DISTORTION: false,
     },
     drive_mode: "PHONE_DRIVES_HAND",
-    warp: "AUTO",
+    warp: "OFF",
     q: 1,
     n: 0,
-    inset_swapped: false,
-    body_mode: "RIGGED",
     axis: "BEND",
   };
 }

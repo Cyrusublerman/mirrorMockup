@@ -64,7 +64,13 @@ const PICK_JOINTS = ["head", "pelvis", "wrist_R", "wrist_L", "ankle_L", "ankle_R
 export async function createScene3D(canvas, app, opts = {}) {
   const THREE = await import("three");
   const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: false,
+    alpha: false,
+    powerPreference: "default",
+    failIfMajorPerformanceCaveat: false,
+  });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.autoClear = true;
   const scene = new THREE.Scene();
@@ -155,13 +161,14 @@ export async function createScene3D(canvas, app, opts = {}) {
   const pickGroup = new THREE.Group();
   scene.add(pickGroup);
   const pickMats = {
-    idle: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.0 }),
-    hot: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.35 }),
+    idle: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.0, depthTest: false }),
+    hot: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.4, depthTest: false }),
   };
   const pickSpheres = {};
   for (const id of PICK_JOINTS) {
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), pickMats.idle);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), pickMats.idle);
     s.userData.pick = { kind: "joint", id };
+    s.renderOrder = 20;
     pickGroup.add(s);
     pickSpheres[id] = s;
   }
@@ -172,13 +179,9 @@ export async function createScene3D(canvas, app, opts = {}) {
   const bodyMode = { kind: "RIGGED" };
 
   const inset = opts.insetCanvas || null;
-  let insetRenderer = null;
+  const insetCtx = inset ? inset.getContext("2d") : null;
   const insetCam = new THREE.PerspectiveCamera(50, 1, 0.02, 40);
   insetCam.up.set(0, 0, 1);
-  if (inset) {
-    insetRenderer = new THREE.WebGLRenderer({ canvas: inset, antialias: true });
-    insetRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  }
 
   const workspace = {
     editor_view: "ISO",
@@ -200,9 +203,11 @@ export async function createScene3D(canvas, app, opts = {}) {
   }
 
   function applyCapture(cam3, camE) {
-    cam3.position.set(...camE.world.translation);
-    cam3.quaternion.set(camE.world.rotation[0], camE.world.rotation[1], camE.world.rotation[2], camE.world.rotation[3]);
-    cam3.up.set(...camE.basis.up);
+    const xf = camE?.world;
+    if (!xf?.translation || !xf.rotation) return;
+    cam3.position.set(...xf.translation);
+    cam3.quaternion.set(xf.rotation[0], xf.rotation[1], xf.rotation[2], xf.rotation[3]);
+    if (camE.basis?.up) cam3.up.set(...camE.basis.up);
     cam3.fov = ((camE.hfov || Math.PI / 3) * 180) / Math.PI / Math.max(cam3.aspect, 0.2);
     cam3.updateProjectionMatrix();
   }
@@ -261,8 +266,10 @@ export async function createScene3D(canvas, app, opts = {}) {
     phoneMesh.quaternion.set(pw.rotation[0], pw.rotation[1], pw.rotation[2], pw.rotation[3]);
     phoneMesh.visible = true;
     const field = renderField(eff, req, 64, 64);
-    fieldTex.image.data.set(field.rgba);
-    fieldTex.needsUpdate = true;
+    if (field?.rgba?.length === fieldTex.image.data.length) {
+      fieldTex.image.data.set(field.rgba);
+      fieldTex.needsUpdate = true;
+    }
 
     const mm = eff.mirror.mesh;
     if (mm?.positions) {
@@ -346,22 +353,33 @@ export async function createScene3D(canvas, app, opts = {}) {
     }
   }
 
+  function blitInset(eff, mainIsCapture) {
+    if (!inset || !insetCtx) return;
+    const parent = inset.parentElement;
+    const iw = Math.max(1, Math.floor(inset.clientWidth || parent?.clientWidth || 120));
+    const ih = Math.max(1, Math.floor(inset.clientHeight || parent?.clientHeight || 160));
+    if (workspace.inset_is_capture || !mainIsCapture) applyCapture(insetCam, eff.camera);
+    else applyEditor(insetCam, eff.skeleton);
+    insetCam.aspect = iw / ih;
+    insetCam.updateProjectionMatrix();
+    renderer.setSize(iw, ih, false);
+    renderer.render(scene, insetCam);
+    if (inset.width !== iw) inset.width = iw;
+    if (inset.height !== ih) inset.height = ih;
+    insetCtx.drawImage(renderer.domElement, 0, 0, iw, ih);
+    sizeOf(canvas, camera, renderer);
+  }
+
   function renderCameras(eff) {
     const mainIsCapture = workspace.editor_view === "CAMERA";
+    blitInset(eff, mainIsCapture);
     if (mainIsCapture) applyCapture(camera, eff.camera);
     else applyEditor(camera, eff.skeleton);
     renderer.render(scene, camera);
-    if (insetRenderer) {
-      sizeOf(inset, insetCam, insetRenderer);
-      if (workspace.inset_is_capture || !mainIsCapture) applyCapture(insetCam, eff.camera);
-      else applyEditor(insetCam, eff.skeleton);
-      insetRenderer.render(scene, insetCam);
-    }
   }
 
   function resize() {
     sizeOf(canvas, camera, renderer);
-    if (insetRenderer) sizeOf(inset, insetCam, insetRenderer);
   }
 
   function sync() {

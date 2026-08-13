@@ -1,1 +1,1 @@
-export { boot } from "./app_shell.js";
+export { boot } from "../app/boot.js";

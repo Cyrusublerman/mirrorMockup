@@ -1,16 +1,24 @@
 export const PRODUCTION_ROOMS = ["POSE", "SCENE", "RECURSION"];
 
-const ROOMS = PRODUCTION_ROOMS.map((id) => ({ id, label: id }));
-
 export function mountTopModeStrip(el, workspace, onChange) {
-  el.replaceChildren();
-  el.className = "mp-strip";
-  for (const room of ROOMS) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "mp-room" + (workspace.room === room.id ? " is-on" : "");
-    b.textContent = room.label;
-    b.addEventListener("click", () => onChange(room.id));
-    el.appendChild(b);
+  if (!el.dataset.ready) {
+    el.replaceChildren();
+    el.className = "mp-strip";
+    el.dataset.ready = "1";
+    for (const id of PRODUCTION_ROOMS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "mp-room";
+      b.dataset.room = id;
+      b.textContent = id;
+      b.setAttribute("aria-label", id);
+      b.addEventListener("click", () => onChange(id));
+      el.appendChild(b);
+    }
+  }
+  for (const b of el.querySelectorAll(".mp-room")) {
+    const on = b.dataset.room === workspace.room;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
   }
 }
