@@ -42,6 +42,10 @@ export function createApp() {
     if (result.error) return { ...last, error: result.error };
     requested = result.requested;
     last = solve(requested);
+    if (requested.workspace.pending_mirror_fit && last.effective.proposal) {
+      requested.workspace.proposal = last.effective.proposal;
+      requested.workspace.pending_mirror_fit = false;
+    }
     return last;
   }
 

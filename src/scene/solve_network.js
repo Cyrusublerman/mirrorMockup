@@ -8,17 +8,25 @@ import { evaluateReflection } from "../domains/reflection/reflect.js";
 import { evaluatePose } from "../domains/pose/solve.js";
 import { evaluateSupport } from "../domains/support/contact.js";
 import { evaluateGrip } from "../domains/hand_grip/grip.js";
-import { evaluateVisibility } from "../domains/visibility/report.js";
+import { evaluateVisibility, projectWorld } from "../domains/visibility/report.js";
 import { evaluateCarrierP } from "../domains/carrier_p/project.js";
 import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
 import { viewCameraAtTau, fillFraction } from "../render/artwork_camera.js";
+import { nudgeToPhoneTarget } from "./solve_policy.js";
+import { jacobian } from "../shared_math/jacobian.js";
+import { fitAperture } from "../domains/mirror/mesh.js";
+import { createProposal } from "./proposals.js";
 
-export function solve(requested) {
-  const req = cloneState(requested);
-  if (!req.composition.targets.length) req.composition.targets = p0Targets();
+function applyApparatusPan(req) {
+  const pan = req.apparatus.apparatus_pan_request_m || [0, 0];
+  req.phone.transform_request.translation[0] += pan[0];
+  req.phone.transform_request.translation[2] += pan[1];
+}
 
+function solveOnce(req) {
+  applyApparatusPan(req);
   const phone = evaluatePhone(req);
   let cam = evaluateCamera(phone.world, req);
   let apparatus = evaluateApparatus(cam, req);
@@ -35,15 +43,114 @@ export function solve(requested) {
 
   const mirror = evaluateMirror(apparatus, req);
   const reflection = evaluateReflection(cam, mirror);
-  const pose = evaluatePose(req, phone.grip_world);
-  const support = evaluateSupport(pose.fk, req);
   const grip = evaluateGrip(phone, req);
+  const pose = evaluatePose(req, phone.grip_world, grip);
+  const support = evaluateSupport(pose.fk, req);
   const visibility = evaluateVisibility(pose.fk, cam, mirror);
   const carrier_p = evaluateCarrierP(phone, cam, mirror);
   const content_q = evaluateQ(req, carrier_p);
   const recursion = evaluateRecursion(req, carrier_p);
-  const composition = evaluateMetrics(visibility, carrier_p, req);
+  const mirrorImageQuad = (mirror.quad || []).map((X) => projectWorld(X, cam).image_norm);
+  const composition = evaluateMetrics(visibility, carrier_p, req, mirrorImageQuad);
   const view = viewCameraAtTau(cam, apparatus, carrier_p, recursion, req.view.tau);
+  return {
+    phone,
+    cam,
+    apparatus,
+    mirror,
+    reflection,
+    grip,
+    pose,
+    support,
+    visibility,
+    carrier_p,
+    content_q,
+    recursion,
+    composition,
+    view,
+    mirrorImageQuad,
+  };
+}
+
+function phoneCentroid(req) {
+  const phone = evaluatePhone(req);
+  const cam = evaluateCamera(phone.world, req);
+  const apparatus = evaluateApparatus(cam, req);
+  const mirror = evaluateMirror(apparatus, req);
+  const p = evaluateCarrierP(phone, cam, mirror);
+  const q = p.quad;
+  if (!q || q.some((c) => !c)) return [0.5, 0.5];
+  return [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
+}
+
+function sensitivityAt(req) {
+  const x0 = [
+    req.apparatus.mirror_distance_request_m,
+    req.apparatus.mirror_pan_uv_request_m[0],
+  ];
+  const J = jacobian(
+    (x) => {
+      const r = cloneState(req);
+      r.apparatus.mirror_distance_auto_solve = false;
+      r.apparatus.mirror_distance_request_m = x[0];
+      r.apparatus.mirror_pan_uv_request_m[0] = x[1];
+      return phoneCentroid(r);
+    },
+    x0,
+    2,
+    1e-3,
+  );
+  return [
+    { of: "phone_cx", wrt: "d_M", value: J[0][0] },
+    { of: "phone_cy", wrt: "d_M", value: J[1][0] },
+    { of: "phone_cx", wrt: "mirror_pan_u", value: J[0][1] },
+    { of: "phone_cy", wrt: "mirror_pan_u", value: J[1][1] },
+  ];
+}
+
+export function solve(requested) {
+  const req = cloneState(requested);
+  if (!req.composition.targets.length) req.composition.targets = p0Targets();
+
+  let parts = solveOnce(cloneState(req));
+  if (req.composition.solve_mode === "COMPOSITION_FIT") {
+    for (let i = 0; i < 4; i++) {
+      nudgeToPhoneTarget(req, parts.composition.residuals);
+      parts = solveOnce(cloneState(req));
+    }
+  }
+
+  const {
+    phone,
+    cam,
+    apparatus,
+    mirror,
+    reflection,
+    grip,
+    pose,
+    support,
+    visibility,
+    carrier_p,
+    content_q,
+    recursion,
+    composition,
+    view,
+  } = parts;
+
+  let proposal = req.workspace.proposal || null;
+  if (req.workspace.pending_mirror_fit) {
+    const uvs = [];
+    for (const r of Object.values(visibility.reports || {})) {
+      if (r.reflected?.aperture?.uv) uvs.push(r.reflected.aperture.uv);
+    }
+    const fit = uvs.length ? fitAperture(uvs, req.mirror.fit_margin_m) : { width: req.mirror.width_m, height: req.mirror.height_m };
+    proposal = createProposal({
+      id: "mirror_fit",
+      kind: "MIRROR_FIT",
+      description: "fit aperture to reflected content",
+      patch: { mirror: { width_m: fit.width, height_m: fit.height } },
+    });
+  }
 
   const constraints = [
     ...(pose.constraints || []).map((c) =>
@@ -87,6 +194,13 @@ export function solve(requested) {
       ? "PROJECTED"
       : "PASS";
 
+  let sensitivity = [];
+  try {
+    sensitivity = sensitivityAt(req);
+  } catch {
+    sensitivity = [];
+  }
+
   const effective = {
     ...emptyEffective(),
     skeleton: pose,
@@ -106,6 +220,8 @@ export function solve(requested) {
     support,
     grip,
     transaction: top,
+    sensitivity,
+    proposal,
   };
 
   return { requested: req, effective, transaction: top };

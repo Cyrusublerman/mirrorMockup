@@ -31,7 +31,17 @@ export function intrinsics(requested) {
   const hfov = requested.camera.hfov_request;
   const fx = fxFromHfov(W, hfov);
   const fy = fx;
-  return { fx, fy, cx: W / 2, cy: H / 2, width_px: W, height_px: H, hfov };
+  const pan = requested.camera.crop_request.pan || [0, 0];
+  return {
+    fx,
+    fy,
+    cx: W / 2 + pan[0] * W,
+    cy: H / 2 + pan[1] * H,
+    width_px: W,
+    height_px: H,
+    hfov,
+    crop_pan: pan.slice(),
+  };
 }
 
 export function evaluateCamera(phoneWorld, requested) {

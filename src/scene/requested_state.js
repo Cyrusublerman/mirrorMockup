@@ -60,7 +60,7 @@ export function defaultRequestedState() {
     camera: {
       calibration_id: null,
       hfov_request: (70 * Math.PI) / 180,
-      crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560 },
+      crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560, pan: [0, 0] },
       optical_offset_local: [0, 0.055, 0.004],
       epistemic_status: "HYPOTHESIS",
     },

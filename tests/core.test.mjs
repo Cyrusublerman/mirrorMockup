@@ -136,6 +136,9 @@ test("export png", () => {
   assert.equal(last.export.png[1], 80);
   assert.ok(last.export.sidecar);
   assert.ok(last.export.unwarped);
+  assert.ok(last.export.overlay);
+  assert.ok(last.export.staging);
+  assert.ok(last.export.recursive_reference);
 });
 
 test("save restore", () => {

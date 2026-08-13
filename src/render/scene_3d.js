@@ -1,4 +1,5 @@
 import { BONE_PARENT } from "../domains/body/skeleton.js";
+import { renderField } from "../domains/export/image.js";
 
 function geometryFromMesh(THREE, mesh) {
   const geo = new THREE.BufferGeometry();
@@ -57,6 +58,11 @@ export async function createScene3D(canvas, app) {
     new THREE.BufferGeometry(),
     new THREE.MeshBasicMaterial({ color: 0x8eb4ff, side: THREE.DoubleSide }),
   );
+  const fieldTex = new THREE.DataTexture(new Uint8Array(64 * 64 * 4), 64, 64, THREE.RGBAFormat);
+  fieldTex.needsUpdate = true;
+  fieldTex.flipY = true;
+  screenMesh.material.map = fieldTex;
+  screenMesh.material.needsUpdate = true;
   phoneMesh.add(screenMesh);
   scene.add(phoneMesh);
 
@@ -133,6 +139,10 @@ export async function createScene3D(canvas, app) {
     phoneMesh.scale.set(1, 1, 1);
     phoneMesh.visible = !!req.workspace.overlays.PHONE;
 
+    const field = renderField(eff, req, 64, 64);
+    fieldTex.image.data.set(field.rgba);
+    fieldTex.needsUpdate = true;
+
     const mm = eff.mirror.mesh;
     if (mm?.positions) {
       if (mirrorMesh3.geometry.getAttribute("position")?.count !== mm.positions.length) {
@@ -156,7 +166,8 @@ export async function createScene3D(canvas, app) {
     ];
     camera.up.set(...camE.basis.up);
     camera.lookAt(...look);
-    camera.fov = (camE.hfov * 180) / Math.PI / camera.aspect;
+    const hfov = view.hfov || camE.hfov;
+    camera.fov = (hfov * 180) / Math.PI / camera.aspect;
     camera.updateProjectionMatrix();
 
     const skel = eff.skeleton;

@@ -1,5 +1,4 @@
 import { add, scale } from "../shared_math/vector.js";
-import { loopPeriod } from "../domains/recursion/kernel.js";
 
 export function tauSegments(d_M, fillFraction) {
   const tau_M = 1;
@@ -7,10 +6,26 @@ export function tauSegments(d_M, fillFraction) {
   return { tau_M, tau_P, d_M, fillFraction };
 }
 
+export function fillFraction(carrierP) {
+  if (!carrierP?.quad) return 0;
+  const q = carrierP.quad;
+  const xs = q.map((p) => p[0]);
+  const ys = q.map((p) => p[1]);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  return Math.max(w, h);
+}
+
+export function fillZoom(carrierP) {
+  const f = fillFraction(carrierP);
+  return 0.92 / Math.max(f, 0.02);
+}
+
 export function viewCameraAtTau(captureCam, apparatus, carrierP, recursion, tau) {
   const { tau_M, tau_P } = tauSegments(apparatus.d_M, 0);
   const C = captureCam.world.translation;
   const f = captureCam.basis.forward;
+  const zoomFill = fillZoom(carrierP);
   let segment = "DOLLY";
   let camT = C.slice();
   let extraScale = 1;
@@ -21,17 +36,14 @@ export function viewCameraAtTau(captureCam, apparatus, carrierP, recursion, tau)
   } else if (tau <= tau_P) {
     const u = (tau - tau_M) / (tau_P - tau_M);
     camT = add(C, scale(f, apparatus.d_M));
-    extraScale = 1 + u * 8;
+    extraScale = 1 + u * (zoomFill - 1);
     segment = "APPROACH";
   } else {
     camT = add(C, scale(f, apparatus.d_M));
-    extraScale = 9;
+    extraScale = zoomFill;
     segment = recursion?.mode && recursion.mode !== "OFF" ? "LOOP" : "CLAMP";
     if (segment === "LOOP" && recursion.certificate) {
-      const per = loopPeriod(recursion.certificate);
-      const k = tau - tau_P;
-      phase = [k, 0];
-      extraScale = 9 * Math.exp(k);
+      phase = [tau - tau_P, 0];
     }
   }
   return {
@@ -43,16 +55,7 @@ export function viewCameraAtTau(captureCam, apparatus, carrierP, recursion, tau)
     tau_P,
     extraScale,
     phase,
+    hfov: captureCam.hfov / extraScale,
     mutates_capture: false,
   };
-}
-
-export function fillFraction(carrierP) {
-  if (!carrierP?.quad) return 0;
-  const q = carrierP.quad;
-  const xs = q.map((p) => p[0]);
-  const ys = q.map((p) => p[1]);
-  const w = Math.max(...xs) - Math.min(...xs);
-  const h = Math.max(...ys) - Math.min(...ys);
-  return Math.max(w, h);
 }

@@ -23,7 +23,7 @@ export function productionMirrorBasis(frame) {
 export function evaluateApparatus(cam, requested) {
   const frame = apparatusFrameFromCamera(cam);
   const d_M = requested.apparatus.mirror_distance_request_m;
-  const pan = requested.apparatus.mirror_pan_uv_request_m;
+  const pan = requested.apparatus.mirror_pan_uv_request_m || [0, 0];
   const centre = mirrorCentre(frame, d_M, pan);
   const basis = productionMirrorBasis(frame);
   const parallel = Math.abs(

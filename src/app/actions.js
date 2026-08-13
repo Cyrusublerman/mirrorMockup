@@ -1,6 +1,6 @@
 import { cloneState } from "../scene/requested_state.js";
 import { applySolveMode } from "../scene/solve_policy.js";
-import { createProposal, acceptProposal, rejectProposal } from "../scene/proposals.js";
+import { createProposal, acceptProposal, rejectProposal, applyPatch } from "../scene/proposals.js";
 
 export const ACTION_NAMES = [
   "LOAD_P0_PROFILE",
@@ -185,6 +185,36 @@ export function applyAction(requested, name, payload = {}) {
       break;
     case "MOVE_POSE_TARGET":
       next.body.pose_targets.endpoint_targets[payload.end] = payload.world;
+      break;
+    case "LOAD_REFERENCE":
+      if (payload.source_id) next.reference.source_id = payload.source_id;
+      if (payload.landmarks) next.reference.landmarks = payload.landmarks;
+      if (payload.registration) Object.assign(next.reference.registration, payload.registration);
+      break;
+    case "REQUEST_MIRROR_FIT":
+      next.workspace.pending_mirror_fit = true;
+      break;
+    case "CREATE_PROPOSAL":
+      next.workspace.proposal = createProposal({
+        id: payload.id || "proposal",
+        kind: payload.kind || "GENERIC",
+        description: payload.description || "",
+        patch: payload.patch || {},
+      });
+      break;
+    case "ACCEPT_PROPOSAL": {
+      const p = payload.proposal || next.workspace.proposal;
+      if (p) {
+        applyPatch(next, p.patch);
+        p.status = "ACCEPTED";
+        next.workspace.proposal = p;
+      }
+      next.workspace.pending_mirror_fit = false;
+      break;
+    }
+    case "REJECT_PROPOSAL":
+      if (next.workspace.proposal) next.workspace.proposal.status = "REJECTED";
+      next.workspace.pending_mirror_fit = false;
       break;
     default:
       break;

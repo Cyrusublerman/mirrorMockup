@@ -107,6 +107,7 @@ function scenePanel(requested) {
         ${panAbsolute("PAN_OUTER_FRAME", "pan", "x", "y", cropPan[0], cropPan[1])}
         <h3>PAN_REFLECTED_CONTENT</h3>
         ${panReflectedContent()}
+        <p><button type="button" data-action="REQUEST_MIRROR_FIT" data-payload="{}">REQUEST_MIRROR_FIT</button></p>
       </div>`;
 }
 
@@ -182,7 +183,12 @@ function inspectPanel(requested, effective) {
         <p>hfov req ${reqHfov != null ? `${deg(reqHfov)}°` : "—"} · eff ${effHfov != null ? `${deg(effHfov)}°` : "—"}</p>
         <p>P ${p.valid ? "valid" : "invalid"} ${((p.reasons || [])).join("|") || ""}</p>
         <p>warp req ${warpReq} · eff ${warpEff} · available ${effective.recursion?.available}</p>
-        ${proposal ? `<p>proposal ${proposal.id} ${proposal.status}</p>` : ""}
+        <p>warp req ${warpReq} · eff ${warpEff} · available ${effective.recursion?.available}</p>
+        ${proposal ? `<p>proposal ${proposal.id} ${proposal.status} ${proposal.kind || ""}</p>
+        <p>
+          <button type="button" data-action="ACCEPT_PROPOSAL" data-payload="{}">ACCEPT_PROPOSAL</button>
+          <button type="button" data-action="REJECT_PROPOSAL" data-payload="{}">REJECT_PROPOSAL</button>
+        </p>` : ""}
       </div>`;
 }
 

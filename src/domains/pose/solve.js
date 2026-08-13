@@ -24,11 +24,15 @@ function ikArm(skel, chain, target, branch, id) {
   };
 }
 
-export function evaluatePose(requested, phoneGripWorld) {
+export function evaluatePose(requested, phoneGripWorld, gripEval) {
   let skel = evaluateSkeleton(requested);
   const constraints = [];
   const ends = requested.body.pose_targets.endpoint_targets || {};
-  const grip = phoneGripWorld ? evaluateGrip({ grip_world: phoneGripWorld }, requested) : null;
+  const grip =
+    gripEval ||
+    (phoneGripWorld
+      ? evaluateGrip({ grip_world: phoneGripWorld, world: phoneGripWorld }, requested)
+      : null);
 
   if (requested.phone.authority === "PHONE_DRIVES_HAND" && phoneGripWorld) {
     const target = ends.wrist_R || grip.wrist_target || phoneGripWorld.translation;

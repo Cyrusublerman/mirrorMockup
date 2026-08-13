@@ -1,3 +1,5 @@
+import { renderField } from "../domains/export/image.js";
+
 export function overlayList(requested) {
   return requested.workspace.overlays;
 }
@@ -22,6 +24,18 @@ function strokeQuad(ctx, q, w, h, color) {
 
 export function drawOverlays(ctx, requested, effective, w, h) {
   ctx.clearRect(0, 0, w, h);
+  if (requested.workspace.mode === "RECURSION") {
+    const field = renderField(effective, requested, 160, 160);
+    const img = ctx.createImageData(160, 160);
+    img.data.set(field.rgba);
+    const off = typeof OffscreenCanvas === "function" ? new OffscreenCanvas(160, 160) : document.createElement("canvas");
+    off.width = 160;
+    off.height = 160;
+    const octx = off.getContext("2d");
+    octx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, w, h);
+  }
   const vis = requested.workspace.overlays || {};
   const q = effective.carrier_p?.quad;
   if (vis.P && q) strokeQuad(ctx, q, w, h, "#c9a227");
