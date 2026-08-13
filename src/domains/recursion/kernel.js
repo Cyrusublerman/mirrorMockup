@@ -76,9 +76,6 @@ export function evaluateRecursion(requested, carrierP) {
     refused: false,
     certificate,
     map: certificate.map,
-    q: certificate.q,
-    n: certificate.n,
-    S: certificate.S,
   };
 }
 
