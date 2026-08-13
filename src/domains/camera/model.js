@@ -2,6 +2,7 @@ import * as quat from "../../shared_math/quaternion.js";
 import { add, scale } from "../../shared_math/vector.js";
 import { fxFromHfov } from "../../shared_math/projection.js";
 import * as xform from "../../shared_math/transform.js";
+import { PHONE_LOCAL } from "../phone/prism.js";
 
 export function cameraLocalTransform(requested) {
   const off = requested.camera.optical_offset_local;
@@ -19,9 +20,9 @@ export function captureCameraWorld(phoneWorld, requested) {
 
 export function cameraBasis(camWorld) {
   return {
-    right: quat.rotateVec(camWorld.rotation, [1, 0, 0]),
-    up: quat.rotateVec(camWorld.rotation, [0, 0, 1]),
-    forward: quat.rotateVec(camWorld.rotation, [0, 1, 0]),
+    right: quat.rotateVec(camWorld.rotation, PHONE_LOCAL.right),
+    up: quat.rotateVec(camWorld.rotation, PHONE_LOCAL.up),
+    forward: quat.rotateVec(camWorld.rotation, PHONE_LOCAL.screen_normal),
   };
 }
 
@@ -59,5 +60,7 @@ export function evaluateCamera(phoneWorld, requested) {
     distortion,
     distortion_status,
     epistemic_status: requested.camera.epistemic_status,
+    mount: "FRONT",
+    same_side_as_screen: true,
   };
 }

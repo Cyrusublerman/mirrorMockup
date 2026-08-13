@@ -207,6 +207,26 @@ test("save restore", () => {
   assert.equal(app2.getRequested().apparatus.mirror_distance_request_m, 1.11);
 });
 
+test("front camera is screen-side; screen faces subject and mirror", () => {
+  const app = createApp();
+  const e = app.getEffective();
+  const f = e.camera.basis.forward;
+  const sn = e.phone.screen_normal;
+  const n = e.mirror.basis.n;
+  const C = e.camera.world.translation;
+  const head = e.skeleton.fk.head;
+  const M = e.mirror.centre;
+  assert.equal(e.camera.mount, "FRONT");
+  assert.equal(e.phone.mount, "FRONT");
+  assert.equal(e.camera.same_side_as_screen, true);
+  assert.ok(Math.abs(sn[0] * f[0] + sn[1] * f[1] + sn[2] * f[2] - 1) < 1e-9);
+  assert.ok(sn[0] * n[0] + sn[1] * n[1] + sn[2] * n[2] < -0.999);
+  const along = (X) => (X[0] - C[0]) * f[0] + (X[1] - C[1]) * f[1] + (X[2] - C[2]) * f[2];
+  assert.ok(along(e.phone.screen_corners_world[0]) < along(head));
+  assert.ok(along(head) < along(M));
+  assert.equal(e.carrier_p.valid, true);
+});
+
 test("phone rotation rotates camera and mirror relation", () => {
   const app = createApp();
   const n0 = app.getEffective().mirror.basis.n.slice();

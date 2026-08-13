@@ -2,6 +2,12 @@ import { add, scale, sub, vec3 } from "../../shared_math/vector.js";
 import * as quat from "../../shared_math/quaternion.js";
 import * as xform from "../../shared_math/transform.js";
 
+export const PHONE_LOCAL = Object.freeze({
+  right: [1, 0, 0],
+  screen_normal: [0, 1, 0],
+  up: [0, 0, 1],
+});
+
 export function phoneWorldTransform(phoneRequest) {
   const t = phoneRequest.transform_request.translation;
   const r = quat.yawPitchRoll(
@@ -96,6 +102,7 @@ export function evaluatePhone(requested, worldOverride) {
   const dims = requested.phone.body_dimensions_m;
   const inset = requested.phone.screen_inset_m;
   const screenLocal = localScreenCorners(dims, inset);
+  const screen_normal = quat.rotateVec(world.rotation, PHONE_LOCAL.screen_normal);
   return {
     world,
     mesh: prismMesh(dims),
@@ -103,6 +110,8 @@ export function evaluatePhone(requested, worldOverride) {
     screen_corners_local: screenLocal,
     screen_corners_world: worldCorners(screenLocal, world),
     prism_corners_world: worldCorners(prismCorners(dims), world),
+    screen_normal,
+    mount: "FRONT",
     grip_world: xform.compose(world, {
       translation: requested.phone.grip_relation.offset,
       rotation: requested.phone.grip_relation.rotation,
