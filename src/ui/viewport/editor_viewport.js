@@ -39,4 +39,8 @@ export function createEditorViewport(canvas, scene3d, machine, handlers) {
   canvas.addEventListener("pointerup", end);
   canvas.addEventListener("pointercancel", end);
   canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
+  canvas.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    handlers.onDolly(ev.deltaY > 0 ? 1.08 : 0.92);
+  }, { passive: false });
 }

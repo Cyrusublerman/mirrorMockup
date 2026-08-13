@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: validation
     content: validate.py tree + UI tests + existing solver tests green.
-    status: in_progress
+    status: completed
 isProject: true
 ---
 
@@ -34,7 +34,7 @@ Portrait strip (one row): `POSE | SCENE | RECURSION`. Composition is an overlay 
 
 `app_shell.js` plus `rooms/`, `viewport/`, `manipulators/`, `overlays/`, `hud/`, `state/`, `adapters/`. Frozen debug harness under `src/ui/debug/` and `debug.html`.
 
-`index.html` and `remote.html` boot production `interactions.js` → `app_shell.js`.
+`index.html` and `remote.html` boot `src/app/boot.js` → AppShell. `interactions.js` re-exports that boot.
 
 ## Remote loader
 

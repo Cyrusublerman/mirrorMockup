@@ -171,7 +171,33 @@ export async function bootUi(root, app) {
       mk("REFERENCE", () => file.click()),
       mk("EXPORT GUIDE", () => { workspace.menu = false; exportGuide(); paintHud(); }),
     );
-    menuEl.append(head, row);
+    const views = el("div", "mp-row");
+    for (const kind of ["RIGGED", "STICK", "SIMPLE", "SILHOUETTE"]) {
+      views.appendChild(mk(kind, () => {
+        workspace.body_mode = kind;
+        scene3d.setBodyMode(kind);
+        workspace.menu = false;
+        paintHud();
+        paintScene();
+      }));
+    }
+    const snaps = el("div", "mp-row");
+    for (const id of ["A", "B", "C"]) {
+      snaps.appendChild(mk("SAVE " + id, () => {
+        app.dispatch("SAVE_SNAPSHOT", { id });
+        workspace.menu = false;
+        paintHud();
+      }));
+      snaps.appendChild(mk("LOAD " + id, () => {
+        const last = app.dispatch("LOAD_SNAPSHOT", { id, label: "Load " + id });
+        workspace.menu = false;
+        if (!last.error) {
+          paintHud();
+          paintScene();
+        }
+      }));
+    }
+    menuEl.append(head, row, views, snaps);
   }
 
   function paintHud() {

@@ -1,4 +1,5 @@
 import landmarks from "../../fixtures/P0/landmarks.js";
+import { p0Targets } from "../domains/composition/targets.js";
 
 export const RELATION = Object.freeze({
   FREE: "FREE",
@@ -87,7 +88,7 @@ export function defaultRequestedState() {
       thickness_m: 0.008,
     },
     composition: {
-      targets: [],
+      targets: p0Targets(),
       active_preserve_set: ["apparatus_rotation", "support"],
       solve_freedoms: ["pose", "mirror_distance", "phone"],
       solve_mode: SOLVE_MODE.P0_RECONSTRUCT,

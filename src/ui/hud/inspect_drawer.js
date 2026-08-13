@@ -1,4 +1,5 @@
 import { CATALOGUE } from "../overlays/composition_overlay_stack.js";
+import { mountCertificateBadge } from "./certificate_badge.js";
 
 function row(k, v) {
   const d = document.createElement("div");
@@ -26,19 +27,28 @@ export function mountInspectDrawer(el, open, proj, workspace, handlers) {
   head.append(h, x);
   el.appendChild(head);
   const body = document.createElement("div");
-  const b = proj.build || {};
-  body.appendChild(row("APP", String(b.APP)));
-  body.appendChild(row("UI", String(b.UI)));
-  body.appendChild(row("CORE", String(b.CORE)));
-  body.appendChild(row("commit", String(b.commit || "")));
+  const cert = document.createElement("div");
+  mountCertificateBadge(cert, proj);
+  body.appendChild(cert);
   body.appendChild(row("transaction", String(proj.effective?.transaction || "")));
-  body.appendChild(row("last_edit", JSON.stringify(proj.last_edit || {})));
+  const le = proj.last_edit || {};
+  body.appendChild(row("DRIVER", String(le.driver || "—")));
+  body.appendChild(row("PRESERVE", (le.preserve || []).join(", ") || "—"));
+  body.appendChild(row("ALLOWED_TO_MOVE", (le.allowed_to_move || []).join(", ") || "—"));
   body.appendChild(row("S", proj.rec?.S == null ? "—" : String(proj.rec.S)));
   body.appendChild(row("alpha", proj.rec?.alpha == null ? "—" : JSON.stringify(proj.rec.alpha)));
   body.appendChild(row("hand vis", Number(proj.occlusion?.hand_visibility || 0).toFixed(3)));
   body.appendChild(row("face vis", Number(proj.occlusion?.face_visibility || 0).toFixed(3)));
-  for (const [k, v] of Object.entries(proj.residuals || {})) {
-    body.appendChild(row(k, Number(v).toFixed(6)));
+  const title = document.createElement("strong");
+  title.textContent = "TARGETS";
+  body.appendChild(title);
+  for (const t of proj.targets || []) {
+    const res = t.residual == null ? "—" : t.residual.toFixed(4);
+    const band = t.residual == null ? "NONE" : t.residual <= (t.tolerance || 0) ? "IN" : "OUT";
+    body.appendChild(row(
+      `${t.id} · ${t.class}`,
+      `tol ${t.tolerance}  res ${res}  ${band}`,
+    ));
   }
   for (const reason of proj.reasons || []) body.appendChild(row("reason", String(reason)));
   const ov = document.createElement("div");

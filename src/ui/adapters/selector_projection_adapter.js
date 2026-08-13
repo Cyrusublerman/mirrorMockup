@@ -31,11 +31,23 @@ export function projectForHud(app) {
       valid: !!p.valid,
     };
   }
-  const residuals = {};
-  for (const [k, v] of Object.entries(e.residuals || {})) residuals[k] = residualValue(v);
+  const residualNums = {};
+  for (const [k, v] of Object.entries(e.residuals || {})) residualNums[k] = residualValue(v);
   for (const c of e.constraints || []) {
-    if (c.constraint_id) residuals[c.constraint_id] = residualValue(c);
+    if (c.constraint_id) residualNums[c.constraint_id] = residualValue(c);
   }
+  const targets = (r.composition?.targets || []).map((t) => {
+    const row = e.residuals?.[t.id] || {};
+    return {
+      id: t.id,
+      class: t.hard_or_soft || "soft",
+      tolerance: t.tolerance,
+      bbox: t.bbox,
+      requested: row.requested || t.target,
+      effective: row.effective || null,
+      residual: typeof row.residual === "number" ? row.residual : null,
+    };
+  });
   const rec = e.recursion || {};
   const cert = rec.certificate || null;
   const b = app.build || {};
@@ -53,8 +65,12 @@ export function projectForHud(app) {
       ...rec,
       S: cert?.S,
       alpha: cert?.alpha,
+      detJ: cert?.detJ_probe,
+      no_fold: cert?.no_fold,
+      pole: cert?.pole,
     },
-    residuals,
+    residuals: residualNums,
+    targets,
     valid: e.transaction !== "FAIL" && p.valid !== false,
     reasons,
     occlusion: {

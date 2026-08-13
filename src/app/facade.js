@@ -31,6 +31,7 @@ export function createApp() {
       return last;
     }
     if (name === "LOAD_SNAPSHOT") {
+      if (!snapshots[payload.id]) return { ...last, error: "no snapshot" };
       pushHistory(history, requested, payload.label || "Load snapshot");
       requested = structuredClone(snapshots[payload.id]);
       last = solve(requested);

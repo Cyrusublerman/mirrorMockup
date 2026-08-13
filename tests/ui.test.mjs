@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createApp } from "../src/app/facade.js";
 import { PRODUCTION_ROOMS } from "../src/ui/hud/top_mode_strip.js";
-import { CATALOGUE } from "../src/ui/overlays/composition_overlay_stack.js";
+import { CATALOGUE, drawOverlays } from "../src/ui/overlays/composition_overlay_stack.js";
 import { BUILD } from "../src/app/build_identity.js";
 import { projectForHud } from "../src/ui/adapters/selector_projection_adapter.js";
 import { createDispatchAdapter } from "../src/ui/adapters/action_dispatch_adapter.js";
@@ -74,6 +74,64 @@ test("HUD projection exposes P/Q and build stamp", () => {
   assert.equal(p.build.APP, BUILD.app);
   assert.equal(p.build.UI, BUILD.ui);
   assert.equal(p.build.CORE, BUILD.core);
+});
+
+test("composition targets expose class, tolerance and residuals", () => {
+  const app = createApp();
+  const p = projectForHud(app);
+  assert.ok(p.targets.length > 0);
+  const phone = p.targets.find((t) => t.id === "phone");
+  assert.ok(phone);
+  assert.equal(phone.class, "soft");
+  assert.equal(typeof phone.tolerance, "number");
+  assert.ok(phone.requested);
+});
+
+test("BBOX overlay uses landmark boxes not a fake frame", () => {
+  const app = createApp();
+  const proj = projectForHud(app);
+  const head = proj.targets.find((t) => t.id === "direct_head");
+  assert.ok(head?.bbox);
+  const calls = [];
+  const ctx = {
+    save() {},
+    restore() {},
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    stroke() {},
+    fill() {},
+    arc() {},
+    closePath() {},
+    clearRect() {},
+    fillText() {},
+    strokeRect(...a) { calls.push(a); },
+    set strokeStyle(_v) {},
+    set fillStyle(_v) {},
+    set font(_v) {},
+    set lineWidth(_v) {},
+  };
+  const ws = { overlays: { BBOX: true } };
+  drawOverlays(ctx, 100, 100, ws, proj);
+  assert.ok(calls.length > 0);
+  const [x, y, bw, bh] = calls[0];
+  assert.ok(Math.abs(x - head.bbox.tl[0] * 100) < 1e-9);
+  assert.ok(Math.abs(y - head.bbox.tl[1] * 100) < 1e-9);
+  assert.ok(bw > 1 && bh > 1);
+});
+
+test("snapshot save/load round-trips; missing id does not wipe state", () => {
+  const app = createApp();
+  const t0 = app.getRequested().phone.transform_request.translation.slice();
+  app.dispatch("MOVE_PHONE", { translation: [0.2, 0.5, 1.4] });
+  app.dispatch("SAVE_SNAPSHOT", { id: "A" });
+  app.dispatch("MOVE_PHONE", { translation: [0.3, 0.5, 1.4] });
+  app.dispatch("LOAD_SNAPSHOT", { id: "A" });
+  assert.deepEqual(app.getRequested().phone.transform_request.translation, [0.2, 0.5, 1.4]);
+  const last = app.dispatch("LOAD_SNAPSHOT", { id: "missing" });
+  assert.equal(last.error, "no snapshot");
+  assert.deepEqual(app.getRequested().phone.transform_request.translation, [0.2, 0.5, 1.4]);
+  assert.ok(t0);
 });
 
 test("no ROTATE_MIRROR in production UI modules", () => {
