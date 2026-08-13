@@ -35,8 +35,8 @@ export function intrinsics(requested) {
   return {
     fx,
     fy,
-    cx: W / 2 + pan[0] * W,
-    cy: H / 2 + pan[1] * H,
+    cx: W / 2,
+    cy: H / 2,
     width_px: W,
     height_px: H,
     hfov,

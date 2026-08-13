@@ -1,10 +1,13 @@
 import { defaultRequestedState } from "../scene/requested_state.js";
 import { solve } from "../scene/solve_network.js";
 import { applyAction } from "./actions.js";
-import { createHistory, pushHistory, undo as histUndo, redo as histRedo } from "../scene/history.js";
+import { createHistory, pushHistory, undo as histUndo, redo as histRedo, lastLabel } from "../scene/history.js";
 import * as selectors from "./selectors.js";
 import { packProject, unpackProject } from "./project_io.js";
 import { exportImage } from "../domains/export/image.js";
+import { BUILD } from "./build_identity.js";
+
+const NO_HISTORY = new Set(["UNDO", "REDO", "EXPORT_IMAGE", "SAVE_SNAPSHOT"]);
 
 export function createApp() {
   let requested = defaultRequestedState();
@@ -12,7 +15,7 @@ export function createApp() {
   const history = createHistory();
   const snapshots = {};
 
-  function dispatch(name, payload) {
+  function dispatch(name, payload = {}, opts = {}) {
     if (name === "UNDO") {
       requested = histUndo(history, requested);
       last = solve(requested);
@@ -28,16 +31,19 @@ export function createApp() {
       return last;
     }
     if (name === "LOAD_SNAPSHOT") {
-      pushHistory(history, requested);
+      pushHistory(history, requested, payload.label || "Load snapshot");
       requested = structuredClone(snapshots[payload.id]);
       last = solve(requested);
       return last;
     }
     if (name === "EXPORT_IMAGE") {
       last.export = exportImage(requested, last.effective, payload);
+      last.export.sidecar = { ...last.export.sidecar, build: BUILD };
       return last;
     }
-    pushHistory(history, requested);
+    if (!opts.preview && !NO_HISTORY.has(name)) {
+      pushHistory(history, requested, opts.label || name);
+    }
     const result = applyAction(requested, name, payload);
     if (result.error) return { ...last, error: result.error };
     requested = result.requested;
@@ -51,10 +57,15 @@ export function createApp() {
 
   return {
     dispatch,
+    beginUndoGroup: (label = "") => {
+      pushHistory(history, requested, label);
+    },
     getRequested: () => requested,
     getEffective: () => last.effective,
     getLast: () => last,
     selectors,
+    lastHistoryLabel: () => lastLabel(history),
+    build: BUILD,
     pack: () => packProject(requested, last.effective),
     load: (data) => {
       requested = unpackProject(data);

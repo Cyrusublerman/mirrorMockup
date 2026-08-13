@@ -1,6 +1,7 @@
-import { BONE_PARENT } from "../domains/body/skeleton.js";
+import { BONE_PARENT, SEMANTIC } from "../domains/body/skeleton.js";
 import { renderField } from "../domains/export/image.js";
 import { activeOverlays } from "./overlays.js";
+import { reflectPoint } from "../domains/reflection/reflect.js";
 
 function geometryFromMesh(THREE, mesh) {
   const geo = new THREE.BufferGeometry();
@@ -58,17 +59,20 @@ async function loadGlb(loader, rel) {
   throw last || new Error("glb not found");
 }
 
-export async function createScene3D(canvas, app) {
+const PICK_JOINTS = ["head", "pelvis", "wrist_R", "wrist_L", "ankle_L", "ankle_R", "elbow_R", "shoulder_R", "spine"];
+
+export async function createScene3D(canvas, app, opts = {}) {
   const THREE = await import("three");
   const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.autoClear = true;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xf4f1ea);
+  scene.background = new THREE.Color(0xf7f5ef);
   const camera = new THREE.PerspectiveCamera(50, 1, 0.02, 40);
   camera.up.set(0, 0, 1);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 1.1));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.7);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 1.15));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.75);
   dir.position.set(2, -2, 4);
   scene.add(dir);
   const grid = new THREE.GridHelper(4, 16, 0xcccccc, 0xeeeeee);
@@ -77,13 +81,9 @@ export async function createScene3D(canvas, app) {
 
   const phoneMesh = new THREE.Mesh(
     new THREE.BufferGeometry(),
-    new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
-      metalness: 0.35,
-      roughness: 0.45,
-      side: THREE.DoubleSide,
-    }),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.35, roughness: 0.45, side: THREE.DoubleSide }),
   );
+  phoneMesh.userData.pick = { kind: "phone" };
   const screenMesh = new THREE.Mesh(
     new THREE.BufferGeometry(),
     new THREE.MeshBasicMaterial({ color: 0x8eb4ff, side: THREE.DoubleSide }),
@@ -96,84 +96,170 @@ export async function createScene3D(canvas, app) {
   phoneMesh.add(screenMesh);
   scene.add(phoneMesh);
 
+  const phoneRefl = phoneMesh.clone(true);
+  phoneRefl.material = phoneMesh.material.clone();
+  phoneRefl.material.opacity = 0.55;
+  phoneRefl.material.transparent = true;
+  scene.add(phoneRefl);
+
   const mirrorMesh3 = new THREE.Mesh(
     new THREE.BufferGeometry(),
     new THREE.MeshStandardMaterial({
-      color: 0xcfd8dc,
-      metalness: 0.85,
-      roughness: 0.12,
+      color: 0xc5d0d8,
+      metalness: 0.9,
+      roughness: 0.08,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.42,
       side: THREE.DoubleSide,
     }),
   );
+  mirrorMesh3.userData.pick = { kind: "mirror" };
   scene.add(mirrorMesh3);
 
   const bodyRoot = new THREE.Group();
   scene.add(bodyRoot);
+  const bodyRefl = new THREE.Group();
+  scene.add(bodyRefl);
   const loader = new GLTFLoader();
   let gltfScene = null;
+  let gltfRefl = null;
   try {
     const glbRel = app.getRequested()?.body?.definition?.glb || "fixtures/P0/base_female_rigged.glb";
     const gltf = await loadGlb(loader, glbRel);
     gltfScene = gltf.scene;
     gltfScene.traverse((obj) => {
-      if (obj.isMesh) obj.frustumCulled = false;
+      if (obj.isMesh) {
+        obj.frustumCulled = false;
+        obj.userData.pick = { kind: "body", id: "body" };
+      }
     });
     bodyRoot.add(gltfScene);
+    gltfRefl = gltfScene.clone(true);
+    gltfRefl.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.frustumCulled = false;
+        obj.material = obj.material.clone();
+        obj.material.transparent = true;
+        obj.material.opacity = 0.45;
+      }
+    });
+    bodyRefl.add(gltfRefl);
   } catch (err) {
     console.error("failed to load rigged body GLB", err);
   }
 
   const boneGeo = new THREE.BufferGeometry();
-  const boneLine = new THREE.LineSegments(
-    boneGeo,
-    new THREE.LineBasicMaterial({ color: 0x222222 }),
-  );
+  const boneLine = new THREE.LineSegments(boneGeo, new THREE.LineBasicMaterial({ color: 0x222222 }));
   scene.add(boneLine);
 
-  function resize() {
-    const parent = canvas.parentElement;
-    const w = Math.max(1, canvas.clientWidth || parent?.clientWidth || 800);
-    const h = Math.max(1, canvas.clientHeight || parent?.clientHeight || 600);
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+  const pickGroup = new THREE.Group();
+  scene.add(pickGroup);
+  const pickMats = {
+    idle: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.0 }),
+    hot: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.35 }),
+  };
+  const pickSpheres = {};
+  for (const id of PICK_JOINTS) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), pickMats.idle);
+    s.userData.pick = { kind: "joint", id };
+    pickGroup.add(s);
+    pickSpheres[id] = s;
   }
-  resize();
-  window.addEventListener("resize", resize);
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0xd82d84, wireframe: true, transparent: true, opacity: 0.85 });
+  const ghostSphere = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), ghostMat);
+  ghostSphere.visible = false;
+  scene.add(ghostSphere);
+  const bodyMode = { kind: "RIGGED" };
 
-  function sync() {
-    resize();
-    const eff = app.getEffective();
-    const req = app.getRequested();
+  const inset = opts.insetCanvas || null;
+  let insetRenderer = null;
+  const insetCam = new THREE.PerspectiveCamera(50, 1, 0.02, 40);
+  insetCam.up.set(0, 0, 1);
+  if (inset) {
+    insetRenderer = new THREE.WebGLRenderer({ canvas: inset, antialias: true });
+    insetRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  }
+
+  const workspace = {
+    editor_view: "ISO",
+    inset_is_capture: true,
+    orbit: { theta: 0.7, phi: 1.15, radius: 2.6, target: [0, 0.9, 0.9] },
+  };
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+
+  function sizeOf(el, cam, rnd) {
+    const parent = el.parentElement;
+    const w = Math.max(1, el.clientWidth || parent?.clientWidth || 800);
+    const h = Math.max(1, el.clientHeight || parent?.clientHeight || 600);
+    rnd.setSize(w, h, false);
+    cam.aspect = w / h;
+    cam.updateProjectionMatrix();
+    return [w, h];
+  }
+
+  function applyCapture(cam3, camE) {
+    cam3.position.set(...camE.world.translation);
+    cam3.quaternion.set(camE.world.rotation[0], camE.world.rotation[1], camE.world.rotation[2], camE.world.rotation[3]);
+    cam3.up.set(...camE.basis.up);
+    cam3.fov = ((camE.hfov || Math.PI / 3) * 180) / Math.PI / Math.max(cam3.aspect, 0.2);
+    cam3.updateProjectionMatrix();
+  }
+
+  function applyEditor(cam3, skel) {
+    const t = workspace.orbit.target;
+    const pelvis = skel?.fk?.pelvis;
+    if (pelvis) {
+      t[0] = pelvis[0];
+      t[1] = pelvis[1];
+      t[2] = pelvis[2];
+    }
+    const view = workspace.editor_view;
+    if (view === "FRONT") cam3.position.set(t[0], t[1] - 2.4, t[2] + 0.2);
+    else if (view === "SIDE") cam3.position.set(t[0] + 2.4, t[1], t[2] + 0.2);
+    else if (view === "TOP") cam3.position.set(t[0], t[1], t[2] + 2.6);
+    else {
+      const o = workspace.orbit;
+      cam3.position.set(
+        t[0] + o.radius * Math.sin(o.phi) * Math.sin(o.theta),
+        t[1] - o.radius * Math.sin(o.phi) * Math.cos(o.theta),
+        t[2] + o.radius * Math.cos(o.phi),
+      );
+    }
+    cam3.up.set(0, 0, 1);
+    cam3.lookAt(t[0], t[1], t[2]);
+    cam3.fov = 42;
+    cam3.updateProjectionMatrix();
+  }
+
+  function reflectMesh(src, dst, centre, n) {
+    dst.position.set(...reflectPoint([src.position.x, src.position.y, src.position.z], centre, n));
+    dst.quaternion.copy(src.quaternion);
+    dst.visible = src.visible;
+  }
+
+  function syncMeshes(eff, req) {
     const vis = activeOverlays(req);
-
     const prism = eff.phone.mesh;
     if (prism?.positions) {
       if (phoneMesh.geometry.getAttribute("position")?.count !== prism.positions.length) {
         phoneMesh.geometry.dispose();
         phoneMesh.geometry = geometryFromMesh(THREE, prism);
-      } else {
-        writePositions(phoneMesh.geometry, prism.positions);
-      }
+        phoneRefl.geometry = phoneMesh.geometry;
+      } else writePositions(phoneMesh.geometry, prism.positions);
     }
     const screen = eff.phone.screen_mesh;
     if (screen?.positions) {
       if (screenMesh.geometry.getAttribute("position")?.count !== screen.positions.length) {
         screenMesh.geometry.dispose();
         screenMesh.geometry = geometryFromMesh(THREE, screen);
-      } else {
-        writePositions(screenMesh.geometry, screen.positions);
-      }
+      } else writePositions(screenMesh.geometry, screen.positions);
     }
     const pw = eff.phone.world;
     phoneMesh.position.set(...pw.translation);
     phoneMesh.quaternion.set(pw.rotation[0], pw.rotation[1], pw.rotation[2], pw.rotation[3]);
-    phoneMesh.scale.set(1, 1, 1);
     phoneMesh.visible = true;
-
-
     const field = renderField(eff, req, 64, 64);
     fieldTex.image.data.set(field.rgba);
     fieldTex.needsUpdate = true;
@@ -183,30 +269,14 @@ export async function createScene3D(canvas, app) {
       if (mirrorMesh3.geometry.getAttribute("position")?.count !== mm.positions.length) {
         mirrorMesh3.geometry.dispose();
         mirrorMesh3.geometry = geometryFromMesh(THREE, mm);
-      } else {
-        writePositions(mirrorMesh3.geometry, mm.positions);
-      }
+      } else writePositions(mirrorMesh3.geometry, mm.positions);
     }
     mirrorMesh3.position.set(0, 0, 0);
     mirrorMesh3.quaternion.identity();
     mirrorMesh3.visible = true;
 
-    const view = eff.view;
-    const camE = eff.camera;
-    camera.position.set(...view.translation);
-    const look = [
-      view.translation[0] + camE.basis.forward[0],
-      view.translation[1] + camE.basis.forward[1],
-      view.translation[2] + camE.basis.forward[2],
-    ];
-    camera.up.set(...camE.basis.up);
-    camera.lookAt(...look);
-    const hfov = view.hfov || camE.hfov;
-    camera.fov = (hfov * 180) / Math.PI / camera.aspect;
-    camera.updateProjectionMatrix();
-
     const skel = eff.skeleton;
-    const rootXf = skel?.root_world || skel?.world?._rootJoint;
+    const rootXf = skel?.root_world;
     if (rootXf) {
       bodyRoot.position.set(...rootXf.translation);
       bodyRoot.quaternion.set(rootXf.rotation[0], rootXf.rotation[1], rootXf.rotation[2], rootXf.rotation[3]);
@@ -221,11 +291,50 @@ export async function createScene3D(canvas, app) {
         obj.scale.set(...local.scale);
       });
       gltfScene.updateMatrixWorld(true);
+      if (gltfRefl) {
+        gltfRefl.traverse((obj) => {
+          const src = gltfScene.getObjectByName(obj.name);
+          if (!src) return;
+          obj.position.copy(src.position);
+          obj.quaternion.copy(src.quaternion);
+          obj.scale.copy(src.scale);
+        });
+      }
     }
 
-    const showSkel = !!vis.SKELETON;
-    boneLine.visible = showSkel;
-    if (showSkel && skel?.world) {
+    const M = eff.mirror.centre;
+    const n = eff.mirror.basis.n;
+    reflectMesh(phoneMesh, phoneRefl, M, n);
+    if (rootXf) {
+      bodyRefl.position.set(...reflectPoint(rootXf.translation, M, n));
+      bodyRefl.quaternion.set(rootXf.rotation[0], rootXf.rotation[1], rootXf.rotation[2], rootXf.rotation[3]);
+      bodyRefl.scale.x = -(rootXf.scale?.[0] || 1);
+      bodyRefl.scale.y = rootXf.scale?.[1] || 1;
+      bodyRefl.scale.z = rootXf.scale?.[2] || 1;
+    }
+
+    const sel = req.workspace.selection;
+    for (const id of PICK_JOINTS) {
+      const p = skel?.fk?.[id];
+      const sph = pickSpheres[id];
+      if (!p || !sph) continue;
+      sph.position.set(...p);
+      sph.material = sel === id || sel === `joint:${id}` ? pickMats.hot : pickMats.idle;
+      sph.visible = true;
+    }
+    const want = req.body?.pose_targets?.endpoint_targets?.wrist_R;
+    const got = skel?.fk?.wrist_R;
+    if (want && got) {
+      const dx = want[0] - got[0], dy = want[1] - got[1], dz = want[2] - got[2];
+      const far = Math.hypot(dx, dy, dz) > 0.03;
+      ghostSphere.visible = far;
+      if (far) ghostSphere.position.set(...want);
+    } else ghostSphere.visible = false;
+    const stick = bodyMode.kind === "STICK" || bodyMode.kind === "SIMPLE";
+    if (gltfScene) gltfScene.visible = !stick;
+    if (gltfRefl) gltfRefl.visible = !stick;
+    boneLine.visible = stick || !!vis.SKELETON;
+    if (boneLine.visible && skel?.world) {
       const pts = [];
       for (const [name, xf] of Object.entries(skel.world)) {
         const parent = BONE_PARENT[name];
@@ -235,9 +344,100 @@ export async function createScene3D(canvas, app) {
       }
       boneGeo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
     }
-
-    renderer.render(scene, camera);
   }
 
-  return { sync, renderer, scene, camera, resize };
+  function renderCameras(eff) {
+    const mainIsCapture = workspace.editor_view === "CAMERA";
+    if (mainIsCapture) applyCapture(camera, eff.camera);
+    else applyEditor(camera, eff.skeleton);
+    renderer.render(scene, camera);
+    if (insetRenderer) {
+      sizeOf(inset, insetCam, insetRenderer);
+      if (workspace.inset_is_capture || !mainIsCapture) applyCapture(insetCam, eff.camera);
+      else applyEditor(insetCam, eff.skeleton);
+      insetRenderer.render(scene, insetCam);
+    }
+  }
+
+  function resize() {
+    sizeOf(canvas, camera, renderer);
+    if (insetRenderer) sizeOf(inset, insetCam, insetRenderer);
+  }
+
+  function sync() {
+    resize();
+    const eff = app.getEffective();
+    const req = app.getRequested();
+    syncMeshes(eff, req);
+    renderCameras(eff);
+  }
+
+  function hitTest(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const objs = [...Object.values(pickSpheres), phoneMesh, mirrorMesh3];
+    if (gltfScene) objs.push(gltfScene);
+    const hits = raycaster.intersectObjects(objs, true);
+    for (const h of hits) {
+      let o = h.object;
+      while (o && !o.userData.pick) o = o.parent;
+      if (o?.userData.pick) return { ...o.userData.pick, point: [h.point.x, h.point.y, h.point.z], world: h.point };
+    }
+    return null;
+  }
+
+  function orbit(dx, dy) {
+    workspace.orbit.theta += dx * 0.01;
+    workspace.orbit.phi = Math.min(2.8, Math.max(0.2, workspace.orbit.phi + dy * 0.01));
+  }
+
+  function dolly(factor) {
+    workspace.orbit.radius = Math.min(8, Math.max(0.6, workspace.orbit.radius * factor));
+  }
+
+  function setEditorView(name) {
+    workspace.editor_view = name;
+  }
+
+  function swapInset() {
+    if (workspace.editor_view === "CAMERA") workspace.editor_view = "ISO";
+    else workspace.editor_view = "CAMERA";
+  }
+
+  function dragDeltaWorld(dx, dy, scale = 0.0022) {
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const fwd = new THREE.Vector3();
+    camera.matrixWorld.extractBasis(right, up, fwd);
+    return [
+      right.x * dx * scale + up.x * -dy * scale,
+      right.y * dx * scale + up.y * -dy * scale,
+      right.z * dx * scale + up.z * -dy * scale,
+    ];
+  }
+
+  function setBodyMode(kind) {
+    bodyMode.kind = kind;
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+  return {
+    sync,
+    resize,
+    renderer,
+    scene,
+    camera,
+    hitTest,
+    orbit,
+    dolly,
+    setEditorView,
+    swapInset,
+    dragDeltaWorld,
+    setBodyMode,
+    workspace,
+    SEMANTIC,
+  };
 }
