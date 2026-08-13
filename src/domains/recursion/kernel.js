@@ -11,9 +11,13 @@ export {
   PUBLISHED,
 } from "../../../fixtures/recursion/kernel.js";
 
-import { certifyKernel as cert, W as mapW, lattice, alpha } from "../../../fixtures/recursion/kernel.js";
+import { certifyKernel as cert, W as mapW } from "../../../fixtures/recursion/kernel.js";
 import * as cplx from "../../shared_math/complex.js";
-import { applyHomography } from "../../shared_math/homography.js";
+import { centroid } from "../../shared_math/polygon.js";
+import { sampleQ } from "../content_q/content.js";
+
+const SINGULARITY = [192, 32, 80, 255];
+const POLE_DISK = 1e-12;
 
 export function setPrintGalleryMode(requested, mode) {
   const next = structuredClone(requested);
@@ -23,6 +27,19 @@ export function setPrintGalleryMode(requested, mode) {
 
 export function autoAvailable(carrierP) {
   return !!(carrierP && carrierP.valid);
+}
+
+function poleOf(carrierP, policy) {
+  const portal = (policy || "portal_fixed_point") === "portal_fixed_point";
+  const quad = carrierP?.quad;
+  if (portal && quad && quad.every((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]))) {
+    return centroid(quad);
+  }
+  return [0.5, 0.5];
+}
+
+export function inverseW(w, p, alphaC, beta = [0, 0]) {
+  return cplx.add(p, cplx.exp(cplx.div(cplx.sub(w, beta), alphaC)));
 }
 
 export function evaluateRecursion(requested, carrierP) {
@@ -46,22 +63,22 @@ export function evaluateRecursion(requested, carrierP) {
     Sval: requested.recursion.source_period,
     theta_s: requested.recursion.source_rotation,
   });
-  let pole = [0.5, 0.5];
-  if (carrierP?.quad) {
-    const q = carrierP.quad;
-    pole = [
-      (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4,
-      (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4,
-    ];
-  }
+  const pole = poleOf(carrierP, requested.recursion.pole_policy);
+  const ph = requested.recursion.phase;
+  const beta = Array.isArray(ph) ? ph.slice() : [0, 0];
   certificate.pole = pole;
-  certificate.beta = requested.recursion.phase;
+  certificate.beta = beta;
+  certificate.singularity_policy = requested.recursion.singularity_policy || "disk";
+  certificate.map = (z) => mapW(z, certificate.pole, certificate.alpha, certificate.beta);
   return {
     available,
     mode,
     refused: false,
     certificate,
-    map: (z) => mapW(z, pole, certificate.alpha, certificate.beta),
+    map: certificate.map,
+    q: certificate.q,
+    n: certificate.n,
+    S: certificate.S,
   };
 }
 
@@ -70,6 +87,28 @@ export function sampleSource(Wval, lat) {
   const u = red[0] / lat.L;
   const v = (red[1] + Math.PI) / (2 * Math.PI);
   return [((u % 1) + 1) % 1, ((v % 1) + 1) % 1];
+}
+
+export function sampleI(z, certificate, qState) {
+  const p = certificate.pole;
+  const d = cplx.sub(z, p);
+  const r = cplx.abs(d);
+  const policy = certificate.singularity_policy || "disk";
+  if (!(r > POLE_DISK) && (policy === "disk" || r === 0)) {
+    return { rgba: SINGULARITY.slice(), uv: null, W: null, reduced: null, folded: false };
+  }
+  const Wval = mapW(z, p, certificate.alpha, certificate.beta || [0, 0]);
+  const lat = certificate.lattice;
+  const reduced = cplx.reduceLattice(Wval, lat.lambda1, lat.lambda2);
+  const uv = sampleSource(Wval, lat);
+  const rgb = sampleQ(uv, qState || {});
+  return {
+    rgba: [Math.round(rgb[0] * 255), Math.round(rgb[1] * 255), Math.round(rgb[2] * 255), 255],
+    uv,
+    W: Wval,
+    reduced,
+    folded: false,
+  };
 }
 
 export function loopPeriod(certificate) {

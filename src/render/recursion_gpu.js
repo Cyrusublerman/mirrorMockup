@@ -1,7 +1,9 @@
-import { sampleSource } from "../domains/recursion/kernel.js";
+import { sampleSource, W } from "../domains/recursion/kernel.js";
 
-export function gpuParityStub(certificate, z) {
+export function gpuSampleUv(z, certificate) {
   if (!certificate) return null;
-  const W = certificate.map ? certificate.map(z) : null;
-  return { uv: W ? sampleSource(W, certificate.lattice) : null, cpu_authority: true };
+  const w = W(z, certificate.pole, certificate.alpha, certificate.beta || [0, 0]);
+  return sampleSource(w, certificate.lattice);
 }
+
+export const gpuParityStub = gpuSampleUv;
