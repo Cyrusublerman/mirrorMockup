@@ -15,9 +15,10 @@ export function projectWorld(X, cam) {
     cam.cy,
   );
   if (!p.valid) return { ...p, image_norm: null };
+  const n = imageNormFromPx(p.u, p.v, cam.width_px, cam.height_px);
   return {
     ...p,
-    image_norm: imageNormFromPx(p.u, p.v, cam.width_px, cam.height_px),
+    image_norm: [n[0], 1 - n[1]],
   };
 }
 
@@ -52,12 +53,21 @@ export function sameAnatomyScale(sizeR, sizeD) {
   return sizeR / sizeD;
 }
 
+function fkTranslation(p) {
+  if (Array.isArray(p) && p.length === 3 && typeof p[0] === "number" && typeof p[1] === "number" && typeof p[2] === "number") {
+    return p;
+  }
+  return null;
+}
+
 export function evaluateVisibility(fk, cam, mirror) {
   const reports = {};
   for (const [name, p] of Object.entries(fk)) {
+    const X = fkTranslation(p);
+    if (!X) continue;
     reports[name] = {
-      direct: projectWorld(p, cam),
-      reflected: reflectedVisibility(p, cam, mirror),
+      direct: projectWorld(X, cam),
+      reflected: reflectedVisibility(X, cam, mirror),
     };
   }
   return { reports };
