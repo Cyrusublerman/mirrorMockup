@@ -17,16 +17,5 @@ export function drawRequestedEffective(ctx, w, h, proj) {
       ctx.fillText(`residual ${dist.toFixed(3)} m  ${lim?.state || ""}`, 12, 46);
     }
   }
-  for (const t of proj.targets || []) {
-    if (!t.requested || !t.effective || t.residual == null) continue;
-    if (t.residual <= (t.tolerance || 0)) continue;
-    const a = [t.requested[0] * w, t.requested[1] * h];
-    const b = [t.effective[0] * w, t.effective[1] * h];
-    ctx.strokeStyle = "#D82D84";
-    ctx.beginPath();
-    ctx.moveTo(a[0], a[1]);
-    ctx.lineTo(b[0], b[1]);
-    ctx.stroke();
-  }
   ctx.restore();
 }

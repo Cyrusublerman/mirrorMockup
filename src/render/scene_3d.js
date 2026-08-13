@@ -1,7 +1,7 @@
 import { BONE_PARENT, SEMANTIC } from "../domains/body/skeleton.js";
 import { renderField } from "../domains/export/image.js";
 import { activeOverlays } from "./overlays.js";
-import { reflectPoint } from "../domains/reflection/reflect.js";
+import { householderAffine } from "../domains/reflection/reflect.js";
 
 function geometryFromMesh(THREE, mesh) {
   const geo = new THREE.BufferGeometry();
@@ -137,6 +137,7 @@ export async function createScene3D(canvas, app, opts = {}) {
       if (obj.isMesh) {
         obj.frustumCulled = false;
         obj.userData.pick = { kind: "body", id: "body" };
+        obj.userData.riggedMaterial = obj.material;
       }
     });
     bodyRoot.add(gltfScene);
@@ -248,9 +249,14 @@ export async function createScene3D(canvas, app, opts = {}) {
     cam3.updateProjectionMatrix();
   }
 
-  function reflectMesh(src, dst, centre, n) {
-    dst.position.set(...reflectPoint([src.position.x, src.position.y, src.position.z], centre, n));
-    dst.quaternion.copy(src.quaternion);
+  function reflectClone(src, dst, centre, n) {
+    src.updateMatrixWorld(true);
+    const H = householderAffine(centre, n);
+    const hm = new THREE.Matrix4();
+    hm.set(H[0], H[1], H[2], H[3], H[4], H[5], H[6], H[7], H[8], H[9], H[10], H[11], H[12], H[13], H[14], H[15]);
+    dst.matrixAutoUpdate = false;
+    dst.matrix.copy(hm).multiply(src.matrixWorld);
+    dst.updateMatrixWorld(true);
     dst.visible = src.visible;
   }
 
@@ -295,6 +301,7 @@ export async function createScene3D(canvas, app, opts = {}) {
     const skel = eff.skeleton;
     const rootXf = skel?.root_world;
     if (rootXf) {
+      bodyRoot.matrixAutoUpdate = true;
       bodyRoot.position.set(...rootXf.translation);
       bodyRoot.quaternion.set(rootXf.rotation[0], rootXf.rotation[1], rootXf.rotation[2], rootXf.rotation[3]);
       bodyRoot.scale.set(...(rootXf.scale || [1, 1, 1]));
@@ -302,33 +309,35 @@ export async function createScene3D(canvas, app, opts = {}) {
     if (gltfScene && skel?.locals) {
       gltfScene.traverse((obj) => {
         const local = skel.locals[obj.name];
-        if (!local) return;
+        if (!local || obj.isMesh || obj.isSkinnedMesh) return;
         obj.position.set(...local.translation);
         obj.quaternion.set(local.rotation[0], local.rotation[1], local.rotation[2], local.rotation[3]);
         obj.scale.set(...local.scale);
       });
       gltfScene.updateMatrixWorld(true);
+      gltfScene.traverse((obj) => {
+        if (obj.isSkinnedMesh && obj.skeleton) obj.skeleton.update();
+      });
       if (gltfRefl) {
         gltfRefl.traverse((obj) => {
           const src = gltfScene.getObjectByName(obj.name);
-          if (!src) return;
+          if (!src || obj.isMesh || obj.isSkinnedMesh) return;
           obj.position.copy(src.position);
           obj.quaternion.copy(src.quaternion);
           obj.scale.copy(src.scale);
+        });
+        gltfRefl.updateMatrixWorld(true);
+        gltfRefl.traverse((obj) => {
+          if (obj.isSkinnedMesh && obj.skeleton) obj.skeleton.update();
         });
       }
     }
 
     const M = eff.mirror.centre;
     const n = eff.mirror.basis.n;
-    reflectMesh(phoneMesh, phoneRefl, M, n);
-    if (rootXf) {
-      bodyRefl.position.set(...reflectPoint(rootXf.translation, M, n));
-      bodyRefl.quaternion.set(rootXf.rotation[0], rootXf.rotation[1], rootXf.rotation[2], rootXf.rotation[3]);
-      bodyRefl.scale.x = -(rootXf.scale?.[0] || 1);
-      bodyRefl.scale.y = rootXf.scale?.[1] || 1;
-      bodyRefl.scale.z = rootXf.scale?.[2] || 1;
-    }
+    reflectClone(phoneMesh, phoneRefl, M, n);
+    bodyRoot.updateMatrixWorld(true);
+    reflectClone(bodyRoot, bodyRefl, M, n);
 
     const sel = req.workspace.selection;
     for (const id of PICK_JOINTS) {
@@ -352,10 +361,13 @@ export async function createScene3D(canvas, app, opts = {}) {
     const sil = bodyMode.kind === "SILHOUETTE";
     if (gltfScene) {
       gltfScene.visible = bodyMode.kind === "RIGGED" || sil;
-      if (sil) gltfScene.traverse((o) => { if (o.isMesh) o.material = silMat; });
+      gltfScene.traverse((o) => {
+        if (!o.isMesh) return;
+        o.material = sil ? silMat : (o.userData.riggedMaterial || o.material);
+      });
     }
     if (gltfRefl) gltfRefl.visible = bodyMode.kind === "RIGGED" || sil;
-    boneLine.visible = stick || !!vis.SKELETON;
+    boneLine.visible = stick || !!req.workspace.overlays?.SKELETON;
     simpleGroup.visible = simple;
     if (simple && skel?.fk) {
       for (const m of simpleParts) {
@@ -381,7 +393,9 @@ export async function createScene3D(canvas, app, opts = {}) {
     const parent = inset.parentElement;
     const iw = Math.max(1, Math.floor(inset.clientWidth || parent?.clientWidth || 120));
     const ih = Math.max(1, Math.floor(inset.clientHeight || parent?.clientHeight || 160));
-    if (workspace.inset_is_capture || !mainIsCapture) applyCapture(insetCam, eff.camera);
+    const insetIsCapture = workspace.inset_is_capture || !mainIsCapture;
+    grid.visible = !insetIsCapture;
+    if (insetIsCapture) applyCapture(insetCam, eff.camera);
     else applyEditor(insetCam, eff.skeleton);
     insetCam.aspect = iw / ih;
     insetCam.updateProjectionMatrix();
@@ -396,6 +410,7 @@ export async function createScene3D(canvas, app, opts = {}) {
   function renderCameras(eff) {
     const mainIsCapture = workspace.editor_view === "CAMERA";
     blitInset(eff, mainIsCapture);
+    grid.visible = !mainIsCapture;
     if (mainIsCapture) applyCapture(camera, eff.camera);
     else applyEditor(camera, eff.skeleton);
     renderer.render(scene, camera);

@@ -2,6 +2,7 @@ import landmarks from "../../../fixtures/P0/landmarks.js";
 import { t } from "../../../fixtures/tolerances.js";
 import { captureToFinal } from "../camera/crop.js";
 import { occupancy as occ } from "./occupancy.js";
+import { sameAnatomyScale } from "../visibility/report.js";
 
 export { occupancy } from "./occupancy.js";
 
@@ -67,6 +68,15 @@ function quadCentroid(quad) {
   return [x / 4, y / 4];
 }
 
+function imageSeg(visibility, a, b, space) {
+  const ra = visibility?.reports?.[a];
+  const rb = visibility?.reports?.[b];
+  const pa = space === "reflected" ? ra?.reflected?.projection?.image_norm : ra?.direct?.image_norm;
+  const pb = space === "reflected" ? rb?.reflected?.projection?.image_norm : rb?.direct?.image_norm;
+  if (!pa || !pb) return null;
+  return Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+}
+
 function toFinal(p, crop) {
   if (!p) return null;
   return crop ? captureToFinal(p, crop) : p;
@@ -130,6 +140,9 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
   }
 
   const areaCapture = Math.abs(carrierP?.area_capture ?? carrierP?.area ?? 0);
+  const sizeD = imageSeg(visibility, "head", "pelvis", "direct");
+  const sizeR = imageSeg(visibility, "head", "pelvis", "reflected");
+  const lambda_star = sizeD != null && sizeR != null ? sameAnatomyScale(sizeR, sizeD) : null;
   const metrics = {
     direct_head_bbox_centre: head.bbox_centre,
     direct_head_occupancy: occ(head.tl, head.br),
@@ -139,6 +152,7 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
     R_P_crop_non_triggering: true,
     carrier_p_area: carrierP?.area ?? null,
     carrier_p_valid: !!carrierP?.valid,
+    same_anatomy_scale: lambda_star,
     measured_head,
     measured_phone,
     n_valid_residuals,

@@ -65,6 +65,12 @@ test("S-01 crop places phone in final frame without moving principal", () => {
   assert.equal(phone.frame, "FINAL_CROP");
   const err = Math.hypot(phone.effective[0] - t("T-PHONE")[0], phone.effective[1] - t("T-PHONE")[1]);
   assert.ok(err <= t("T-LANDMARK") * 20 || err < 0.05, `phone final residual ${err}`);
+  const head = app.getEffective().residuals.direct_head;
+  assert.ok(head.effective);
+  assert.ok(head.effective[0] >= 0 && head.effective[0] <= 1);
+  assert.ok(head.effective[1] >= 0 && head.effective[1] <= 1);
+  const lam = app.getEffective().composition_metrics.same_anatomy_scale;
+  assert.ok(lam == null || Number.isFinite(lam));
 });
 
 test("crop does not change R_P", () => {
@@ -170,8 +176,20 @@ test("shell CSS: 100dvh, 44px, no wrap strip, tokens", () => {
   assert.ok(SHELL_CSS.includes("100dvh"));
   assert.ok(SHELL_CSS.includes("min-height: 44px"));
   assert.ok(SHELL_CSS.includes("#F7F5EF"));
+  assert.ok(SHELL_CSS.includes("#D82D84"));
+  assert.ok(SHELL_CSS.includes("#395BD6"));
   assert.ok(SHELL_CSS.includes("flex-wrap: nowrap"));
   assert.ok(SHELL_CSS.includes("grid-template-columns: 220px"));
+});
+
+test("ordinary-first defaults: warp OFF, skeleton overlay off, no ROTATE_MIRROR", () => {
+  const app = createApp();
+  const req = app.getRequested();
+  assert.equal(req.recursion.mode, "OFF");
+  assert.equal(req.view.warp_visible, false);
+  assert.equal(req.workspace.overlays.SKELETON, false);
+  assert.equal(req.workspace.overlays.PHONE, true);
+  assert.equal(req.workspace.overlays.MIRROR, true);
 });
 
 test("device matrix file exists", () => {

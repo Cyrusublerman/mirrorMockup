@@ -52,7 +52,7 @@ export function defaultRequestedState() {
         translation: [0.12, 0.55, 1.48],
         yaw: 0,
         pitch: 0,
-        roll: 0,
+        roll: 0.32,
       },
       authority: "PHONE_DRIVES_HAND",
       grip_relation: { offset: [0, 0, 0], rotation: [0, 0, 0, 1] },
@@ -119,13 +119,13 @@ export function defaultRequestedState() {
     },
     view: {
       tau: 0,
-      warp_visible: true,
+      warp_visible: false,
     },
     workspace: {
       mode: "POSE",
       selection: "body",
       last_edit: null,
-      overlays: { REFERENCE: false, SKELETON: true, PHONE: true, MIRROR: true, P: false },
+      overlays: { REFERENCE: false, SKELETON: false, PHONE: true, MIRROR: true, P: false },
     },
   };
 }

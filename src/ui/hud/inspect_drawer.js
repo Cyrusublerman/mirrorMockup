@@ -36,6 +36,7 @@ export function mountInspectDrawer(el, open, proj, workspace, handlers) {
   body.appendChild(row("PRESERVE", (le.preserve || []).join(", ") || "—"));
   body.appendChild(row("ALLOWED_TO_MOVE", (le.allowed_to_move || []).join(", ") || "—"));
   body.appendChild(row("output_repeat", proj.rec?.output_repeat == null ? "—" : String(proj.rec.output_repeat)));
+  body.appendChild(row("same-anatomy λ*", proj.effective?.composition_metrics?.same_anatomy_scale == null ? "—" : Number(proj.effective.composition_metrics.same_anatomy_scale).toFixed(4)));
   body.appendChild(row("p_log", proj.rec?.p_log ? JSON.stringify(proj.rec.p_log) : "—"));
   body.appendChild(row("p_fix", proj.rec?.p_fix ? JSON.stringify(proj.rec.p_fix) : "—"));
   body.appendChild(row("loop", String(proj.rec?.loop_state || "—")));

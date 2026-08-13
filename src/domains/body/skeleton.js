@@ -73,6 +73,27 @@ export function forwardKinematics(locals, rootWorld) {
   return { world, fk };
 }
 
+function restStatureM() {
+  const locals = restLocals();
+  const { fk } = forwardKinematics(locals, {
+    translation: [0, 0, 0],
+    rotation: quat.identity(),
+    scale: [1, 1, 1],
+  });
+  const zs = ["toe_L", "toe_R", "ankle_L", "ankle_R"].map((k) => fk[k]?.[2]).filter((z) => Number.isFinite(z));
+  const minZ = zs.length ? Math.min(...zs) : 0;
+  return (fk.head?.[2] ?? 1.6) - minZ;
+}
+
+const REST_STATURE_M = restStatureM();
+
+export function measuredStature(fk) {
+  if (!fk?.head) return REST_STATURE_M;
+  const zs = ["toe_L", "toe_R", "ankle_L", "ankle_R"].map((k) => fk[k]?.[2]).filter((z) => Number.isFinite(z));
+  const minZ = zs.length ? Math.min(...zs) : 0;
+  return fk.head[2] - minZ;
+}
+
 export function p0RootWorld(requested) {
   const t = requested.body.pose_targets.root.translation;
   const yaw = requested.body.pose_targets.root.yaw;
@@ -86,8 +107,6 @@ export function p0RootWorld(requested) {
 export function p0PoseRotations() {
   return {
     elbow_R: quat.fromAxisAngle([1, 0, 0], ((180 - 132.95) * Math.PI) / 180),
-    knee_L: quat.fromAxisAngle([1, 0, 0], ((180 - 178.21) * Math.PI) / 180),
-    knee_R: quat.fromAxisAngle([1, 0, 0], ((180 - 174.01) * Math.PI) / 180),
   };
 }
 
@@ -211,6 +230,8 @@ export function evaluateSkeleton(requested) {
     map: MAP,
     joint_limits_applied: true,
     joint_limits_unknown: unknown,
+    measured_stature_m: measuredStature(fk),
+    labelled_stature_m: requested.body.definition.stature,
   };
 }
 

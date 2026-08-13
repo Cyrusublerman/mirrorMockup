@@ -15,6 +15,12 @@ test("link lengths preserved after PHONE_DRIVES_HAND IK", () => {
   const L = app.getEffective().skeleton.link_lengths.arm_R;
   assert.ok(Math.abs(L.L1 - L.L1_rest) < 1e-4);
   assert.ok(Math.abs(L.L2 - L.L2_rest) < 1e-4);
+  const fk = app.getEffective().skeleton.fk;
+  assert.ok(fk.head[2] > fk.pelvis[2]);
+  assert.ok(fk.pelvis[2] > fk.ankle_L[2]);
+  const stature = fk.head[2] - Math.min(fk.toe_L[2], fk.toe_R[2]);
+  assert.ok(stature > 1.2 && stature < 2.0);
+  assert.equal(app.getEffective().skeleton.labelled_stature_m, 1.727);
 });
 
 test("HAND_DRIVES_PHONE moves phone with wrist target", () => {

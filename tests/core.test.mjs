@@ -3,16 +3,17 @@ import assert from "node:assert/strict";
 import * as vec from "../src/shared_math/vector.js";
 import * as quat from "../src/shared_math/quaternion.js";
 import { twoLinkIk, twoLinkReach } from "../src/shared_math/numerical.js";
-import { fxFromHfov } from "../src/shared_math/projection.js";
-import { reflectPoint } from "../src/domains/reflection/reflect.js";
-import { certifyKernel, PUBLISHED, alpha, lattice, gammaFromAlpha } from "../src/domains/recursion/kernel.js";
+import { fxFromHfov, pinholeProject } from "../src/shared_math/projection.js";
+import { reflectPoint, householderAffine } from "../src/domains/reflection/reflect.js";
+import { certifyKernel, PUBLISHED, alpha, lattice, outputRepeat, similarityFixedPoint } from "../src/domains/recursion/kernel.js";
 import { sameAnatomyScale, nuD, nuR } from "../fixtures/optical_special_case/parallel.js";
+import { mirrorCentre, derivedRelation, productionMirrorBasis } from "../src/domains/apparatus/relation.js";
+import { p0PoseRotations } from "../src/domains/body/skeleton.js";
 import { homographyFromPoints, applyHomography } from "../src/shared_math/homography.js";
 import { prismMesh } from "../src/domains/phone/prism.js";
 import { mirrorMesh } from "../src/domains/mirror/mesh.js";
 import { createApp } from "../src/app/facade.js";
 import { ACTION_NAMES } from "../src/app/actions.js";
-import { defaultRequestedState } from "../src/scene/requested_state.js";
 
 test("vector orthonormal", () => {
   const f = vec.orthonormalFrame([0, 1, 0], [0, 0, 1]);
@@ -33,9 +34,13 @@ test("two-link reach", () => {
   assert.ok(ik.residual < 1e-6);
 });
 
-test("pinhole fx", () => {
+test("A.1 pinhole u = fx Xc/Zc + cx", () => {
   const fx = fxFromHfov(1000, Math.PI / 3);
   assert.ok(fx > 800 && fx < 900);
+  const p = pinholeProject([0.2, 1.5, 0.4], [0, 0, 0], [1, 0, 0], [0, 0, 1], [0, 1, 0], 800, 800, 500, 400);
+  assert.equal(p.valid, true);
+  assert.ok(Math.abs(p.u - (800 * (0.2 / 1.5) + 500)) < 1e-12);
+  assert.ok(Math.abs(p.v - (800 * (0.4 / 1.5) + 400)) < 1e-12);
 });
 
 test("mirror involution", () => {
@@ -47,7 +52,36 @@ test("mirror involution", () => {
   assert.ok(vec.distance(X, Z) < 1e-9);
 });
 
-test("kernel published gamma", () => {
+test("A.2 Householder affine matches point reflection and is involution", () => {
+  const M = [0.3, 1.0, 1.2];
+  const n = [0, 1, 0];
+  const X = [0.12, 0.55, 1.48];
+  const Y = reflectPoint(X, M, n);
+  const H = householderAffine(M, n);
+  const apply = (H, P) => [
+    H[0] * P[0] + H[1] * P[1] + H[2] * P[2] + H[3],
+    H[4] * P[0] + H[5] * P[1] + H[6] * P[2] + H[7],
+    H[8] * P[0] + H[9] * P[1] + H[10] * P[2] + H[11],
+  ];
+  assert.ok(vec.distance(Y, apply(H, X)) < 1e-9);
+  assert.ok(vec.distance(X, apply(H, apply(H, X))) < 1e-9);
+});
+
+test("A.3 apparatus M = C + d_M f + p_u r + p_v u; n_M = -f", () => {
+  const frame = { origin: [0.1, 0.2, 0.3], right: [1, 0, 0], up: [0, 0, 1], forward: [0, 1, 0] };
+  const d_M = 1.55;
+  const pan = [0.18, 0.12];
+  const M = mirrorCentre(frame, d_M, pan);
+  assert.ok(vec.distance(M, [0.28, 1.75, 0.42]) < 1e-12);
+  const rel = derivedRelation(frame, M);
+  assert.ok(Math.abs(rel.d_M - d_M) < 1e-12);
+  assert.ok(Math.abs(rel.pan_uv[0] - pan[0]) < 1e-12);
+  assert.ok(Math.abs(rel.pan_uv[1] - pan[1]) < 1e-12);
+  const n = productionMirrorBasis(frame).n;
+  assert.ok(vec.distance(n, [0, -1, 0]) < 1e-12);
+});
+
+test("A.6–A.11 kernel lattice, α, γ, p_fix", () => {
   const c = certifyKernel({ q: 1, n: 1, Sval: 256, theta_s: 0 });
   assert.ok(Math.abs(c.gamma_abs - PUBLISHED.gamma_abs) < 1e-6);
   const argDeg = (c.gamma_arg * 180) / Math.PI;
@@ -55,6 +89,15 @@ test("kernel published gamma", () => {
   const a = alpha(1, 1, 0, 256);
   assert.ok(Math.abs(a[0] - PUBLISHED.alpha_re) < 1e-9);
   assert.ok(Math.abs(a[1] - PUBLISHED.alpha_im) < 1e-6);
+  const lat = lattice(256, 0);
+  assert.ok(Math.abs(lat.lambda1[0] - Math.log(256)) < 1e-12);
+  assert.ok(Math.abs(lat.lambda2[1] - 2 * Math.PI) < 1e-12);
+  const g = outputRepeat(lat.lambda1, a);
+  assert.ok(Math.abs(g[0] - c.gamma[0]) < 1e-12);
+  assert.ok(Math.abs(g[1] - c.gamma[1]) < 1e-12);
+  const pFix = similarityFixedPoint([0.5, 0], [0.1, 0.2]);
+  assert.ok(Math.abs(pFix[0] - 0.2) < 1e-12);
+  assert.ok(Math.abs(pFix[1] - 0.4) < 1e-12);
 });
 
 test("homography roundtrip", () => {
@@ -82,10 +125,21 @@ test("mirror is simple aperture mesh", () => {
   assert.equal(m.triangles.length, 12);
 });
 
-test("parallel special case diagnostic", () => {
+test("A.5 parallel λ = a/(a+2d) is diagnostic, not image λ*", () => {
   assert.equal(sameAnatomyScale(1, 0.5), 0.5);
   assert.ok(nuD(0.8, Math.PI / 3, 1.7) > 0);
   assert.ok(nuR(0.8, 0.8, 0.5, 1.7) > 0);
+  const app = createApp();
+  const imageLam = app.getEffective().composition_metrics.same_anatomy_scale;
+  assert.ok(imageLam == null || Number.isFinite(imageLam));
+  assert.ok(imageLam == null || Math.abs(imageLam - 0.5) > 1e-3);
+});
+
+test("P0 pose seed is elbow 132.95 only; knees are not 3D joints", () => {
+  const pose = p0PoseRotations();
+  assert.ok(pose.elbow_R);
+  assert.equal(pose.knee_L, undefined);
+  assert.equal(pose.knee_R, undefined);
 });
 
 test("app solve and warp toggle", () => {

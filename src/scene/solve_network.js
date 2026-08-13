@@ -20,7 +20,7 @@ import { panToPlace } from "../domains/camera/crop.js";
 import { jacobian } from "../shared_math/jacobian.js";
 import { createProposal } from "./proposals.js";
 import { SEMANTIC } from "../domains/body/skeleton.js";
-import { t, minCarrierPx, toleranceSetHash } from "../../fixtures/tolerances.js";
+import { minCarrierPx, toleranceSetHash } from "../../fixtures/tolerances.js";
 import landmarks from "../../fixtures/P0/landmarks.js";
 
 const SOLVER_ID = "mirror-portrait-nls";

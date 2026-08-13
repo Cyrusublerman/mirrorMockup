@@ -1,10 +1,21 @@
-import { add, dot, scale, sub } from "../../shared_math/vector.js";
+import { add, dot, normalize, scale, sub } from "../../shared_math/vector.js";
 import { rayPlane } from "../../shared_math/intersection.js";
 import { insideAperture, localUv } from "../mirror/mesh.js";
 
 export function reflectPoint(X, M, n) {
   const d = dot(n, sub(X, M));
   return sub(X, scale(n, 2 * d));
+}
+
+export function householderAffine(M, n) {
+  const nn = normalize(n);
+  const t = 2 * dot(nn, M);
+  return [
+    1 - 2 * nn[0] * nn[0], -2 * nn[0] * nn[1], -2 * nn[0] * nn[2], nn[0] * t,
+    -2 * nn[1] * nn[0], 1 - 2 * nn[1] * nn[1], -2 * nn[1] * nn[2], nn[1] * t,
+    -2 * nn[2] * nn[0], -2 * nn[2] * nn[1], 1 - 2 * nn[2] * nn[2], nn[2] * t,
+    0, 0, 0, 1,
+  ];
 }
 
 export function reflectDir(d, n) {
