@@ -85,7 +85,11 @@ export async function createScene3D(canvas, app) {
   const loader = new GLTFLoader();
   let gltfScene = null;
   try {
-    const gltf = await loader.loadAsync("fixtures/P0/base_female_rigged.glb");
+    const glbRel = app.getRequested()?.body?.definition?.glb || "fixtures/P0/base_female_rigged.glb";
+    const glbUrl = /^(https?:|blob:|data:)/i.test(glbRel)
+      ? glbRel
+      : new URL("../../" + glbRel.replace(/^\.\//, ""), import.meta.url).href;
+    const gltf = await loader.loadAsync(glbUrl);
     gltfScene = gltf.scene;
     gltfScene.traverse((obj) => {
       if (obj.isMesh) obj.frustumCulled = false;

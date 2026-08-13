@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P0 composition tool (remote repo)</title>
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search).get("repo");
+    var repo = (q || "https://cdn.jsdelivr.net/gh/Cyrusublerman/mirrorMockup@main/").replace(/\/?$/, "/");
+    var base = document.createElement("base");
+    base.href = repo;
+    document.head.appendChild(base);
+    window.MIRROR_REPO = repo;
+  })();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; font-family: ui-sans-serif, system-ui, sans-serif; background: #f6f4ef; }
+  #app { height: 100%; }
+  #boot-fail { margin: 24px; max-width: 44rem; color: #111; }
+  #boot-fail code { font-size: 13px; }
+</style>
+<body>
+<div id="app"></div>
+<script type="module">
+  const repo = window.MIRROR_REPO;
+  const root = document.getElementById("app");
+  try {
+    const { boot } = await import(new URL("src/ui/interactions.js", repo).href);
+    await boot(root);
+  } catch (err) {
+    root.innerHTML = `<div id="boot-fail">
+      <p>Failed to load <code>${repo}</code></p>
+      <p>This file can live outside the clone. It loads the tool from the GitHub repo (jsDelivr). Network required.</p>
+      <p>Against a local server of this repo: <code>?repo=http://127.0.0.1:8765/</code></p>
+      <pre>${String(err && err.stack || err)}</pre>
+    </div>`;
+    console.error(err);
+  }
+</script>
+</body>
+</html>
