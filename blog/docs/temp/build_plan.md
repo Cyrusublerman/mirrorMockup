@@ -53,13 +53,16 @@ The governing object is a **coupled constraint network**, not a pipeline and not
 2. Relation vocabulary: FREE, LOCKED, RELATION_LOCKED, DERIVED, AUTO_SOLVED, TARGETED, BOUNDED, EXPLORATORY.
 3. Production apparatus: `T_WC = T_WP T_PC`; mirror parallel, `n_M = −f_C`. Duplicate DOF forbidden (distance vs independent XYZ).
 4. Three pans are distinct actions: `PAN_MIRROR_WINDOW`, `PAN_REFLECTED_CONTENT`, `PAN_APPARATUS` / `PAN_OUTER_FRAME`.
-5. Print Gallery: `OFF | AUTO | ADVANCED`. AUTO requires no manual portal. ADVANCED never detaches from physical P.
+5. Print Gallery warp is **toggleable**: `OFF | AUTO | ADVANCED`. OFF and AUTO are the ordinary two-state control. AUTO requires no manual portal. ADVANCED never detaches from physical P. Toggle mutates render/workspace only; it does not rewrite body/phone/camera/mirror/P.
 6. Physical portal size ≠ recursive `|γ|`. Do not label S and `|γ|` as one scale.
 7. World: +X ∥ default mirror, +Y depth along default mirror normal, +Z up, floor Z=0.
 8. Anatomical L/R is semantic; never inferred from screen side or mirror parity.
 9. Two-bone IK is a seed. Production solve is coupled (shoulder, elbow, wrist, clavicle, ribcage, root, optional grip).
 10. Parallel axial formulae (§10.2) are DIAGNOSTIC_ONLY, used for seeds/sensitivity checks, not as the solver.
 11. I01 P0 digitisation is default composition-coordinate authority. Earlier flattened shape register is diagnostic only (§24.3).
+12. **View traversal** is workspace state. It must not mutate the capture camera. One monotonic parameter `τ ≥ 0` covers: dolly camera→mirror → zoom to reflected phone screen P → recursive loop. With warp ON, that continuation is the Print Gallery map, not a second effect.
+13. **Seamless zoom contract.** At portal-fill, the on-screen pixels of P/Q equal `I(z)` at identity phase within declared tolerance. Further `τ` is lattice motion in log space. One loop period is `Δτ = log|γ|` in the recursive segment. A visible pop at handoff is non-conformant.
+14. **Image export** is a production action from the first renderable view: current artwork frame, current warp state, current `τ`, plus an unwarped sibling when warp is ON. Pixel files are required; JSON/staging alone is not export.
 
 # 4. Explicitly out of this repo
 
@@ -76,7 +79,8 @@ src/
               solve_policy history proposals
   domains/    body pose support hand_grip phone camera
               apparatus mirror reflection visibility
-              composition carrier_p content_q recursion export
+              composition carrier_p content_q recursion
+              view_traversal export
   shared_math/ vector quaternion transform projection intersection
                polygon homography complex numerical jacobian
   render/     scene_3d artwork_camera overlays recursion_gpu diagnostics
@@ -91,6 +95,60 @@ tests/
 ```
 
 No `intent/`, `panel_space/`, `correspondence/`, `contradiction/`, `domain_warp/`, `mirror_rig/`, `loop_lab/`.
+
+# 5.1 Warp toggle, depth traversal, seamless loop, export
+
+These are product behaviour, not later polish. Fourier/domain warp remains OUT_OF_SCOPE. “Warp” here means the Print Gallery field `I(z)=F(W(z))`.
+
+## Warp toggle
+
+Ordinary control is two-state: `WARP_OFF` ↔ `WARP_AUTO` (spec `PRINT_GALLERY OFF|AUTO`). ADVANCED stays behind INSPECT.
+
+- OFF: rasterize physical scene; phone screen shows authored Q; no loop.
+- AUTO: if P valid, screen/carrier is the recursive field derived from P; if P invalid, toggle stays OFF and reports the named P-validity failure.
+- Toggle is `SET_PRINT_GALLERY_MODE`. It does not move geometry. Compare-at-same-`τ` is required.
+
+## Traversal parameter
+
+Workspace, not capture-camera state. Spec §25.9 still holds: view navigation must not mutate the physical capture camera.
+
+```
+τ ≥ 0
+  [0, τ_M]     DOLLY: view camera V(τ) = C + (τ/τ_M) d_M f
+               look along f; HFOV is view-HFOV (workspace)
+               τ=0 capture-camera pose; τ=τ_M at mirror plane
+  (τ_M, τ_P]   APPROACH: continue in reflected/virtual space
+               toward the reflected phone screen
+               τ=τ_P ⇔ projected P fills the artwork frame
+               (homography P → frame = Q fill, within tolerance)
+  τ > τ_P      LOOP: only if warp AUTO
+               W_τ(z) = α log(z − p) + β(τ)
+               β linear in (τ − τ_P)
+               one visual period: Δτ = log|γ|
+               warp OFF: clamp at τ_P (magnified Q, no loop)
+```
+
+Actions: `SET_VIEW_TRAVERSAL`, `DOLLY_APPARATUS_DEPTH`, `ZOOM_TO_PORTAL`. Selectors: `selectViewTraversal`, `selectWarpState`.
+
+## Seamless integration
+
+Do not switch renderers with a pop.
+
+With warp AUTO, P is already textured by `I(z)` at every `τ`. Dolly and zoom are views of that same field. At `τ_P` the portal-fill view equals identity-phase `I(z)`. For `τ>τ_P` the extra scale is the group action `z ↦ γ(z−p)+p` (continuous in log space). Physical portal size still ≠ `|γ|`.
+
+Handoff test (required): render at `τ_P − ε` and `τ_P + ε`; mean pixel difference over the frame below declared tolerance. Loop test: `I(τ)` vs `I(τ + log|γ|)` agree after lattice reduction.
+
+Q may be authored stills. For a true Droste of *this* scene, AUTO source F is the unwarped composition made periodic in Λ — that is the content of Q, not a second portal widget.
+
+## Image export
+
+`EXPORT_IMAGE` writes pixels. Minimum:
+
+- current artwork frame at current `τ` and warp state (PNG)
+- if warp AUTO: unwarped sibling at same `τ`
+- sidecar: warp mode, `τ`, `τ_M`, `τ_P`, P validity, loop certificate, resolution, source commit
+
+Staging JSON without an image is not this action. Export is available as soon as a renderer exists (Phase 6), not only at completion.
 
 # 6. Build sequence
 
@@ -138,23 +196,27 @@ CompositionTarget in IMAGE_NORM. P0_PROFILE from §12.2. Metrics §12.3; no scal
 
 Exit: §25.6; Appendix C examples C.1–C.4 as named tests.
 
-## Phase 6 — Q + AUTO recursion
+## Phase 6 — Q + AUTO recursion + traversal + export path
 
-Q fill/contain/cover, scale, offset, rotation, crop. PRINT_GALLERY OFF/AUTO/ADVANCED. AUTO: if P valid → rectify → similarity-compatible canonicalisation if possible → exact one-centre loop → certify → render; else named unavailability. Inverse portal design §18.8; reject incompatible S≤1 or non-similarity portals instead of faking a loop. Finite-portal uniformisation only when physical geometry requires it (§19.4 priority). Inverse-map sampling, Jacobian/no-fold, mip/footprint filtering; no fixed blur. CPU reference renderer.
+Q fill/contain/cover, scale, offset, rotation, crop. Warp toggle OFF/AUTO/ADVANCED as in §5.1. AUTO: if P valid → rectify → similarity-compatible canonicalisation if possible → exact one-centre loop → certify → render; else named unavailability. Inverse portal design §18.8; reject incompatible S≤1 or non-similarity portals instead of faking a loop. Finite-portal uniformisation only when physical geometry requires it (§19.4 priority). Inverse-map sampling, Jacobian/no-fold, mip/footprint filtering; no fixed blur. CPU reference renderer.
 
-Exit: §25.7 and §25.8. AUTO never needs a second aligned rectangle.
+Implement `view_traversal` in this phase, not later: `τ` dolly C→M, approach P, loop via `β(τ)`. Handoff and period tests above. `EXPORT_IMAGE` on the CPU renderer (PNG + sidecar).
+
+Exit: §25.7 and §25.8; warp toggle round-trip with frozen geometry; `τ_P` handoff residual; `τ` vs `τ+log|γ|` loop residual; PNG export of ON and OFF at the same `τ`. AUTO never needs a second aligned rectangle.
 
 ## Phase 7 — Facade, overlays, UI contract
 
-Actions/selectors exactly §22 (no production `ROTATE_MIRROR`). Modes POSE/SCENE/COMPOSITION/RECURSION/INSPECT. One selection, one overlay. Required overlay stack §14; sparse default, all available. Automatic compensation must be inspectable (§14.1) or it is a UI failure. Four pan verbs. Requested ghost / effective solid. P0 loaded at startup per §24.1 with provenance-labelled body/device, FOV HYPOTHESIS if uncalibrated.
+Actions/selectors exactly §22 (no production `ROTATE_MIRROR`) plus `SET_VIEW_TRAVERSAL`, `DOLLY_APPARATUS_DEPTH`, `ZOOM_TO_PORTAL`, `EXPORT_IMAGE`. Modes POSE/SCENE/COMPOSITION/RECURSION/INSPECT. Warp toggle visible in RECURSION (and reachable while traversing). One selection, one overlay. Required overlay stack §14; sparse default, all available. Automatic compensation must be inspectable (§14.1) or it is a UI failure. Four pan verbs. Requested ghost / effective solid. P0 loaded at startup per §24.1 with provenance-labelled body/device, FOV HYPOTHESIS if uncalibrated.
 
-Exit: §25.9; §27 items 1–13 as interaction, not styling.
+Traversal HUD shows: warp ON/OFF, `τ` segment (DOLLY|APPROACH|LOOP), `d_M` remaining, P fill fraction, next loop period. Depth scrub does not move capture camera.
 
-## Phase 8 — Persistence, export, completion
+Exit: §25.9; §27 items 1–13 as interaction, not styling; user can dolly, zoom to phone, loop, toggle warp, export a still.
 
-Save/restore requested state without semantic drift. Export: physical staging prescription, composition overlay, recursive reference render. That is the export product; not Mega Build Paint Guide OS.
+## Phase 8 — Persistence, export suite, completion
 
-Exit: spec §27 items 1–19 simultaneously. A build that re-aligns a Droste rectangle after moving the phone, independently rotates the mirror in production, or hides compensation is non-conformant.
+Save/restore requested state without semantic drift. Workspace `τ` and warp mode restore. Export suite: PNG (current / unwarped sibling), physical staging prescription, composition overlay, recursive reference render. Not Mega Build Paint Guide OS.
+
+Exit: spec §27 items 1–19 plus §5.1. Non-conformant: re-aligning a Droste rectangle after moving the phone; independent production mirror rotation; hidden compensation; pop at `τ_P`; capture-camera mutation from view dolly; JSON-only “export”.
 
 # 7. v1.4 code: reuse, do not resurrect as product shape
 
@@ -174,11 +236,14 @@ Capture limits (DoF, aliasing, ghost, beat) may attach to P-validity / staging e
 - Treating FOV as zoom.
 - Using mirror aperture as a proxy for reflected-body magnification.
 - One ambiguous “pan”.
-- Fourier/exotic warp UI.
+- Fourier/exotic warp UI. Print Gallery warp is the only production warp, and it is toggleable.
+- A second Droste rectangle, or a 3D flythrough that cuts to a shader at the phone.
+- Dolly/zoom that writes the capture camera.
+- JSON/staging export without image pixels.
 - Hiding guessed millimetres as MEASURED.
 - Claiming unique 3D from P0 pixels.
 - Aesthetic scores.
 
 # 9. Immediate next implementation step
 
-Phase 0 + Phase 1 only: validate graph, shared_math, kernel fixture with α-sign resolved by `|γ|`, P0 IMAGE_NORM table on disk. No UI. No second app. No intent schema.
+Phase 0 + Phase 1 only: validate graph, shared_math, kernel fixture with α-sign resolved by `|γ|`, P0 IMAGE_NORM table on disk. Traversal/export are specified now so Phase 6 does not bolt them on. No UI yet. No second app. No intent schema.
