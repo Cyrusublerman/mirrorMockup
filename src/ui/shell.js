@@ -146,6 +146,7 @@ html, body, #app {
 .mp-row { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; margin-top: 8px; }
 .mp-status { margin-top: 8px; font-size: 12px; color: var(--mp-muted); display: flex; gap: 8px; align-items: center; }
 .mp-valid.ok { color: var(--mp-ok); }
+.mp-valid.warn { color: var(--mp-warn); }
 .mp-valid.bad { color: var(--mp-err); }
 .mp-inspect, .mp-sheet, .mp-menu {
   position: absolute;

@@ -1,18 +1,19 @@
 export function mountValidityStrip(el, proj) {
   el.className = "mp-status";
   el.replaceChildren();
+  const tx = proj.effective?.transaction || (proj.valid ? "PASS" : "FAIL");
   const t = document.createElement("strong");
-  t.className = "mp-valid " + (proj.valid ? "ok" : "bad");
-  t.textContent = proj.valid ? "PASS" : "FAIL";
+  t.className = "mp-valid " + (tx === "PASS" ? "ok" : tx === "PROJECTED" ? "warn" : "bad");
+  t.textContent = tx;
   el.appendChild(t);
   const icon = document.createElement("span");
   icon.setAttribute("aria-hidden", "true");
-  icon.textContent = proj.valid ? "●" : "■";
+  icon.textContent = tx === "PASS" ? "●" : tx === "PROJECTED" ? "▲" : "■";
   el.appendChild(icon);
   const r = document.createElement("span");
-  r.textContent = proj.valid
+  r.textContent = tx === "PASS"
     ? (proj.compensation ? humanCompensation(proj.compensation) : "feasible")
-    : String(proj.reasons[0] || "invalid");
+    : String(proj.reasons[0] || (tx === "PROJECTED" ? "projected" : "invalid"));
   el.appendChild(r);
 }
 

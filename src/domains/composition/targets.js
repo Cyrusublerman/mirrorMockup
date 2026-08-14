@@ -8,9 +8,9 @@ export { occupancy } from "./occupancy.js";
 
 export const SUBJECT_MAP = {
   direct_head: { space: "direct", fk: "head" },
-  direct_eye_L: { space: "direct", fk: "head" },
-  direct_eye_R: { space: "direct", fk: "head" },
-  direct_mouth: { space: "direct", fk: "head" },
+  direct_eye_L: { space: "unmeasured", fk: null, reason: "NO_DISTINCT_FK" },
+  direct_eye_R: { space: "unmeasured", fk: null, reason: "NO_DISTINCT_FK" },
+  direct_mouth: { space: "unmeasured", fk: null, reason: "NO_DISTINCT_FK" },
   mirror: { space: "mirror_quad" },
   reflected_body: { space: "reflected", fk: "pelvis" },
   phone: { space: "carrier_p" },
@@ -84,22 +84,31 @@ function toFinal(p, crop) {
 
 function measuredPoint(tgt, visibility, carrierP, mirrorImageQuadCapture, crop) {
   const spec = SUBJECT_MAP[tgt.id] || SUBJECT_MAP[tgt.subject];
-  if (!spec) return null;
-  if (spec.space === "carrier_p") return toFinal(quadCentroid(carrierP?.quad_capture || carrierP?.quad), crop);
-  if (spec.space === "mirror_quad") return toFinal(quadCentroid(mirrorImageQuadCapture), crop);
+  if (!spec) return { point: null, reason: "UNMAPPED" };
+  if (spec.space === "unmeasured" || (spec.fk == null && spec.space !== "carrier_p" && spec.space !== "mirror_quad")) {
+    return { point: null, reason: spec.reason || "NO_DISTINCT_FK" };
+  }
+  if (spec.space === "carrier_p") {
+    return { point: toFinal(quadCentroid(carrierP?.quad_capture || carrierP?.quad), crop), reason: null };
+  }
+  if (spec.space === "mirror_quad") {
+    return { point: toFinal(quadCentroid(mirrorImageQuadCapture), crop), reason: null };
+  }
   const report = visibility?.reports?.[spec.fk];
-  if (!report) return null;
+  if (!report) return { point: null, reason: "NOT_VISIBLE" };
   if (spec.space === "direct") {
     const proj = report.direct;
-    if (!proj?.valid) return null;
-    return (proj.image_norm || toFinal(proj.image_norm_capture, crop) || null)?.slice?.() || null;
+    if (!proj?.valid) return { point: null, reason: "NOT_VISIBLE" };
+    const p = (proj.image_norm || toFinal(proj.image_norm_capture, crop) || null)?.slice?.() || null;
+    return { point: p, reason: p ? null : "NOT_VISIBLE" };
   }
   if (spec.space === "reflected") {
     const proj = report.reflected?.projection;
-    if (!proj?.valid) return null;
-    return (proj.image_norm || toFinal(proj.image_norm_capture, crop) || null)?.slice?.() || null;
+    if (!proj?.valid) return { point: null, reason: "NOT_VISIBLE" };
+    const p = (proj.image_norm || toFinal(proj.image_norm_capture, crop) || null)?.slice?.() || null;
+    return { point: p, reason: p ? null : "NOT_VISIBLE" };
   }
-  return null;
+  return { point: null, reason: "UNMAPPED" };
 }
 
 export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuadCapture) {
@@ -113,7 +122,7 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
   let measured_phone = null;
 
   for (const tgt of targets) {
-    const measured = measuredPoint(tgt, visibility, carrierP, mirrorImageQuadCapture, crop);
+    const { point: measured, reason } = measuredPoint(tgt, visibility, carrierP, mirrorImageQuadCapture, crop);
     if (!measured) {
       residuals[tgt.id] = {
         requested: tgt.target,
@@ -121,7 +130,8 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
         residual: null,
         tolerance: tgt.tolerance,
         frame: "FINAL_CROP",
-        reason: "NOT_VISIBLE",
+        reason: reason || "NOT_VISIBLE",
+        hard_or_soft: tgt.hard_or_soft || "soft",
       };
       continue;
     }
@@ -132,6 +142,7 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
       residual,
       tolerance: tgt.tolerance,
       frame: "FINAL_CROP",
+      hard_or_soft: tgt.hard_or_soft || "soft",
     };
     n_valid_residuals += 1;
     if (max_residual === null || residual > max_residual) max_residual = residual;

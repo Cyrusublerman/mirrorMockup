@@ -159,6 +159,44 @@ function placePhoneByCrop(req, parts) {
   return solveOnce(cloneState(req));
 }
 
+function compositionResidualConstraints(req, residuals) {
+  const out = [];
+  for (const tgt of req.composition?.targets || []) {
+    const row = residuals?.[tgt.id];
+    if (!row) continue;
+    if (row.reason === "NO_DISTINCT_FK" || row.reason === "UNMAPPED") continue;
+    const hard = (tgt.hard_or_soft || row.hard_or_soft || "soft") === "hard";
+    const tol = row.tolerance ?? tgt.tolerance ?? 0;
+    if (row.residual == null) {
+      out.push(
+        constraintResult({
+          state: hard ? "FAIL" : "PROJECTED",
+          constraint_id: `target_${tgt.id}`,
+          requested: row.requested ?? tgt.target,
+          effective: null,
+          residual: null,
+          tolerance: tol,
+          reason: row.reason || "NOT_VISIBLE",
+        }),
+      );
+      continue;
+    }
+    const inTol = row.residual <= tol;
+    out.push(
+      constraintResult({
+        state: inTol ? "PASS" : hard ? "FAIL" : "PROJECTED",
+        constraint_id: `target_${tgt.id}`,
+        requested: row.requested ?? tgt.target,
+        effective: row.effective,
+        residual: row.residual,
+        tolerance: tol,
+        reason: inTol ? "" : "OUT_OF_TOLERANCE",
+      }),
+    );
+  }
+  return out;
+}
+
 function applyReflectedNudge(req, parts) {
   const d = req.composition.reflected_content_delta;
   if (!d || (d[0] === 0 && d[1] === 0)) return parts;
@@ -324,6 +362,7 @@ export function solve(requested) {
       residual: carrier_p.valid ? 0 : 1,
       reason: (carrier_p.reasons || []).join(","),
     }),
+    ...compositionResidualConstraints(req, composition.residuals),
   ];
   if (carrierConflict) {
     constraints.push(

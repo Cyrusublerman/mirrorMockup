@@ -5,10 +5,10 @@ function visOf(reports, name) {
 }
 
 function residualValue(v) {
-  if (v == null) return 0;
+  if (v == null) return null;
   if (typeof v === "number") return v;
   if (typeof v.residual === "number") return v.residual;
-  return 0;
+  return null;
 }
 
 export function projectForHud(app) {
@@ -58,6 +58,12 @@ export function projectForHud(app) {
   if (rec.refused) reasons.push(...(rec.reasons || ["P invalid — AUTO refused"]));
   if (!p.valid) reasons.push(...(p.reasons || ["carrier_p"]));
   if (e.transaction === "FAIL") reasons.push("transaction FAIL");
+  if (e.transaction === "PROJECTED") {
+    const list = e.constraints || [];
+    const c = list.find((x) => x.state === "PROJECTED" && String(x.constraint_id).startsWith("target_"))
+      || list.find((x) => x.state === "PROJECTED");
+    if (c) reasons.push(`${c.constraint_id} ${c.reason || "PROJECTED"}`.trim());
+  }
   return {
     pose: e.skeleton,
     phone: e.phone,
@@ -79,7 +85,7 @@ export function projectForHud(app) {
     },
     residuals: residualNums,
     targets,
-    valid: e.transaction !== "FAIL" && p.valid !== false,
+    valid: e.transaction === "PASS",
     reasons,
     occlusion: {
       ...(vis.occlusion || {}),
