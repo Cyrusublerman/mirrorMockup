@@ -13,6 +13,7 @@ import { evaluateCarrierP } from "../domains/carrier_p/project.js";
 import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
+import { fitLayout, shouldLayoutFit, opticalLockHolds } from "../domains/composition/layout_fit.js";
 import { viewCameraAtTau, fillFraction } from "../render/artwork_camera.js";
 import { applySolveMode, allows, modeMask } from "./solve_policy.js";
 import { partitionX } from "./variable_partition.js";
@@ -20,7 +21,7 @@ import { panToPlace } from "../domains/camera/crop.js";
 import { jacobian } from "../shared_math/jacobian.js";
 import { createProposal } from "./proposals.js";
 import { SEMANTIC } from "../domains/body/skeleton.js";
-import { minCarrierPx, toleranceSetHash } from "../../fixtures/tolerances.js";
+import { minCarrierPx, toleranceSetHash, t } from "../../fixtures/tolerances.js";
 import landmarks from "../../fixtures/P0/landmarks.js";
 
 const SOLVER_ID = "mirror-portrait-nls";
@@ -227,6 +228,21 @@ function applyReflectedNudge(req, parts) {
   return solveOnce(cloneState(req));
 }
 
+function slimLayoutEval(req) {
+  const r = cloneState(req);
+  r.apparatus.mirror_distance_auto_solve = false;
+  r.composition.active_preserve_set = (r.composition.active_preserve_set || []).filter((x) => x !== "R_P");
+  return solveOnce(r);
+}
+
+function pinWorldMirror(req, parts) {
+  if (req.mirror.frame_authority !== "WORLD" || !parts.apparatus?.centre) return;
+  req.mirror.world_pose = {
+    translation: parts.apparatus.centre.slice(),
+    rotation: req.mirror.world_pose?.rotation || [0, 0, 0, 1],
+  };
+}
+
 function phoneCentroidCapture(req) {
   const phone = evaluatePhone(req);
   const cam = evaluateCamera(phone.world, req);
@@ -278,6 +294,12 @@ export function solve(requested) {
   const partition = partitionX(req);
 
   let parts = solveOnce(cloneState(req));
+  pinWorldMirror(req, parts);
+  let layout = null;
+  if (shouldLayoutFit(req)) {
+    layout = fitLayout(req, slimLayoutEval);
+    parts = solveOnce(cloneState(req));
+  }
   const mode = req.composition.solve_mode;
   if (mode === "P0_RECONSTRUCT" || mode === "COMPOSITION_FIT") {
     parts = placePhoneByCrop(req, parts);
@@ -364,6 +386,30 @@ export function solve(requested) {
     }),
     ...compositionResidualConstraints(req, composition.residuals),
   ];
+  if (composition.metrics?.gap_residual != null) {
+    const g = composition.metrics.gap_residual;
+    const inTol = g <= t("T-LANDMARK");
+    constraints.push(
+      constraintResult({
+        state: inTol ? "PASS" : "PROJECTED",
+        constraint_id: "target_gap",
+        requested: composition.metrics.gap_p0,
+        effective: composition.metrics.gap_capture,
+        residual: g,
+        tolerance: t("T-LANDMARK"),
+        reason: inTol ? "" : "OUT_OF_TOLERANCE",
+      }),
+    );
+  }
+  if (layout) {
+    composition.metrics.layout_fit = {
+      iterations: layout.iterations,
+      cost0: layout.cost0,
+      cost: layout.cost,
+      accepted: layout.accepted,
+      optical_lock: opticalLockHolds(parts),
+    };
+  }
   if (carrierConflict) {
     constraints.push(
       constraintResult({
@@ -408,7 +454,7 @@ export function solve(requested) {
     solver_id: SOLVER_ID,
     solver_version: SOLVER_VERSION,
     seed: 0,
-    iterations: 12,
+    iterations: layout?.iterations ?? 12,
     converged: top !== "FAIL",
     fd_step: FD_STEP,
     tolerance_set_hash: toleranceSetHash(),

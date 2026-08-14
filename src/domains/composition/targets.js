@@ -169,5 +169,19 @@ export function evaluateMetrics(visibility, carrierP, requested, mirrorImageQuad
     n_valid_residuals,
     max_residual,
   };
+  const headCap = visibility?.reports?.head?.direct?.image_norm_capture;
+  const phoneCap = quadCentroid(carrierP?.quad_capture);
+  const phoneFeat = landmarks.features.phone.bbox_centre;
+  if (headCap && phoneCap && head.bbox_centre && phoneFeat) {
+    const gap = [headCap[0] - phoneCap[0], headCap[1] - phoneCap[1]];
+    const gap0 = [head.bbox_centre[0] - phoneFeat[0], head.bbox_centre[1] - phoneFeat[1]];
+    metrics.gap_capture = gap;
+    metrics.gap_p0 = gap0;
+    metrics.gap_residual = Math.hypot(gap[0] - gap0[0], gap[1] - gap0[1]);
+  } else {
+    metrics.gap_capture = null;
+    metrics.gap_p0 = null;
+    metrics.gap_residual = null;
+  }
   return { metrics, residuals, profile: "P0" };
 }
