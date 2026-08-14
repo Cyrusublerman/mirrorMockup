@@ -5,7 +5,11 @@
   "version": "0.0.0",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
+    "shots": "node tools/shots.mjs",
     "validate": "python3 tools/validate.py",
     "start": "python3 -m http.server 8765"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
   }
 }

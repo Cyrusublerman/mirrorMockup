@@ -20,6 +20,9 @@ export const T = Object.freeze({
   "T-PHONE": { value: [0.727, 0.1115], unit: "IMAGE_NORM", source: "P0 phone bbox_centre" },
   "T-MIR": { value: [0.6725, 0.3], unit: "IMAGE_NORM", source: "P0 mirror bbox_centre" },
   "T-DM-BOUNDS": { value: [0.25, 8], unit: "m", source: "CODE_PRESENT existing clamp" },
+  "T-BONE-REG": { value: 0.005, unit: "m", source: "Phase 1 rendered vs FK" },
+  "T-CLIP": { value: 1e-4, unit: "m", source: "aperture clip vs finiteApertureTest" },
+  "T-CAPTURE-PX": { value: 2, unit: "px", source: "preview vs export projection" },
 });
 
 export function t(id) {

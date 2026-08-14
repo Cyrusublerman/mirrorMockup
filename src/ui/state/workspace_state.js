@@ -1,5 +1,3 @@
-export const EDITOR_VIEWS = ["CAMERA", "FRONT", "SIDE", "TOP", "ISO"];
-
 export function createWorkspaceState() {
   return {
     room: "POSE",

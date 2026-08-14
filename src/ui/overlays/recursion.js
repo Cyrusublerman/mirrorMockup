@@ -2,7 +2,7 @@ export function drawRecursionPortal(ctx, w, h, proj) {
   const quad = proj.portal?.P?.quad;
   if (!quad) return;
   ctx.save();
-  ctx.strokeStyle = "#D82D84";
+  ctx.strokeStyle = "#395BD6";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(quad[0][0] * w, quad[0][1] * h);

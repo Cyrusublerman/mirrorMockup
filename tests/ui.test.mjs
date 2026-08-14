@@ -138,7 +138,7 @@ test("no ROTATE_MIRROR in production UI modules", () => {
   const files = [
     "src/ui/app_shell.js",
     "src/ui/hud/context_hud.js",
-    "src/ui/rooms/scene_room.js",
+    "src/ui/hud/contextual_dock.js",
   ];
   for (const f of files) {
     const t = readFileSync(new URL("../" + f, import.meta.url), "utf8");

@@ -1,4 +1,5 @@
-export const EDITOR_VIEWS = ["CAMERA", "FRONT", "SIDE", "TOP", "ISO"];
+import { EDITOR_VIEWS } from "../state/view_state.js";
+export { EDITOR_VIEWS };
 
 export function mountViewStrip(el, workspace, onChange) {
   if (!el.dataset.ready) {
@@ -19,8 +20,9 @@ export function mountViewStrip(el, workspace, onChange) {
       el.appendChild(b);
     }
   }
+  const current = workspace.viewState?.editor_view || workspace.editor_view;
   for (const b of el.querySelectorAll(".mp-chip")) {
-    const on = b.dataset.view === workspace.editor_view;
+    const on = b.dataset.view === current;
     b.classList.toggle("is-on", on);
     b.setAttribute("aria-pressed", on ? "true" : "false");
   }

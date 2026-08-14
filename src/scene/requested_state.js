@@ -41,7 +41,7 @@ export function defaultRequestedState() {
         family: "P0",
         root: { translation: [0, 0.85, 0.02], yaw: Math.PI },
         bend_tilt_twist: {},
-        btt_euler: { spine: { bend: 0, tilt: 0, twist: 0 }, head: { bend: 0, tilt: 0, twist: 0 }, shoulder_R: { bend: 0, tilt: 0, twist: 0 } },
+        btt_euler: { head: { bend: 0, tilt: 0, twist: 0 }, shoulder_R: { bend: 0, tilt: 0, twist: 0 } },
         endpoint_targets: {},
       },
       ik_branches: { arm_R: 1, arm_L: 1, leg_R: 1, leg_L: 1 },

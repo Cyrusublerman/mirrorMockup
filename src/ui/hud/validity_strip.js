@@ -1,19 +1,11 @@
 export function mountValidityStrip(el, proj) {
   el.className = "mp-status";
   el.replaceChildren();
-  const tx = proj.effective?.transaction || (proj.valid ? "PASS" : "FAIL");
-  const t = document.createElement("strong");
-  t.className = "mp-valid " + (tx === "PASS" ? "ok" : tx === "PROJECTED" ? "warn" : "bad");
-  t.textContent = tx;
-  el.appendChild(t);
-  const icon = document.createElement("span");
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = tx === "PASS" ? "●" : tx === "PROJECTED" ? "▲" : "■";
-  el.appendChild(icon);
   const r = document.createElement("span");
-  r.textContent = tx === "PASS"
-    ? (proj.compensation ? humanCompensation(proj.compensation) : "feasible")
-    : String(proj.reasons[0] || (tx === "PROJECTED" ? "projected" : "invalid"));
+  if (proj.compensation && Math.abs(Number(proj.compensation.to) - Number(proj.compensation.from)) > 0.01) {
+    r.textContent = "See compensation sheet";
+  } else if (proj.valid) r.textContent = "Composition is feasible";
+  else r.textContent = String(proj.reasons[0] || "Open Inspect for what failed");
   el.appendChild(r);
 }
 

@@ -9,7 +9,7 @@ export function drawRequestedEffective(ctx, w, h, proj) {
   if (want && got) {
     const dist = Math.hypot(want[0] - got[0], want[1] - got[1], want[2] - got[2]);
     if (dist > 0.03) {
-      ctx.fillStyle = "#D82D84";
+      ctx.fillStyle = "#1A1A1A";
       ctx.fillText("requested ghost", 12, 18);
       ctx.fillStyle = "#395BD6";
       ctx.fillText("effective endpoint", 12, 32);

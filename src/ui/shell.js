@@ -62,7 +62,7 @@ html, body, #app {
 }
 .mp-room.is-on, .mp-chip.is-on { background: var(--mp-ink); color: #fff; }
 .mp-room:focus-visible, .mp-chip:focus-visible, .mp-more:focus-visible {
-  outline: 2px solid var(--mp-action);
+  outline: 2px solid var(--mp-ink);
   outline-offset: 2px;
 }
 .mp-more { flex: 0 0 44px; padding: 0; }
@@ -86,17 +86,27 @@ html, body, #app {
   position: absolute;
   left: 8px;
   top: 8px;
-  z-index: 3;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 .mp-views .mp-chip {
-  min-height: 36px;
-  min-width: 36px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 8px;
   font-size: 10px;
   background: rgba(255,255,255,0.88);
+}
+.mp-view-lab {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--mp-muted);
+  pointer-events: none;
 }
 .mp-inset {
   position: absolute;
@@ -106,14 +116,14 @@ html, body, #app {
   min-width: 88px;
   max-width: 140px;
   aspect-ratio: 3 / 4;
-  border: 2px solid var(--mp-action);
+  border: 2px solid #1A1A1A;
   border-radius: 10px;
   overflow: hidden;
-  background: #111;
+  background: transparent;
   z-index: 3;
   touch-action: none;
 }
-.mp-inset canvas { width: 100%; height: 100%; display: block; }
+.mp-inset canvas { width: 100%; height: 100%; display: block; opacity: 0; }
 .mp-inset-lab {
   position: absolute;
   left: 4px; right: 4px; bottom: 4px;
@@ -124,8 +134,8 @@ html, body, #app {
 }
 .mp-toast {
   position: absolute;
-  left: 8px; right: 8px; top: 8px;
-  z-index: 4;
+  left: 8px; right: 8px; top: 56px;
+  z-index: 3;
   background: rgba(255,255,255,0.92);
   border-radius: 12px;
   padding: 8px 12px;
@@ -133,6 +143,19 @@ html, body, #app {
   color: var(--mp-warn);
   display: none;
 }
+.mp-comp {
+  position: absolute;
+  left: 64px; right: 36%;
+  top: 8px;
+  bottom: auto;
+  z-index: 3;
+  background: rgba(255,255,255,0.94);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.mp-comp .mp-row { flex-wrap: wrap; }
+.mp-comp[hidden] { display: none; }
 .mp-toast.is-on { display: block; }
 .mp-hud {
   flex: 0 0 auto;

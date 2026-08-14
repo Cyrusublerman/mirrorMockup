@@ -56,7 +56,7 @@ export function drawOverlays(ctx, w, h, workspace, proj) {
     ctx.save();
     for (const t of targets) {
       if (t.requested) {
-        ctx.fillStyle = "#D82D84";
+        ctx.fillStyle = "#1A1A1A";
         const [x, y] = px(t.requested, w, h);
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, Math.PI * 2);
@@ -74,7 +74,7 @@ export function drawOverlays(ctx, w, h, workspace, proj) {
   }
   if (o.CORRESPONDENCE) {
     ctx.save();
-    ctx.strokeStyle = "#D82D84";
+    ctx.strokeStyle = "#1A1A1A";
     for (const t of targets) {
       if (!t.requested || !t.effective) continue;
       const a = px(t.requested, w, h);

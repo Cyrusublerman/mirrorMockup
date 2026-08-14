@@ -1,17 +1,19 @@
 import { injectShellCss } from "./shell.js";
 import { createWorkspaceState } from "./state/workspace_state.js";
+import { ViewState } from "./state/view_state.js";
 import { createInteractionMachine } from "./state/interaction_state_machine.js";
 import { createDispatchAdapter } from "./adapters/action_dispatch_adapter.js";
 import { projectForHud } from "./adapters/selector_projection_adapter.js";
 import { mountTopModeStrip } from "./hud/top_mode_strip.js";
 import { mountContextHud } from "./hud/context_hud.js";
-import { mountValidityStrip, humanCompensation } from "./hud/validity_strip.js";
+import { mountValidityStrip } from "./hud/validity_strip.js";
 import { mountInspectDrawer } from "./hud/inspect_drawer.js";
 import { mountPrecisionSheet } from "./hud/precision_sheet.js";
 import { mountViewStrip } from "./hud/view_strip.js";
+import { CompensationSheet } from "./hud/compensation_sheet.js";
 import { drawOverlays } from "./overlays/composition_overlay_stack.js";
 import { createReferenceLayer } from "./overlays/reference_layer.js";
-import { bindInsetSwap, insetPinchHfov } from "./viewport/artwork_camera_inset.js";
+import { InsetInput } from "./viewport/artwork_camera_inset.js";
 import { createEditorViewport } from "./viewport/editor_viewport.js";
 import { hitFromEvent } from "./viewport/scene_hit_test.js";
 import { labelForHit } from "./viewport/manipulator_layer.js";
@@ -21,13 +23,14 @@ import { applyRigidPhone } from "./manipulators/rigid_phone.js";
 import { applyMirrorDistance, applyMirrorWindow } from "./manipulators/mirror_aperture.js";
 import { applyCropPan } from "./manipulators/crop.js";
 import { applyQOffset } from "./manipulators/q_portal.js";
+import { precisionJointFields } from "./axis_map.js";
 import { createScene3D } from "../render/scene_3d.js";
-
-const IK_JOINTS = new Set(["wrist_R", "wrist_L", "head", "ankle_L", "ankle_R"]);
+import { letterboxRect } from "../render/capture_camera.js";
+import { IK_JOINTS } from "../render/bone_index.js";
 
 function bytesToPngUrl(png) {
   let s = "";
-  for (let i = 0; i < png.length; i++) s += String.fromCharCode(png[i]);
+  for (const b of png) s += String.fromCharCode(b);
   return `data:image/png;base64,${btoa(s)}`;
 }
 
@@ -55,13 +58,17 @@ function fail(root, msg, detail) {
 export async function bootUi(root, app) {
   injectShellCss(root.ownerDocument);
   const workspace = createWorkspaceState();
+  const viewState = new ViewState();
+  workspace.viewState = viewState;
   const machine = createInteractionMachine();
   const dispatch = createDispatchAdapter(app);
   const reference = createReferenceLayer();
+  const dockSheet = new CompensationSheet();
   workspace.warp = app.getRequested().recursion.mode;
   workspace.q = app.getRequested().recursion.q;
   workspace.n = app.getRequested().recursion.n;
   workspace.drive_mode = app.getRequested().phone.authority;
+  workspace.crop_mode = "FINAL_CROP";
 
   const shell = el("div", "mp-app");
   const strip = el("div");
@@ -73,6 +80,7 @@ export async function bootUi(root, app) {
   const overlay = el("canvas");
   overlay.id = "overlay";
   const viewsEl = el("div");
+  const viewLab = el("div", "mp-view-lab");
   const insetWrap = el("div", "mp-inset");
   insetWrap.setAttribute("data-inset", "");
   insetWrap.setAttribute("aria-label", "Capture camera inset, tap to swap");
@@ -84,7 +92,8 @@ export async function bootUi(root, app) {
   const toast = el("div", "mp-toast");
   toast.setAttribute("role", "status");
   toast.setAttribute("aria-live", "polite");
-  stage.append(canvas, overlay, viewsEl, insetWrap, toast);
+  const compEl = el("div", "mp-comp");
+  stage.append(canvas, overlay, viewsEl, viewLab, insetWrap, toast, compEl);
   const hud = el("div", "mp-hud");
   const contextEl = el("div");
   const validEl = el("div");
@@ -105,23 +114,17 @@ export async function bootUi(root, app) {
 
   let scene3d;
   try {
-    scene3d = await createScene3D(canvas, app, { insetCanvas });
+    scene3d = await createScene3D(canvas, app, { insetCanvas, viewState });
   } catch (err) {
     fail(root, "Viewport failed to start. WebGL is required.", String(err && err.stack || err));
     throw err;
   }
-  scene3d.setEditorView(workspace.editor_view);
+  scene3d.setEditorView(viewState.editor_view);
+  scene3d.setRoom(workspace.room);
 
   let euler = { bend: 0, tilt: 0, twist: 0 };
   let drag = null;
-
-  function sizeOverlay() {
-    const w = Math.max(1, canvas.clientWidth || stage.clientWidth || 1);
-    const h = Math.max(1, canvas.clientHeight || stage.clientHeight || 1);
-    if (overlay.width !== w) overlay.width = w;
-    if (overlay.height !== h) overlay.height = h;
-    return [w, h];
-  }
+  let raf = 0;
 
   function exportProduct(name, filename) {
     const last = app.dispatch(name, { width: 640, height: 640 });
@@ -138,12 +141,6 @@ export async function bootUi(root, app) {
     a.href = bytesToPngUrl(buf);
     a.download = filename;
     a.click();
-  }
-
-  function exportGuide() {
-    exportProduct("EXPORT_FINAL_CAMERA", "artwork.png");
-    exportProduct("EXPORT_COMPOSITION_OVERLAY", "composition-guide.png");
-    exportProduct("EXPORT_STAGING_PRESCRIPTION", "composition.json");
   }
 
   function mountMenu() {
@@ -178,20 +175,10 @@ export async function bootUi(root, app) {
       mk("EXPORT OVERLAY", () => { workspace.menu = false; exportProduct("EXPORT_COMPOSITION_OVERLAY", "overlay.png"); paintHud(); }),
       mk("EXPORT RECURSION", () => { workspace.menu = false; exportProduct("EXPORT_REFERENCE_RENDER", "recursion.png"); paintHud(); }),
     );
-    const views = el("div", "mp-row");
-    for (const kind of ["RIGGED", "STICK", "SIMPLE", "SILHOUETTE"]) {
-      views.appendChild(mk(kind, () => {
-        workspace.body_mode = kind;
-        scene3d.setBodyMode(kind);
-        workspace.menu = false;
-        paintHud();
-        paintScene();
-      }));
-    }
     const snaps = el("div", "mp-row");
     for (const id of ["A", "B", "C", "D", "E"]) {
       snaps.appendChild(mk("SAVE " + id, () => {
-        app.dispatch("SAVE_SNAPSHOT", { id });
+        app.dispatch("SAVE_SNAPSHOT", { id, kind: workspace.room === "POSE" ? "POSE" : "SCENE" });
         workspace.menu = false;
         paintHud();
       }));
@@ -204,33 +191,37 @@ export async function bootUi(root, app) {
         }
       }));
     }
-    menuEl.append(head, row, views, snaps);
+    menuEl.append(head, row, snaps);
   }
 
-  function paintHud() {
-    const proj = projectForHud(app);
-    mountTopModeStrip(strip, workspace, (room) => {
-      workspace.room = room;
-      app.dispatch("SET_WORKSPACE_MODE", { mode: room }, { preview: true });
-      paintHud();
-    });
-    if (!strip.contains(more)) strip.appendChild(more);
-    mountViewStrip(viewsEl, workspace, (id) => {
-      workspace.editor_view = id;
-      scene3d.setEditorView(id);
-      insetLab.textContent = id === "CAMERA" ? "EDITOR" : "CAPTURE";
-      paintHud();
-      paintScene();
-    });
-    mountContextHud(contextEl, workspace, proj, {
+  function hudHandlers() {
+    return {
       setDrive(mode) {
         workspace.drive_mode = mode;
         app.dispatch("SET_PHONE_AUTHORITY", { authority: mode }, { label: mode.replaceAll("_", " ") });
         paintHud();
         paintScene();
       },
-      relaxGrip() {
-        app.dispatch("SET_PHONE_AUTHORITY", { authority: "RELAX_GRIP" }, { label: "Propose relax grip" });
+      setBodyMode(kind) {
+        workspace.body_mode = kind;
+        scene3d.setBodyMode(kind);
+        paintHud();
+        paintScene();
+      },
+      loadSnapshot(id) {
+        const last = app.dispatch("LOAD_SNAPSHOT", { id, label: "Load " + id });
+        if (last.error) app.dispatch("SAVE_SNAPSHOT", { id, kind: "POSE" });
+        paintHud();
+        paintScene();
+      },
+      setCropMode(mode) {
+        workspace.crop_mode = mode;
+        scene3d.capture.mode = mode;
+        paintHud();
+        paintScene();
+      },
+      openPrecision() {
+        workspace.precision = true;
         paintHud();
       },
       toggleLock(id) {
@@ -248,6 +239,7 @@ export async function bootUi(root, app) {
         paintScene();
       },
       setWarp(mode) {
+        const proj = projectForHud(app);
         if (mode === "AUTO" && !proj.portal?.valid) {
           toast.textContent = "AUTO refused — " + (proj.reasons[0] || "P invalid");
           toast.classList.add("is-on");
@@ -281,18 +273,62 @@ export async function bootUi(root, app) {
         if (workspace.selected) workspace.selected.axis = axis;
         paintHud();
       },
+    };
+  }
+
+  function paintHud() {
+    const proj = projectForHud(app);
+    mountTopModeStrip(strip, workspace, (room) => {
+      workspace.room = room;
+      scene3d.setRoom(room);
+      app.dispatch("SET_WORKSPACE_MODE", { mode: room });
+      paintHud();
+      paintScene();
     });
+    if (!strip.contains(more)) strip.appendChild(more);
+    mountViewStrip(viewsEl, workspace, (id) => {
+      viewState.setEditorView(id);
+      viewState.setMainPane("EDITOR");
+      workspace.editor_view = id;
+      scene3d.setEditorView(id);
+      insetLab.textContent = "CAPTURE";
+      paintHud();
+      paintScene();
+    });
+    mountContextHud(contextEl, workspace, proj, hudHandlers());
     mountValidityStrip(validEl, proj);
-    if (proj.compensation) {
-      toast.textContent = humanCompensation(proj.compensation);
-      toast.classList.add("is-on");
-    }
+    toast.classList.toggle("is-on", false);
+    toast.textContent = "";
+    dockSheet.mount(compEl, proj.compensation, {
+      accept() {
+        app.dispatch("ACCEPT_PROPOSAL", {});
+        paintHud();
+        paintScene();
+      },
+      release() {
+        app.dispatch("SET_MIRROR_DISTANCE_AUTOSOLVE", { on: false }, { label: "Release R_P" });
+        app.dispatch("SET_LOCK_CHIP", { id: "PHONE_AREA", on: false }, { label: "Unlocked PHONE AREA" });
+        paintHud();
+        paintScene();
+      },
+      revert() {
+        if (proj.compensation?.from != null) {
+          app.dispatch("SET_MIRROR_DISTANCE_AUTOSOLVE", { on: false }, { label: "Hold distance" });
+          app.dispatch("SET_MIRROR_DISTANCE", { d_M: proj.compensation.from }, { label: "Revert compensation" });
+        }
+        paintHud();
+        paintScene();
+      },
+    });
     mountInspectDrawer(inspectEl, workspace.inspect, proj, workspace, {
       close() { workspace.inspect = false; paintHud(); },
       toggleOverlay(id) {
         workspace.overlays[id] = !workspace.overlays[id];
         paintHud();
         paintScene();
+      },
+      toggleLock(id) {
+        hudHandlers().toggleLock(id);
       },
     });
     mountPrecisionSheet(sheetEl, workspace.precision, precisionFields(), (out) => {
@@ -311,12 +347,7 @@ export async function bootUi(root, app) {
     const req = app.getRequested();
     const sel = workspace.selected;
     if (sel?.kind === "joint") {
-      const e = req.body.pose_targets.btt_euler?.[sel.id] || { bend: 0, tilt: 0, twist: 0 };
-      return [
-        { key: "bend", label: "Bend (rad)", value: e.bend },
-        { key: "tilt", label: "Tilt (rad)", value: e.tilt },
-        { key: "twist", label: "Rotate (rad)", value: e.twist },
-      ];
+      return precisionJointFields(req.body.pose_targets.btt_euler?.[sel.id]);
     }
     if (sel?.kind === "phone") {
       const t = req.phone.transform_request.translation;
@@ -358,15 +389,43 @@ export async function bootUi(root, app) {
     if (out.hfov_deg != null) app.dispatch("SET_CAMERA_FOV", { hfov: (out.hfov_deg * Math.PI) / 180 }, { label: "Precision HFOV" });
   }
 
-  function paintScene() {
-    scene3d.resize();
+  function paintSceneNow() {
     scene3d.sync();
-    const [w, h] = sizeOverlay();
+    const w = Math.max(1, canvas.clientWidth || stage.clientWidth || 1);
+    const h = Math.max(1, canvas.clientHeight || stage.clientHeight || 1);
+    const captureMain = viewState.main_pane === "CAPTURE";
+    viewLab.textContent = captureMain ? "CAPTURE" : viewState.editor_view;
+    insetLab.textContent = captureMain ? "EDITOR" : "CAPTURE";
     const ctx = overlay.getContext("2d");
+    if (!captureMain) {
+      overlay.style.left = "0";
+      overlay.style.top = "0";
+      overlay.style.width = "100%";
+      overlay.style.height = "100%";
+      overlay.width = w;
+      overlay.height = h;
+      ctx.clearRect(0, 0, w, h);
+      return;
+    }
+    const box = letterboxRect(w, h, 3 / 4);
+    overlay.style.left = `${box.x}px`;
+    overlay.style.top = `${box.y}px`;
+    overlay.style.width = `${box.w}px`;
+    overlay.style.height = `${box.h}px`;
+    overlay.width = Math.max(1, Math.floor(box.w));
+    overlay.height = Math.max(1, Math.floor(box.h));
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
     const proj = projectForHud(app);
-    ctx.clearRect(0, 0, w, h);
-    reference.draw(ctx, w, h);
-    drawOverlays(ctx, w, h, workspace, proj);
+    reference.draw(ctx, overlay.width, overlay.height);
+    drawOverlays(ctx, overlay.width, overlay.height, workspace, proj);
+  }
+
+  function paintScene() {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      paintSceneNow();
+    });
   }
 
   more.addEventListener("click", () => {
@@ -380,22 +439,56 @@ export async function bootUi(root, app) {
     paintScene();
   });
 
-  bindInsetSwap(canvas, insetWrap, () => {
-    scene3d.swapInset();
-    workspace.editor_view = scene3d.workspace.editor_view;
-    insetLab.textContent = workspace.editor_view === "CAMERA" ? "EDITOR" : "CAPTURE";
-    paintHud();
-    paintScene();
-  });
-  insetPinchHfov(
-    insetWrap,
-    () => app.getRequested().camera.hfov_request,
-    (hfov) => {
+  function syncInsetLabel() {
+    insetLab.textContent = viewState.main_pane === "CAPTURE" ? "EDITOR" : "CAPTURE";
+  }
+
+  new InsetInput().bind(insetWrap, {
+    cameraEdit: () => workspace.selected?.kind === "camera" || workspace.selected?.kind === "crop" || viewState.main_pane === "CAPTURE",
+    getHfov: () => app.getRequested().camera.hfov_request,
+    setHfov(hfov) {
       dispatch.startGesture("Changed FOV");
       dispatch.preview("SET_CAMERA_FOV", { hfov });
       paintScene();
     },
-  );
+    onPinchStart() {
+      dispatch.startGesture("Changed FOV");
+    },
+    onHit(ev) {
+      const cam = viewState.main_pane === "CAPTURE" ? scene3d.camera : scene3d.capture.cam;
+      const hit = scene3d.hitTest(ev.clientX, ev.clientY, cam, insetWrap.getBoundingClientRect());
+      if (!hit) return;
+      workspace.selected = { kind: hit.kind, id: hit.id, label: labelForHit(hit), axis: workspace.axis };
+      app.dispatch("SET_SELECTION", { selection: hit.id || hit.kind }, { preview: true });
+      paintHud();
+    },
+    onUp() {
+      dispatch.endGesture();
+    },
+    onSwap() {
+      scene3d.swapInset();
+      workspace.editor_view = scene3d.workspace.editor_view;
+      syncInsetLabel();
+      paintHud();
+      paintScene();
+    },
+  });
+
+  function beginDragFromHit(hit, req) {
+    if (hit.kind === "joint" && IK_JOINTS.includes(hit.id) && workspace.room !== "SCENE") {
+      const world = (req.body.pose_targets.endpoint_targets[hit.id] || app.getEffective().skeleton.fk[hit.id] || hit.point).slice();
+      drag = { kind: "ik", end: hit.id, world, started: false };
+    } else if (hit.kind === "joint") {
+      euler = { ...(req.body.pose_targets.btt_euler?.[hit.id] || { bend: 0, tilt: 0, twist: 0 }) };
+      drag = { kind: "joint", joint: hit.id, started: false };
+    } else if (hit.kind === "phone") {
+      drag = { kind: "phone", translation: req.phone.transform_request.translation.slice(), started: false };
+    } else if (hit.kind === "mirror") {
+      const id = workspace.selected?.id === "window" ? "window" : "d_M";
+      workspace.selected = { kind: "mirror", id, label: id === "window" ? "Mirror window pan" : "Mirror distance" };
+      drag = { kind: id, d_M: req.apparatus.mirror_distance_request_m, uv: req.apparatus.mirror_pan_uv_request_m.slice(), started: false };
+    } else drag = { kind: "orbit", started: false };
+  }
 
   createEditorViewport(canvas, scene3d, machine, {
     onDown(ev, p) {
@@ -403,20 +496,7 @@ export async function bootUi(root, app) {
       if (hit) {
         workspace.selected = { kind: hit.kind, id: hit.id, label: labelForHit(hit), axis: workspace.axis };
         app.dispatch("SET_SELECTION", { selection: hit.id || hit.kind }, { preview: true });
-        const req = app.getRequested();
-        if (hit.kind === "joint" && IK_JOINTS.has(hit.id) && workspace.room !== "SCENE") {
-          const world = (req.body.pose_targets.endpoint_targets[hit.id] || app.getEffective().skeleton.fk[hit.id] || hit.point).slice();
-          drag = { kind: "ik", end: hit.id, world, started: false };
-        } else if (hit.kind === "joint") {
-          euler = { ...(req.body.pose_targets.btt_euler?.[hit.id] || { bend: 0, tilt: 0, twist: 0 }) };
-          drag = { kind: "joint", joint: hit.id, started: false };
-        } else if (hit.kind === "phone") {
-          drag = { kind: "phone", translation: req.phone.transform_request.translation.slice(), started: false };
-        } else if (hit.kind === "mirror") {
-          const id = workspace.selected?.id === "window" ? "window" : "d_M";
-          workspace.selected = { kind: "mirror", id, label: id === "window" ? "Mirror window pan" : "Mirror distance" };
-          drag = { kind: id, d_M: req.apparatus.mirror_distance_request_m, uv: req.apparatus.mirror_pan_uv_request_m.slice(), started: false };
-        } else drag = { kind: "orbit", started: false };
+        beginDragFromHit(hit, app.getRequested());
         machine.beginSelect(p.id, p);
         paintHud();
         return;
@@ -441,7 +521,7 @@ export async function bootUi(root, app) {
         machine.beginSelect(p.id, p);
         return;
       }
-      if (scene3d.workspace.editor_view !== "CAMERA") {
+      if (viewState.main_pane !== "CAPTURE") {
         drag = { kind: "orbit", started: false };
         machine.beginOrbit(p.id, p);
       } else {
@@ -510,7 +590,7 @@ export async function bootUi(root, app) {
       paintScene();
     },
     onDolly(factor) {
-      if (scene3d.workspace.editor_view === "CAMERA") return;
+      if (viewState.main_pane === "CAPTURE") return;
       scene3d.dolly(factor);
       paintScene();
     },
@@ -556,7 +636,7 @@ export async function bootUi(root, app) {
     if (sel.kind === "phone") {
       const t = app.getRequested().phone.transform_request.translation.slice();
       app.dispatch("MOVE_PHONE", { translation: [t[0] + dx, t[1], t[2] + dy] }, { label: "Nudge phone" });
-    } else if (sel.kind === "joint" && IK_JOINTS.has(sel.id)) {
+    } else if (sel.kind === "joint" && IK_JOINTS.includes(sel.id)) {
       const w = (app.getRequested().body.pose_targets.endpoint_targets[sel.id] || app.getEffective().skeleton.fk[sel.id]).slice();
       app.dispatch("MOVE_POSE_TARGET", { end: sel.id, world: [w[0] + dx, w[1], w[2] + dy] }, { label: "Nudge " + sel.id });
     } else if (sel.id === "d_M") {
@@ -571,8 +651,11 @@ export async function bootUi(root, app) {
   else window.addEventListener("resize", paintScene);
 
   paintHud();
-  paintScene();
-  return app;
+  paintSceneNow();
+  if (typeof document !== "undefined") document.documentElement.dataset.booted = "1";
+  const api = { app, workspace, viewState, scene3d, paintHud, paintScene, paintSceneNow };
+  if (typeof window !== "undefined") window.__MIRROR__ = api;
+  return api;
 }
 
 export async function boot(root) {
