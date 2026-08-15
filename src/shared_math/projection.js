@@ -25,6 +25,10 @@ export function hfovFromFx(widthPx, fx) {
   return 2 * Math.atan(widthPx / (2 * fx));
 }
 
+export function vfovFromHfov(hfov, widthPx, heightPx) {
+  return 2 * Math.atan((heightPx / widthPx) * Math.tan(hfov / 2));
+}
+
 export function imageNormFromPx(u, v, widthPx, heightPx) {
   return [u / widthPx, v / heightPx];
 }

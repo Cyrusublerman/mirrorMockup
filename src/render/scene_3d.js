@@ -1,7 +1,9 @@
 import { BONE_PARENT, SEMANTIC } from "../domains/body/skeleton.js";
 import { renderField } from "../domains/export/image.js";
 import { activeOverlays } from "./overlays.js";
-import { householderAffine } from "../domains/reflection/reflect.js";
+import { BoneIndex, PICK_JOINTS } from "./bone_index.js";
+import { MirrorReflector } from "./mirror_reflector.js";
+import { CaptureCamera, EDITOR_LAYER, letterboxRect } from "./capture_camera.js";
 
 function geometryFromMesh(THREE, mesh) {
   const geo = new THREE.BufferGeometry();
@@ -59,7 +61,10 @@ async function loadGlb(loader, rel) {
   throw last || new Error("glb not found");
 }
 
-const PICK_JOINTS = ["head", "pelvis", "wrist_R", "wrist_L", "ankle_L", "ankle_R", "elbow_R", "shoulder_R", "spine"];
+function setEditorLayer(obj) {
+  obj.layers.set(EDITOR_LAYER);
+  obj.traverse((o) => o.layers.set(EDITOR_LAYER));
+}
 
 export async function createScene3D(canvas, app, opts = {}) {
   const THREE = await import("three");
@@ -73,16 +78,20 @@ export async function createScene3D(canvas, app, opts = {}) {
   });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.autoClear = true;
+  renderer.localClippingEnabled = true;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf7f5ef);
   const camera = new THREE.PerspectiveCamera(50, 1, 0.02, 40);
   camera.up.set(0, 0, 1);
+  camera.layers.enable(EDITOR_LAYER);
+  const capture = new CaptureCamera(THREE);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 1.15));
   const dir = new THREE.DirectionalLight(0xffffff, 0.75);
   dir.position.set(2, -2, 4);
   scene.add(dir);
   const grid = new THREE.GridHelper(4, 16, 0xcccccc, 0xeeeeee);
   grid.rotation.x = Math.PI / 2;
+  setEditorLayer(grid);
   scene.add(grid);
 
   const phoneMesh = new THREE.Mesh(
@@ -102,12 +111,6 @@ export async function createScene3D(canvas, app, opts = {}) {
   phoneMesh.add(screenMesh);
   scene.add(phoneMesh);
 
-  const phoneRefl = phoneMesh.clone(true);
-  phoneRefl.material = phoneMesh.material.clone();
-  phoneRefl.material.opacity = 0.55;
-  phoneRefl.material.transparent = true;
-  scene.add(phoneRefl);
-
   const mirrorMesh3 = new THREE.Mesh(
     new THREE.BufferGeometry(),
     new THREE.MeshStandardMaterial({
@@ -124,42 +127,35 @@ export async function createScene3D(canvas, app, opts = {}) {
 
   const bodyRoot = new THREE.Group();
   scene.add(bodyRoot);
-  const bodyRefl = new THREE.Group();
-  scene.add(bodyRefl);
+  const reflector = new MirrorReflector(THREE, scene);
   const loader = new GLTFLoader();
   let gltfScene = null;
-  let gltfRefl = null;
-  try {
-    const glbRel = app.getRequested()?.body?.definition?.glb || "fixtures/P0/base_female_rigged.glb";
-    const gltf = await loadGlb(loader, glbRel);
-    gltfScene = gltf.scene;
-    gltfScene.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.frustumCulled = false;
-        obj.userData.pick = { kind: "body", id: "body" };
-        obj.userData.riggedMaterial = obj.material;
-      }
-    });
-    bodyRoot.add(gltfScene);
-    gltfRefl = gltfScene.clone(true);
-    gltfRefl.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.frustumCulled = false;
-        obj.material = obj.material.clone();
-        obj.material.transparent = true;
-        obj.material.opacity = 0.45;
-      }
-    });
-    bodyRefl.add(gltfRefl);
-  } catch (err) {
-    console.error("failed to load rigged body GLB", err);
+  let boneIndex = null;
+  const glbRel = app.getRequested()?.body?.definition?.glb || "fixtures/P0/base_female_rigged.glb";
+  const gltf = await loadGlb(loader, glbRel);
+  gltfScene = gltf.scene;
+  boneIndex = new BoneIndex(gltfScene, SEMANTIC);
+  const fk0 = app.getEffective()?.skeleton?.fk;
+  for (const id of PICK_JOINTS) {
+    if (!fk0?.[id]) throw new Error(`pick joint missing FK ${id}`);
   }
+  gltfScene.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.frustumCulled = false;
+      obj.userData.pick = { kind: "body", id: "body" };
+      obj.userData.riggedMaterial = obj.material;
+    }
+  });
+  bodyRoot.add(gltfScene);
+  reflector.attachBody(gltfScene);
 
   const boneGeo = new THREE.BufferGeometry();
   const boneLine = new THREE.LineSegments(boneGeo, new THREE.LineBasicMaterial({ color: 0x222222 }));
   scene.add(boneLine);
+  reflector.attachStick(boneLine);
 
   const pickGroup = new THREE.Group();
+  setEditorLayer(pickGroup);
   scene.add(pickGroup);
   const pickMats = {
     idle: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.0, depthTest: false }),
@@ -170,12 +166,14 @@ export async function createScene3D(canvas, app, opts = {}) {
     const s = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), pickMats.idle);
     s.userData.pick = { kind: "joint", id };
     s.renderOrder = 20;
+    setEditorLayer(s);
     pickGroup.add(s);
     pickSpheres[id] = s;
   }
   const ghostMat = new THREE.MeshBasicMaterial({ color: 0xd82d84, wireframe: true, transparent: true, opacity: 0.85 });
   const ghostSphere = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), ghostMat);
   ghostSphere.visible = false;
+  setEditorLayer(ghostSphere);
   scene.add(ghostSphere);
   const bodyMode = { kind: "RIGGED" };
   const simpleGroup = new THREE.Group();
@@ -187,12 +185,15 @@ export async function createScene3D(canvas, app, opts = {}) {
     simpleGroup.add(m);
     return m;
   });
+  reflector.attachSimple(simpleGroup);
+  reflector.attachPhone(phoneMesh, screenMesh);
   const silMat = new THREE.MeshBasicMaterial({ color: 0x181818, side: THREE.DoubleSide });
 
   const inset = opts.insetCanvas || null;
   const insetCtx = inset ? inset.getContext("2d") : null;
   const insetCam = new THREE.PerspectiveCamera(50, 1, 0.02, 40);
   insetCam.up.set(0, 0, 1);
+  insetCam.layers.enable(EDITOR_LAYER);
 
   const workspace = {
     editor_view: "ISO",
@@ -211,16 +212,6 @@ export async function createScene3D(canvas, app, opts = {}) {
     cam.aspect = w / h;
     cam.updateProjectionMatrix();
     return [w, h];
-  }
-
-  function applyCapture(cam3, camE) {
-    const xf = camE?.world;
-    if (!xf?.translation || !xf.rotation) return;
-    cam3.position.set(...xf.translation);
-    cam3.quaternion.set(xf.rotation[0], xf.rotation[1], xf.rotation[2], xf.rotation[3]);
-    if (camE.basis?.up) cam3.up.set(...camE.basis.up);
-    cam3.fov = ((camE.hfov || Math.PI / 3) * 180) / Math.PI / Math.max(cam3.aspect, 0.2);
-    cam3.updateProjectionMatrix();
   }
 
   function applyEditor(cam3, skel) {
@@ -249,25 +240,27 @@ export async function createScene3D(canvas, app, opts = {}) {
     cam3.updateProjectionMatrix();
   }
 
-  function reflectClone(src, dst, centre, n) {
-    src.updateMatrixWorld(true);
-    const H = householderAffine(centre, n);
-    const hm = new THREE.Matrix4();
-    hm.set(H[0], H[1], H[2], H[3], H[4], H[5], H[6], H[7], H[8], H[9], H[10], H[11], H[12], H[13], H[14], H[15]);
-    dst.matrixAutoUpdate = false;
-    dst.matrix.copy(hm).multiply(src.matrixWorld);
-    dst.updateMatrixWorld(true);
-    dst.visible = src.visible;
+  function renderLetterboxed(cam3, w, h, aspect, clear) {
+    const box = letterboxRect(w, h, aspect);
+    renderer.setClearColor(clear, 1);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, w, h);
+    renderer.clear();
+    renderer.setScissorTest(true);
+    renderer.setScissor(box.x, box.y, box.w, box.h);
+    renderer.setViewport(box.x, box.y, box.w, box.h);
+    renderer.render(scene, cam3);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, w, h);
   }
 
   function syncMeshes(eff, req) {
-    const vis = activeOverlays(req);
+    activeOverlays(req);
     const prism = eff.phone.mesh;
     if (prism?.positions) {
       if (phoneMesh.geometry.getAttribute("position")?.count !== prism.positions.length) {
         phoneMesh.geometry.dispose();
         phoneMesh.geometry = geometryFromMesh(THREE, prism);
-        phoneRefl.geometry = phoneMesh.geometry;
       } else writePositions(phoneMesh.geometry, prism.positions);
     }
     const screen = eff.phone.screen_mesh;
@@ -306,38 +299,15 @@ export async function createScene3D(canvas, app, opts = {}) {
       bodyRoot.quaternion.set(rootXf.rotation[0], rootXf.rotation[1], rootXf.rotation[2], rootXf.rotation[3]);
       bodyRoot.scale.set(...(rootXf.scale || [1, 1, 1]));
     }
-    if (gltfScene && skel?.locals) {
-      gltfScene.traverse((obj) => {
-        const local = skel.locals[obj.name];
-        if (!local || obj.isMesh || obj.isSkinnedMesh) return;
-        obj.position.set(...local.translation);
-        obj.quaternion.set(local.rotation[0], local.rotation[1], local.rotation[2], local.rotation[3]);
-        obj.scale.set(...local.scale);
-      });
+    if (gltfScene && skel?.locals && boneIndex) {
+      boneIndex.applyLocals(skel.locals);
       gltfScene.updateMatrixWorld(true);
       gltfScene.traverse((obj) => {
         if (obj.isSkinnedMesh && obj.skeleton) obj.skeleton.update();
       });
-      if (gltfRefl) {
-        gltfRefl.traverse((obj) => {
-          const src = gltfScene.getObjectByName(obj.name);
-          if (!src || obj.isMesh || obj.isSkinnedMesh) return;
-          obj.position.copy(src.position);
-          obj.quaternion.copy(src.quaternion);
-          obj.scale.copy(src.scale);
-        });
-        gltfRefl.updateMatrixWorld(true);
-        gltfRefl.traverse((obj) => {
-          if (obj.isSkinnedMesh && obj.skeleton) obj.skeleton.update();
-        });
-      }
     }
-
-    const M = eff.mirror.centre;
-    const n = eff.mirror.basis.n;
-    reflectClone(phoneMesh, phoneRefl, M, n);
     bodyRoot.updateMatrixWorld(true);
-    reflectClone(bodyRoot, bodyRefl, M, n);
+    reflector.update(eff, { bodyRoot, phoneMesh, stick: boneLine, simple: simpleGroup });
 
     const sel = req.workspace.selection;
     for (const id of PICK_JOINTS) {
@@ -366,7 +336,7 @@ export async function createScene3D(canvas, app, opts = {}) {
         o.material = sil ? silMat : (o.userData.riggedMaterial || o.material);
       });
     }
-    if (gltfRefl) gltfRefl.visible = bodyMode.kind === "RIGGED" || sil;
+    if (reflector.body) reflector.body.visible = bodyMode.kind === "RIGGED" || sil;
     boneLine.visible = stick || !!req.workspace.overlays?.SKELETON;
     simpleGroup.visible = simple;
     if (simple && skel?.fk) {
@@ -395,12 +365,19 @@ export async function createScene3D(canvas, app, opts = {}) {
     const ih = Math.max(1, Math.floor(inset.clientHeight || parent?.clientHeight || 160));
     const insetIsCapture = workspace.inset_is_capture || !mainIsCapture;
     grid.visible = !insetIsCapture;
-    if (insetIsCapture) applyCapture(insetCam, eff.camera);
-    else applyEditor(insetCam, eff.skeleton);
-    insetCam.aspect = iw / ih;
-    insetCam.updateProjectionMatrix();
+    pickGroup.visible = !insetIsCapture;
     renderer.setSize(iw, ih, false);
-    renderer.render(scene, insetCam);
+    if (insetIsCapture) {
+      capture.apply(eff);
+      renderLetterboxed(capture.cam, iw, ih, capture.cam.aspect, 0x111111);
+    } else {
+      applyEditor(insetCam, eff.skeleton);
+      insetCam.aspect = iw / ih;
+      insetCam.updateProjectionMatrix();
+      renderer.setClearColor(0xf7f5ef, 1);
+      renderer.setViewport(0, 0, iw, ih);
+      renderer.render(scene, insetCam);
+    }
     if (inset.width !== iw) inset.width = iw;
     if (inset.height !== ih) inset.height = ih;
     insetCtx.drawImage(renderer.domElement, 0, 0, iw, ih);
@@ -411,9 +388,17 @@ export async function createScene3D(canvas, app, opts = {}) {
     const mainIsCapture = workspace.editor_view === "CAMERA";
     blitInset(eff, mainIsCapture);
     grid.visible = !mainIsCapture;
-    if (mainIsCapture) applyCapture(camera, eff.camera);
-    else applyEditor(camera, eff.skeleton);
-    renderer.render(scene, camera);
+    pickGroup.visible = !mainIsCapture;
+    if (mainIsCapture) {
+      capture.apply(eff);
+      const [w, h] = sizeOf(canvas, camera, renderer);
+      renderLetterboxed(capture.cam, w, h, capture.cam.aspect, 0x111111);
+    } else {
+      applyEditor(camera, eff.skeleton);
+      renderer.setClearColor(0xf7f5ef, 1);
+      renderer.setViewport(0, 0, canvas.width || 1, canvas.height || 1);
+      renderer.render(scene, camera);
+    }
   }
 
   function resize() {
@@ -432,7 +417,7 @@ export async function createScene3D(canvas, app, opts = {}) {
     const rect = canvas.getBoundingClientRect();
     ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(ndc, camera);
+    raycaster.setFromCamera(ndc, workspace.editor_view === "CAMERA" ? capture.cam : camera);
     const objs = [...Object.values(pickSpheres), phoneMesh, mirrorMesh3];
     if (gltfScene) objs.push(gltfScene);
     const hits = raycaster.intersectObjects(objs, true);
@@ -463,10 +448,11 @@ export async function createScene3D(canvas, app, opts = {}) {
   }
 
   function dragDeltaWorld(dx, dy, scale = 0.0022) {
+    const cam = workspace.editor_view === "CAMERA" ? capture.cam : camera;
     const right = new THREE.Vector3();
     const up = new THREE.Vector3();
     const fwd = new THREE.Vector3();
-    camera.matrixWorld.extractBasis(right, up, fwd);
+    cam.matrixWorld.extractBasis(right, up, fwd);
     return [
       right.x * dx * scale + up.x * -dy * scale,
       right.y * dx * scale + up.y * -dy * scale,
@@ -486,6 +472,9 @@ export async function createScene3D(canvas, app, opts = {}) {
     renderer,
     scene,
     camera,
+    capture,
+    reflector,
+    boneIndex,
     hitTest,
     orbit,
     dolly,
@@ -495,5 +484,6 @@ export async function createScene3D(canvas, app, opts = {}) {
     setBodyMode,
     workspace,
     SEMANTIC,
+    PICK_JOINTS,
   };
 }
