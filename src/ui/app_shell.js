@@ -10,7 +10,13 @@ import { mountValidityStrip } from "./hud/validity_strip.js";
 import { mountInspectDrawer } from "./hud/inspect_drawer.js";
 import { mountPrecisionSheet } from "./hud/precision_sheet.js";
 import { mountViewStrip } from "./hud/view_strip.js";
-import { CompensationSheet } from "./hud/compensation_sheet.js";
+import { TransactionCard } from "./hud/transaction_card.js";
+import { FeasiblePanel } from "./hud/feasible_panel.js";
+import { ElevationPanel } from "./hud/elevation_panel.js";
+import { InputModeStrip } from "./hud/input_mode_strip.js";
+import { hitScreenCorner } from "../domains/carrier_p/screen_quad.js";
+import { applyScreenCorner } from "./manipulators/screen_quad.js";
+import { FeasibleSet } from "../domains/apparatus/feasible_set.js";
 import { drawOverlays } from "./overlays/composition_overlay_stack.js";
 import { createReferenceLayer } from "./overlays/reference_layer.js";
 import { InsetInput } from "./viewport/artwork_camera_inset.js";
@@ -63,7 +69,11 @@ export async function bootUi(root, app) {
   const machine = createInteractionMachine();
   const dispatch = createDispatchAdapter(app);
   const reference = createReferenceLayer();
-  const dockSheet = new CompensationSheet();
+  const dockSheet = new TransactionCard();
+  const feasiblePanel = new FeasiblePanel();
+  const elevationPanel = new ElevationPanel();
+  const inputModes = new InputModeStrip();
+  const feasibleSet = new FeasibleSet();
   workspace.warp = app.getRequested().recursion.mode;
   workspace.q = app.getRequested().recursion.q;
   workspace.n = app.getRequested().recursion.n;
@@ -93,11 +103,13 @@ export async function bootUi(root, app) {
   toast.setAttribute("role", "status");
   toast.setAttribute("aria-live", "polite");
   const compEl = el("div", "mp-comp");
-  stage.append(canvas, overlay, viewsEl, viewLab, insetWrap, toast, compEl);
+  stage.append(canvas, overlay, viewsEl, viewLab, insetWrap, toast, compEl, diagEl);
   const hud = el("div", "mp-hud");
   const contextEl = el("div");
   const validEl = el("div");
-  hud.append(contextEl, validEl);
+  const modeEl = el("div");
+  const diagEl = el("div");
+  hud.append(contextEl, modeEl, validEl);
   const inspectEl = el("div", "mp-inspect");
   const sheetEl = el("div", "mp-sheet");
   const menuEl = el("div", "mp-menu");
@@ -296,6 +308,30 @@ export async function bootUi(root, app) {
       paintScene();
     });
     mountContextHud(contextEl, workspace, proj, hudHandlers());
+    inputModes.mount(modeEl, workspace.input_mode, (id) => {
+      workspace.input_mode = id;
+      if (id === "NUMBERS") workspace.precision = true;
+      if (id === "PLAN") {
+        viewState.setEditorView("TOP");
+        workspace.editor_view = "TOP";
+        scene3d.setEditorView("TOP");
+      }
+      if (id === "ELEVATION") {
+        viewState.setEditorView("LEFT");
+        workspace.editor_view = "LEFT";
+        scene3d.setEditorView("LEFT");
+      }
+      paintHud();
+      paintScene();
+    });
+    if (workspace.input_mode === "FEASIBLE") {
+      feasiblePanel.mount(diagEl, proj.feasible, feasibleSet.referenceDots());
+    } else if (workspace.input_mode === "ELEVATION") {
+      elevationPanel.mount(diagEl, proj.aperture_band);
+    } else {
+      diagEl.hidden = true;
+      diagEl.replaceChildren();
+    }
     mountValidityStrip(validEl, proj);
     toast.classList.toggle("is-on", false);
     toast.textContent = "";
@@ -329,6 +365,13 @@ export async function bootUi(root, app) {
       },
       toggleLock(id) {
         hudHandlers().toggleLock(id);
+      },
+      cycleIntent(id, rule) {
+        const order = ["REQUIRED", "PERMITTED", "PROHIBITED", "IGNORE", "TARGET"];
+        const next = order[(order.indexOf(rule.state) + 1) % order.length];
+        app.dispatch("SET_OCCLUSION_INTENT", { id, state: next, min: rule.min, max: rule.max }, { label: "Intent " + id });
+        paintHud();
+        paintScene();
       },
     });
     mountPrecisionSheet(sheetEl, workspace.precision, precisionFields(), (out) => {
@@ -481,8 +524,8 @@ export async function bootUi(root, app) {
     } else if (hit.kind === "joint") {
       euler = { ...(req.body.pose_targets.btt_euler?.[hit.id] || { bend: 0, tilt: 0, twist: 0 }) };
       drag = { kind: "joint", joint: hit.id, started: false };
-    } else if (hit.kind === "phone") {
-      drag = { kind: "phone", translation: req.phone.transform_request.translation.slice(), started: false };
+    } else if (hit.kind === "phone" || hit.kind === "screen") {
+      drag = { kind: hit.kind === "screen" ? "screen_corner" : "phone", translation: req.phone.transform_request.translation.slice(), started: false };
     } else if (hit.kind === "mirror") {
       const id = workspace.selected?.id === "window" ? "window" : "d_M";
       workspace.selected = { kind: "mirror", id, label: id === "window" ? "Mirror window pan" : "Mirror distance" };
@@ -492,6 +535,21 @@ export async function bootUi(root, app) {
 
   createEditorViewport(canvas, scene3d, machine, {
     onDown(ev, p) {
+      if (viewState.main_pane === "CAPTURE") {
+        const box = overlay.getBoundingClientRect();
+        if (box.width > 0 && box.height > 0) {
+          const uv = [(ev.clientX - box.left) / box.width, (ev.clientY - box.top) / box.height];
+          const quad = projectForHud(app).portal?.P?.quad;
+          const corner = hitScreenCorner(quad, uv);
+          if (corner >= 0) {
+            workspace.selected = { kind: "phone", id: "screen_" + corner, label: "Screen corner " + (corner + 1) };
+            drag = { kind: "screen_corner", index: corner, translation: app.getRequested().phone.transform_request.translation.slice(), started: false };
+            machine.beginSelect(p.id, p);
+            paintHud();
+            return;
+          }
+        }
+      }
       const hit = hitFromEvent(scene3d, ev);
       if (hit) {
         workspace.selected = { kind: hit.kind, id: hit.id, label: labelForHit(hit), axis: workspace.axis };
@@ -538,6 +596,7 @@ export async function bootUi(root, app) {
           ik: "Moved " + drag.end,
           joint: "Rotated " + drag.joint,
           phone: "Moved phone",
+          screen_corner: "Dragged screen corner",
           d_M: "Changed mirror distance",
           window: "Panned mirror window",
           crop: "Panned crop",
@@ -559,9 +618,10 @@ export async function bootUi(root, app) {
         applyEndpointIk(dispatch, drag.end, drag.world, true);
       } else if (drag.kind === "joint") {
         euler = applySemanticJoint(dispatch, drag.joint, euler, workspace.axis, -step.dy * 0.01, true);
-      } else if (drag.kind === "phone") {
+      } else if (drag.kind === "phone" || drag.kind === "screen_corner") {
         drag.translation = [drag.translation[0] + worldD[0], drag.translation[1] + worldD[1], drag.translation[2] + worldD[2]];
-        applyRigidPhone(dispatch, drag.translation, true);
+        if (drag.kind === "screen_corner") applyScreenCorner(dispatch, drag.translation, true);
+        else applyRigidPhone(dispatch, drag.translation, true);
       } else if (drag.kind === "d_M") {
         drag.d_M = Math.max(0.25, drag.d_M - step.dy * 0.004);
         applyMirrorDistance(dispatch, drag.d_M, true);
@@ -581,6 +641,7 @@ export async function bootUi(root, app) {
         dispatch.preview("PAN_REFLECTED_CONTENT", { delta: [step.dx * 0.001, -step.dy * 0.001] });
       }
       paintScene();
+      if (drag.started && drag.kind !== "orbit") paintHud();
     },
     onUp(ev, p) {
       machine.end(p.id);

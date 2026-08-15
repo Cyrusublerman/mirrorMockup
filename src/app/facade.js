@@ -84,6 +84,9 @@ export function createApp() {
     if (name === "EXPORT_IMAGE" || name === "EXPORT_FINAL_CAMERA" || name === "EXPORT_STAGING_PRESCRIPTION" || name === "EXPORT_COMPOSITION_OVERLAY" || name === "EXPORT_REFERENCE_RENDER") {
       last.export = exportImage(activeRequested(), last.effective, { ...payload, product: name });
       last.export.sidecar = { ...last.export.sidecar, build: BUILD, solver: last.effective.solver };
+      if (name === "EXPORT_STAGING_PRESCRIPTION" && last.export.staging?.refused) {
+        last.error = "staging refused: hollow distances";
+      }
       return last;
     }
     if (!opts.preview && !NO_HISTORY.has(name)) {

@@ -10,6 +10,10 @@ import { evaluateSupport } from "../domains/support/contact.js";
 import { evaluateGrip } from "../domains/hand_grip/grip.js";
 import { evaluateVisibility, projectWorld } from "../domains/visibility/report.js";
 import { evaluateCarrierP } from "../domains/carrier_p/project.js";
+import { ScreenQuad } from "../domains/carrier_p/screen_quad.js";
+import { FeasibleSet } from "../domains/apparatus/feasible_set.js";
+import { ApertureBand } from "../domains/visibility/aperture_band.js";
+import { OcclusionIntent } from "../domains/visibility/occlusion_intent.js";
 import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
@@ -27,6 +31,9 @@ import landmarks from "../../fixtures/P0/landmarks.js";
 const SOLVER_ID = "mirror-portrait-nls";
 const SOLVER_VERSION = "1.0.0";
 const FD_STEP = 1e-3;
+const screenQuad = new ScreenQuad();
+const feasibleSet = new FeasibleSet();
+const apertureBand = new ApertureBand();
 
 function solvePhonePose(req) {
   if (req.phone.authority === "HAND_DRIVES_PHONE") {
@@ -109,7 +116,32 @@ function solveOnce(req) {
   const bodyOcc = silhouetteOccluder(pose);
   const occluders = [{ mesh: phone.mesh, world: phone.world }, bodyOcc].filter(Boolean);
   const visibility = evaluateVisibility(pose.fk, cam, mirror, occluders);
-  const carrier_p = evaluateCarrierP(phone, cam, mirror);
+  const carrier_p = screenQuad.evaluate(phone, cam, mirror);
+  const feasible = feasibleSet.evaluate({
+    face: pose.fk?.head,
+    camera: cam.world?.translation,
+    mirrorCentre: mirror.centre,
+    mirrorNormal: mirror.basis?.n,
+    shoulder: pose.fk?.shoulder_R,
+  });
+  const aperture_band = apertureBand.evaluate({
+    camera: cam,
+    face: pose.fk?.head,
+    mirror,
+    stature: req.body?.definition?.stature || 1.7,
+  });
+  const visFrac = (name, space) => {
+    const r = visibility.reports?.[name];
+    if (!r) return 0;
+    return space === "reflected" ? (r.reflected?.visible ? 1 : 0) : (r.direct?.valid ? 1 : 0);
+  };
+  const occlusion_intent = new OcclusionIntent(req.composition.occlusion_intent).evaluate({
+    reflected_head: visFrac("head", "reflected"),
+    reflected_torso: visFrac("pelvis", "reflected"),
+    reflected_legs: (visFrac("ankle_L", "reflected") + visFrac("ankle_R", "reflected")) / 2,
+    reflected_phone: carrier_p.valid ? 1 : 0,
+    direct_face: visFrac("head", "direct"),
+  });
   const content_q = evaluateQ(req, carrier_p);
   const recursion = evaluateRecursion(req, carrier_p);
   const mirrorImageQuadCapture = (mirror.quad || []).map((X) => projectWorld(X, cam).image_norm_capture);
@@ -131,6 +163,9 @@ function solveOnce(req) {
     composition,
     view,
     compensation,
+    feasible,
+    aperture_band,
+    occlusion_intent,
   };
 }
 
@@ -309,6 +344,7 @@ export function solve(requested) {
   const {
     phone, cam, apparatus, mirror, reflection, grip, pose, support,
     visibility, carrier_p, content_q, recursion, composition, view, compensation,
+    feasible, aperture_band, occlusion_intent,
   } = parts;
 
   let proposal = req.workspace.proposal || null;
@@ -383,6 +419,22 @@ export function solve(requested) {
       effective: carrier_p.valid,
       residual: carrier_p.valid ? 0 : 1,
       reason: (carrier_p.reasons || []).join(","),
+    }),
+    constraintResult({
+      state: feasible?.inside ? "PASS" : "PROJECTED",
+      constraint_id: "feasible_set",
+      requested: true,
+      effective: !!feasible?.inside,
+      residual: feasible?.distance_to_boundary ?? 0,
+      reason: (feasible?.reasons || []).join(","),
+    }),
+    constraintResult({
+      state: occlusion_intent?.ok ? "PASS" : "PROJECTED",
+      constraint_id: "occlusion_intent",
+      requested: true,
+      effective: !!occlusion_intent?.ok,
+      residual: occlusion_intent?.ok ? 0 : 1,
+      reason: (occlusion_intent?.violations || []).join(","),
     }),
     ...compositionResidualConstraints(req, composition.residuals),
   ];
@@ -489,6 +541,9 @@ export function solve(requested) {
     sensitivity,
     proposal,
     compensation,
+    feasible,
+    aperture_band,
+    occlusion_intent,
     last_edit,
     driver: last_edit?.driver || mask.driver,
     preserve: req.composition.active_preserve_set,

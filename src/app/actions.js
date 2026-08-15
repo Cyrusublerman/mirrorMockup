@@ -38,6 +38,7 @@ export const ACTION_NAMES = [
   "SET_TARGET_TOLERANCE",
   "SET_TARGET_WEIGHT",
   "SET_LOCK_CHIP",
+  "SET_OCCLUSION_INTENT",
   "SET_MIRROR_FRAME_AUTHORITY",
   "SET_CONTENT_Q",
   "SET_PRINT_GALLERY_MODE",
@@ -252,6 +253,14 @@ export function applyAction(requested, name, payload = {}) {
           t.weight_origin = payload.origin || "ARTIST";
         }
       }
+      break;
+    case "SET_OCCLUSION_INTENT":
+      next.composition.occlusion_intent = next.composition.occlusion_intent || {};
+      next.composition.occlusion_intent[payload.id] = {
+        state: payload.state,
+        min: payload.min,
+        max: payload.max,
+      };
       break;
     case "SET_LOCK_CHIP":
       next.composition.locks[payload.id] = !!payload.on;

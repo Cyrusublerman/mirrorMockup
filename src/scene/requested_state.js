@@ -1,5 +1,6 @@
 import landmarks from "../../fixtures/P0/landmarks.js";
 import { p0Targets } from "../domains/composition/targets.js";
+import { DEFAULT_OCCLUSION_INTENT } from "../domains/visibility/occlusion_intent.js";
 
 export const RELATION = Object.freeze({
   FREE: "FREE",
@@ -96,6 +97,7 @@ export function defaultRequestedState() {
       solve_mode: SOLVE_MODE.P0_RECONSTRUCT,
       driver: "P0_RECONSTRUCT",
       locks: { PHONE_AREA: false, REFLECTED_BODY_SCALE: false, MIRROR_OCCUPANCY: false, SUPPORT: true, GRIP: false, P_VALID: false },
+      occlusion_intent: structuredClone(DEFAULT_OCCLUSION_INTENT),
       reflected_content_delta: [0, 0],
     },
     content_q: {

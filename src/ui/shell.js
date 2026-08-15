@@ -156,6 +156,36 @@ html, body, #app {
 }
 .mp-comp .mp-row { flex-wrap: wrap; }
 .mp-comp[hidden] { display: none; }
+.mp-txn .mp-kv span:first-child { letter-spacing: 0.08em; font-size: 10px; color: var(--mp-muted); }
+.mp-diag {
+  position: absolute;
+  left: 8px; right: 36%;
+  bottom: 8px;
+  z-index: 3;
+  background: rgba(255,255,255,0.94);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  max-height: 42%;
+  overflow: auto;
+}
+.mp-diag[hidden] { display: none; }
+.mp-fea-map {
+  position: relative;
+  height: 88px;
+  margin-top: 8px;
+  background: #F1EDE5;
+  border-radius: 8px;
+}
+.mp-fea-dot {
+  position: absolute;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: #395BD6;
+}
+.mp-fea-dot.is-here { background: #D82D84; width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+.mp-input-modes { margin-top: 6px; }
 .mp-toast.is-on { display: block; }
 .mp-hud {
   flex: 0 0 auto;

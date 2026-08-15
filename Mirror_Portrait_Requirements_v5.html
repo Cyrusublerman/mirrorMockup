@@ -1392,20 +1392,20 @@ table.req tr:nth-child(even) td{background:#FBFAF7}
 <div class="outcome"><b>Every invariant has a number and a file name.</b>
 <p>An assertion without a threshold is a slogan. The suite below is executable; the last row is a human gate because some failures are only visible.</p></div>
 <table class="req">
-<tr><th style="width:110px">id</th><th style="width:46%">assertion</th><th>threshold</th></tr>
-<tr><td class="id">ACC-RIG-01</td><td>every semantic joint resolves through GLTFLoader by <code>userData.name</code></td><td>24 / 24, boot throws otherwise</td></tr>
-<tr><td class="id">ACC-REG-01</td><td>rendered bone position against solver FK, all joints</td><td>&lt; 5 mm</td></tr>
-<tr><td class="id">ACC-REG-02</td><td>the same test on reflected presentations</td><td>&lt; 5 mm</td></tr>
-<tr><td class="id">ACC-REF-01</td><td>reflected skinned meshes use detached bind</td><td>Householder applies, asserted</td></tr>
-<tr><td class="id">ACC-REF-02</td><td>rendered aperture boundary against <code>finiteApertureTest</code></td><td>within a versioned tolerance ID</td></tr>
-<tr><td class="id">ACC-CAM-01</td><td>preview against export projection of the same landmark</td><td>&lt; 2 px in 1170</td></tr>
-<tr><td class="id">ACC-CAM-02</td><td>vfov = 2·atan((H/W)·tan(hfov/2))</td><td>exact</td></tr>
-<tr><td class="id">ACC-MSK-01</td><td>per-part IoU against the declared reference</td><td>per-part floor, versioned</td></tr>
-<tr><td class="id">ACC-FEA-01</td><td>current state lies inside the feasible region</td><td>boolean plus distance to the nearest boundary</td></tr>
-<tr><td class="id">ACC-PQ-01</td><td>screen quad passes all six gates</td><td>area, angle, footprint, conditioning, occlusion, bezel</td></tr>
-<tr><td class="id">ACC-EPI-01</td><td>staging export blocked while any printed distance is hollow</td><td>refuses</td></tr>
-<tr><td class="id">ACC-TXN-01</td><td>every edit produces one undoable transaction with a named driver</td><td>history depth matches gesture count</td></tr>
-<tr><td class="id">ACC-SHOT-01</td><td>four checked-in screenshots diffed per build</td><td>human review gate</td></tr>
+<tr><th style="width:110px">id</th><th style="width:46%">assertion</th><th>threshold</th><th>test</th></tr>
+<tr><td class="id">ACC-RIG-01</td><td>every semantic joint resolves through GLTFLoader by <code>userData.name</code></td><td>24 / 24, boot throws otherwise</td><td><code>tests/rig.test.mjs</code></td></tr>
+<tr><td class="id">ACC-REG-01</td><td>rendered bone position against solver FK, all joints</td><td>&lt; 5 mm</td><td><code>tests/rig.test.mjs</code> · T-BONE-REG</td></tr>
+<tr><td class="id">ACC-REG-02</td><td>the same test on reflected presentations</td><td>&lt; 5 mm</td><td><code>tests/mirror.test.mjs</code></td></tr>
+<tr><td class="id">ACC-REF-01</td><td>reflected skinned meshes use detached bind</td><td>Householder applies, asserted</td><td><code>tests/mirror.test.mjs</code></td></tr>
+<tr><td class="id">ACC-REF-02</td><td>rendered aperture boundary against <code>finiteApertureTest</code></td><td>within a versioned tolerance ID</td><td><code>tests/mirror.test.mjs</code> · T-CLIP</td></tr>
+<tr><td class="id">ACC-CAM-01</td><td>preview against export projection of the same landmark</td><td>&lt; 2 px in 1170</td><td><code>tests/capture_parity.test.mjs</code> · T-CAPTURE-PX</td></tr>
+<tr><td class="id">ACC-CAM-02</td><td>vfov = 2·atan((H/W)·tan(hfov/2))</td><td>exact</td><td><code>tests/capture_parity.test.mjs</code></td></tr>
+<tr><td class="id">ACC-MSK-01</td><td>per-part IoU against the declared reference</td><td>per-part floor, versioned</td><td><code>tests/v5_gates.test.mjs</code> · T-MSK-IOU</td></tr>
+<tr><td class="id">ACC-FEA-01</td><td>current state lies inside the feasible region</td><td>boolean plus distance to the nearest boundary</td><td><code>tests/v5_gates.test.mjs</code> · T-FEA-E</td></tr>
+<tr><td class="id">ACC-PQ-01</td><td>screen quad passes all six gates</td><td>area, angle, footprint, conditioning, occlusion, bezel</td><td><code>tests/v5_gates.test.mjs</code></td></tr>
+<tr><td class="id">ACC-EPI-01</td><td>staging export blocked while any printed distance is hollow</td><td>refuses</td><td><code>tests/v5_gates.test.mjs</code></td></tr>
+<tr><td class="id">ACC-TXN-01</td><td>every edit produces one undoable transaction with a named driver</td><td>history depth matches gesture count</td><td><code>tests/v5_gates.test.mjs</code> · <code>tests/ui.test.mjs</code></td></tr>
+<tr><td class="id">ACC-SHOT-01</td><td>four checked-in screenshots diffed per build</td><td>human review gate</td><td><code>tests/shots/</code></td></tr>
 </table>
 
 <h2 id="ord">12 · Build order</h2>

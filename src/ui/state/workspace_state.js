@@ -24,5 +24,6 @@ export function createWorkspaceState() {
     n: 1,
     axis: "BEND",
     body_mode: "RIGGED",
+    input_mode: "VIEWPORT",
   };
 }

@@ -1,6 +1,7 @@
 import { applyHomography } from "../../shared_math/homography.js";
 import { sampleQ } from "../content_q/content.js";
 import { sampleI, evaluateRecursion } from "../recursion/kernel.js";
+import { StagingPrescription } from "./staging_prescription.js";
 
 function crc32(buf) {
   let c = ~0;
@@ -268,6 +269,7 @@ export function exportImage(requested, effective, opts = {}) {
     height: h,
     private_image_included: false,
   };
+  const prescription = new StagingPrescription().build(requested, effective);
   const staging = {
     phone: requested.phone,
     mirror: requested.mirror,
@@ -281,6 +283,9 @@ export function exportImage(requested, effective, opts = {}) {
     crop: requested.camera.crop_request,
     support: effective.support,
     tolerances: effective.solver?.tolerance_set_hash,
+    prescription,
+    refused: prescription.refused,
+    hollow: prescription.hollow,
   };
   let unwarped = null;
   if (effective.recursion.mode !== "OFF") {

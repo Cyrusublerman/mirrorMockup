@@ -60,6 +60,30 @@ export function mountInspectDrawer(el, open, proj, workspace, handlers) {
   body.appendChild(row("alpha", proj.rec?.alpha == null ? "—" : JSON.stringify(proj.rec.alpha)));
   body.appendChild(row("hand vis", Number(proj.occlusion?.hand_visibility || 0).toFixed(3)));
   body.appendChild(row("face vis", Number(proj.occlusion?.face_visibility || 0).toFixed(3)));
+  if (proj.feasible) {
+    body.appendChild(row("feasible", proj.feasible.inside ? "inside" : (proj.feasible.binding || "out")));
+    body.appendChild(row("a / e / R", `${Number(proj.feasible.a || 0).toFixed(3)} / ${Number(proj.feasible.e || 0).toFixed(3)} / ${Number(proj.feasible.R || 0).toFixed(2)}`));
+  }
+  if (proj.screen_gates) {
+    for (const [k, g] of Object.entries(proj.screen_gates)) {
+      body.appendChild(row("P " + k, g.ok ? "ok" : "fail"));
+    }
+  }
+  const intentTitle = document.createElement("strong");
+  intentTitle.textContent = "OCCLUSION INTENT";
+  body.appendChild(intentTitle);
+  const intentRow = document.createElement("div");
+  intentRow.className = "mp-row";
+  const intents = proj.requested?.composition?.occlusion_intent || {};
+  for (const [id, rule] of Object.entries(intents)) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "mp-chip";
+    chip.textContent = id.replaceAll("_", " ") + " " + (rule.state || "");
+    chip.addEventListener("click", () => handlers.cycleIntent?.(id, rule));
+    intentRow.appendChild(chip);
+  }
+  body.appendChild(intentRow);
   const lockTitle = document.createElement("strong");
   lockTitle.textContent = "LOCKS";
   body.appendChild(lockTitle);

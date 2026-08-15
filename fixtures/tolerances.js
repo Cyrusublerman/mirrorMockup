@@ -23,6 +23,11 @@ export const T = Object.freeze({
   "T-BONE-REG": { value: 0.005, unit: "m", source: "Phase 1 rendered vs FK" },
   "T-CLIP": { value: 1e-4, unit: "m", source: "aperture clip vs finiteApertureTest" },
   "T-CAPTURE-PX": { value: 2, unit: "px", source: "preview vs export projection" },
+  "T-FEA-E": { value: 0.13, unit: "m", source: "v5 G05 e floor" },
+  "T-PQ-ANGLE": { value: 75, unit: "deg", source: "v5 D17 front-facing limit" },
+  "T-PQ-PX": { value: 16, unit: "px2", source: "v5 D17 footprint" },
+  "T-PQ-BEZEL": { value: 0.002, unit: "IMAGE_NORM", source: "v5 D17 bezel" },
+  "T-MSK-IOU": { value: 0.5, unit: "1", source: "v5 ACC-MSK-01 floor" },
 });
 
 export function t(id) {

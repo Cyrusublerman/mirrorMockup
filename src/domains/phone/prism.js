@@ -108,6 +108,7 @@ export function evaluatePhone(requested, worldOverride) {
     mesh: prismMesh(dims),
     screen_mesh: screenMesh(dims, inset),
     screen_corners_local: screenLocal,
+    screen_inset: inset,
     screen_corners_world: worldCorners(screenLocal, world),
     prism_corners_world: worldCorners(prismCorners(dims), world),
     screen_normal,

@@ -94,6 +94,10 @@ export function projectForHud(app) {
     },
     last_edit: e.last_edit,
     compensation: e.compensation,
+    feasible: e.feasible,
+    aperture_band: e.aperture_band,
+    occlusion_intent: e.occlusion_intent,
+    screen_gates: e.carrier_p?.gates,
     build: {
       APP: b.app,
       UI: b.ui,

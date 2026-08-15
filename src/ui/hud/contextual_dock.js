@@ -33,6 +33,7 @@ export class ContextualDock {
     } else if (kind === "PHONE") {
       row.appendChild(chip("PHONE DRIVES", workspace.drive_mode === "PHONE_DRIVES_HAND", () => handlers.setDrive("PHONE_DRIVES_HAND"), "Phone drives hand"));
       row.appendChild(chip("MOVE", true, () => {}, "Phone is rigid"));
+      row.appendChild(chip("SCREEN", sel?.id?.startsWith?.("screen_"), () => handlers.select({ kind: "phone", id: "screen_0", label: "Screen quad" }), "Screen quad"));
     } else if (kind === "MIRROR") {
       row.appendChild(chip("d_M", sel?.id === "d_M", () => handlers.select({ kind: "mirror", id: "d_M", label: "Mirror distance" }), "Mirror distance"));
       row.appendChild(chip("WINDOW", sel?.id === "window", () => handlers.select({ kind: "mirror", id: "window", label: "Mirror window pan" }), "Pan mirror window"));

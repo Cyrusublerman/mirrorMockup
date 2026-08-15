@@ -1372,19 +1372,19 @@ text{font-family:"IBM Plex Mono",monospace}
 
 <h2 id="s14">14 · Acceptance <span>— executable, with numbers</span></h2>
 <table>
-<tr><th>id</th><th>assertion</th><th>threshold</th></tr>
-<tr><td>ACC-RIG-01</td><td>every semantic joint resolves through GLTFLoader by <code>userData.name</code></td><td>24 / 24, boot throws otherwise</td></tr>
-<tr><td>ACC-REG-01</td><td>rendered bone position vs solver FK, all joints</td><td>&lt; 5 mm</td></tr>
-<tr><td>ACC-REG-02</td><td>same test on reflected presentations</td><td>&lt; 5 mm</td></tr>
-<tr><td>ACC-REF-01</td><td>reflected skinned meshes use detached bind</td><td>Householder applies, asserted</td></tr>
-<tr><td>ACC-REF-02</td><td>rendered aperture boundary vs <code>finiteApertureTest</code></td><td>within tolerance ID</td></tr>
-<tr><td>ACC-CAM-01</td><td>preview vs export projection of the same landmark</td><td>&lt; 2 px in 1170</td></tr>
-<tr><td>ACC-CAM-02</td><td>vfov = 2·atan((H/W)·tan(hfov/2))</td><td>exact</td></tr>
-<tr><td>ACC-MSK-01</td><td>per-part IoU against the declared reference</td><td>per-part floor, versioned</td></tr>
-<tr><td>ACC-FEA-01</td><td>current state lies inside the feasible region</td><td>boolean plus distance to nearest boundary</td></tr>
-<tr><td>ACC-PQ-01</td><td>screen quad passes all six gates</td><td>area, angle, footprint, conditioning, occlusion, bezel</td></tr>
-<tr><td>ACC-EPI-01</td><td>staging export blocked while any printed distance is hollow</td><td>refuses</td></tr>
-<tr><td>ACC-SHOT-01</td><td>four checked-in screenshots diffed per build</td><td>manual review gate</td></tr>
+<tr><th>id</th><th>assertion</th><th>threshold</th><th>test</th></tr>
+<tr><td>ACC-RIG-01</td><td>every semantic joint resolves through GLTFLoader by <code>userData.name</code></td><td>24 / 24, boot throws otherwise</td><td><code>tests/rig.test.mjs</code> · T-BONE-REG</td></tr>
+<tr><td>ACC-REG-01</td><td>rendered bone position vs solver FK, all joints</td><td>&lt; 5 mm</td><td><code>tests/rig.test.mjs</code> · T-BONE-REG</td></tr>
+<tr><td>ACC-REG-02</td><td>same test on reflected presentations</td><td>&lt; 5 mm</td><td><code>tests/mirror.test.mjs</code> · T-BONE-REG</td></tr>
+<tr><td>ACC-REF-01</td><td>reflected skinned meshes use detached bind</td><td>Householder applies, asserted</td><td><code>tests/mirror.test.mjs</code></td></tr>
+<tr><td>ACC-REF-02</td><td>rendered aperture boundary vs <code>finiteApertureTest</code></td><td>within tolerance ID</td><td><code>tests/mirror.test.mjs</code> · T-CLIP</td></tr>
+<tr><td>ACC-CAM-01</td><td>preview vs export projection of the same landmark</td><td>&lt; 2 px in 1170</td><td><code>tests/capture_parity.test.mjs</code> · T-CAPTURE-PX</td></tr>
+<tr><td>ACC-CAM-02</td><td>vfov = 2·atan((H/W)·tan(hfov/2))</td><td>exact</td><td><code>tests/capture_parity.test.mjs</code></td></tr>
+<tr><td>ACC-MSK-01</td><td>per-part IoU against the declared reference</td><td>per-part floor, versioned</td><td><code>tests/v5_gates.test.mjs</code> · T-MSK-IOU</td></tr>
+<tr><td>ACC-FEA-01</td><td>current state lies inside the feasible region</td><td>boolean plus distance to nearest boundary</td><td><code>tests/v5_gates.test.mjs</code> · T-FEA-E</td></tr>
+<tr><td>ACC-PQ-01</td><td>screen quad passes all six gates</td><td>area, angle, footprint, conditioning, occlusion, bezel</td><td><code>tests/v5_gates.test.mjs</code> · T-PQ-*</td></tr>
+<tr><td>ACC-EPI-01</td><td>staging export blocked while any printed distance is hollow</td><td>refuses</td><td><code>tests/v5_gates.test.mjs</code></td></tr>
+<tr><td>ACC-SHOT-01</td><td>four checked-in screenshots diffed per build</td><td>manual review gate</td><td><code>tests/shots/</code></td></tr>
 </table>
 
 <h2 id="s15">15 · Build order</h2>
