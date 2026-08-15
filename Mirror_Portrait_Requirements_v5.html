@@ -1,0 +1,1437 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mirror Portrait — Requirements</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FCFBF8;--ink:#111;--faint:#E6E1D8;--grid:#F1EDE5;--dim:#6F685E;--hairr:#B4AEA4;
+--sel:#C41E63;--meas:#2A3FB8;--good:#1E7A4C;--bad:#B03A0B;--warn:#A96A05;
+--hair:#A9584F;--face:#F7E3C4;--torso:#6B3FA0;--armR:#E8558F;--armL:#5DA55D;
+--legR:#7FB6E8;--legL:#E0872F;--phone:#E8C43A;--mir:#848484;--wall:#B4CCCC;
+--rhair:#6B382F;--rface:#B9A88E;--rtorso:#3E2560;--rarmR:#8C3255;--rlegR:#4C6D8C;--rlegL:#8A5219;--rphone:#8C7622;--glass:#CBD6DC;
+--p-hair:#A9584F;--p-face:#F7E3C4;--p-torso:#6B3FA0;--p-armR:#E8558F;--p-armL:#5DA55D;--p-legR:#7FB6E8;--p-legL:#E0872F;--p-phone:#E8C43A;
+--r-hair:#6B382F;--r-face:#B9A88E;--r-torso:#3E2560;--r-armR:#8C3255;--r-legR:#4C6D8C;--r-legL:#8A5219;--r-phone:#8C7622;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Space Grotesk",system-ui,sans-serif;padding:26px 14px 90px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+h1{font-size:clamp(22px,4.6vw,33px);font-weight:700;letter-spacing:-.022em;margin:0 0 12px;line-height:1.06}
+h2{font-size:12.5px;font-family:"IBM Plex Mono",monospace;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin:56px 0 4px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+h2 span{color:var(--dim);font-weight:400;text-transform:none;letter-spacing:.02em}
+h3{font-size:15px;font-weight:700;margin:28px 0 6px;letter-spacing:-.01em}
+p{font-size:13px;color:#3E3931;max-width:78ch;margin:0 0 12px}
+.lede{font-size:14.5px;line-height:1.6;color:#443E36;max-width:70ch;margin:0 0 6px}
+code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--grid);padding:1px 4px}
+svg{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--faint);margin:14px 0 0}
+.why{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.65;color:#3E3931;margin:14px 0 0;border-left:2px solid var(--sel);padding:3px 0 3px 11px}
+.why b{color:var(--sel);font-weight:600}
+.why.g{border-color:var(--good)}.why.g b{color:var(--good)}
+.why.m{border-color:var(--meas)}.why.m b{color:var(--meas)}
+.why.w{border-color:var(--warn)}.why.w b{color:var(--warn)}
+table{border-collapse:collapse;width:100%;font-family:"IBM Plex Mono",monospace;font-size:10.5px;margin:14px 0 0}
+th,td{padding:5px 7px;border-bottom:1px solid var(--faint);text-align:left;vertical-align:top}
+td.n,th.n{text-align:right}
+th{font-weight:600;color:var(--dim);font-size:9px;letter-spacing:.09em;text-transform:uppercase}
+tr.hi td{background:#FBF3F6}
+.toc{font-family:"IBM Plex Mono",monospace;font-size:11px;columns:2;column-gap:40px;margin:22px 0 0;padding:16px 0;border-top:1px solid var(--faint);border-bottom:1px solid var(--faint)}
+.toc a{color:var(--ink);text-decoration:none;display:block;padding:2px 0}
+.toc a:hover{color:var(--sel)}
+text{font-family:"IBM Plex Mono",monospace}
+.H{font-size:12px;fill:var(--ink);font-weight:600;letter-spacing:.1em}
+.L{font-size:10.5px;fill:var(--ink)}.S{font-size:9.5px;fill:var(--dim)}.XS{font-size:8.5px;fill:var(--dim)}
+.R{font-size:10px;fill:var(--sel)}.M{font-size:10px;fill:var(--meas)}
+.G{font-size:10px;fill:var(--good)}.B{font-size:10px;fill:var(--bad)}.W{font-size:10px;fill:var(--warn)}
+</style><style>
+table.req{font-size:10.5px}
+table.req td{vertical-align:top;padding:8px 8px}
+table.req td.id{font-weight:600;color:var(--sel);white-space:nowrap;width:44px}
+table.req td.fail{color:var(--bad)}
+table.req .sub{color:var(--dim);font-size:9.5px;line-height:1.5}
+table.req tr:nth-child(even) td{background:#FBFAF7}
+.outcome{border-left:3px solid var(--good);padding:12px 0 12px 14px;margin:18px 0 4px;max-width:78ch}
+.outcome b{display:block;font-size:14.5px;font-weight:700;margin-bottom:6px;letter-spacing:-.01em}
+.outcome p{font-size:13px;margin:0;color:#3E3931}
+.grp{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;margin:0 0 2px}
+.count{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--dim);float:right;font-weight:400;letter-spacing:.06em}
+</style></head><body><div class="wrap">
+<p class="eyebrow">Mirror Portrait · complete requirements · v5</p>
+<h1>Every requirement, what it should feel like when it works, and how it fails</h1>
+<p class="lede">Sixty-seven requirements in nine groups. Each carries a driver, the relations it must preserve, the outcome the artist should experience, and the named failure it exists to prevent. Diagrams sit with the group they govern. Fifty-seven dynamics are carried forward from the Combined Production Specification v2; ten are added by the geometric analysis and marked G.</p>
+<nav class="toc"><a href="#g1">1 · Purpose and outcomes</a><a href="#g2">2 · Geometry requirements</a><a href="#g3">3 · Body And Pose</a><a href="#g4">4 · Phone, Hand, Grip And Physical Camera</a><a href="#g5">5 · Mirror And Reflection</a><a href="#g6">6 · Camera, Composition And Multi-View</a><a href="#g7">7 · Reference And Evidence</a><a href="#g8">8 · Solving, Locks And Explainability</a><a href="#g9">9 · Recursion · P And Q</a><a href="#g10">10 · History, Staging, Privacy, Boundary</a><a href="#acc">11 · Acceptance suite</a><a href="#ord">12 · Build order</a><a href="#open">13 · Open decisions</a></nav>
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <!-- SIDE view figure. origin at feet centre. 340 units tall = 1.70 m. faces +x -->
+  <g id="side">
+    <!-- far leg -->
+    <path d="M-6 0 L-8 -88 L6 -88 L6 0 Z" fill="var(--p-legL)" stroke="#111" stroke-width="1"/>
+    <path d="M-8 -88 L-6 -178 L10 -178 L6 -88 Z" fill="var(--p-legL)" stroke="#111" stroke-width="1"/>
+    <!-- near leg -->
+    <path d="M-2 0 L-4 -88 L12 -88 L10 0 Z" fill="var(--p-legR)" stroke="#111" stroke-width="1"/>
+    <path d="M-4 -88 L-2 -178 L14 -178 L12 -88 Z" fill="var(--p-legR)" stroke="#111" stroke-width="1"/>
+    <!-- foot -->
+    <path d="M-2 0 L22 0 L22 -7 L10 -9 L-2 -7 Z" fill="var(--p-legR)" stroke="#111" stroke-width="1"/>
+    <!-- torso -->
+    <path d="M-6 -178 Q-10 -230 -4 -282 L22 -284 Q26 -232 18 -178 Z" fill="var(--p-torso)" stroke="#111" stroke-width="1"/>
+    <!-- arm forward, holding phone -->
+    <path d="M14 -276 L60 -300 L66 -288 L20 -262 Z" fill="var(--p-armR)" stroke="#111" stroke-width="1"/>
+    <!-- neck -->
+    <path d="M2 -282 L4 -298 L18 -298 L18 -284 Z" fill="var(--p-face)" stroke="#111" stroke-width="1"/>
+    <!-- head profile facing +x -->
+    <path d="M2 -300 Q2 -330 16 -334 Q30 -336 32 -318 Q33 -310 30 -306 L32 -302 L27 -300 Q26 -294 18 -294 L4 -294 Z"
+          fill="var(--p-face)" stroke="#111" stroke-width="1"/>
+    <!-- hair mass at back -->
+    <path d="M2 -300 Q-4 -332 14 -336 Q24 -337 29 -328 Q18 -332 8 -324 Q4 -314 6 -298 Z" fill="var(--p-hair)" stroke="#111" stroke-width="1"/>
+    <path d="M2 -300 Q-6 -290 -4 -268 L6 -268 Q4 -286 8 -298 Z" fill="var(--p-hair)" stroke="#111" stroke-width="1"/>
+  </g>
+  <g id="sideR">
+    <path d="M-6 0 L-8 -88 L6 -88 L6 0 Z" fill="var(--r-legL)" stroke="#444" stroke-width="1"/>
+    <path d="M-8 -88 L-6 -178 L10 -178 L6 -88 Z" fill="var(--r-legL)" stroke="#444" stroke-width="1"/>
+    <path d="M-2 0 L-4 -88 L12 -88 L10 0 Z" fill="var(--r-legR)" stroke="#444" stroke-width="1"/>
+    <path d="M-4 -88 L-2 -178 L14 -178 L12 -88 Z" fill="var(--r-legR)" stroke="#444" stroke-width="1"/>
+    <path d="M-2 0 L22 0 L22 -7 L10 -9 L-2 -7 Z" fill="var(--r-legR)" stroke="#444" stroke-width="1"/>
+    <path d="M-6 -178 Q-10 -230 -4 -282 L22 -284 Q26 -232 18 -178 Z" fill="var(--r-torso)" stroke="#444" stroke-width="1"/>
+    <path d="M14 -276 L60 -300 L66 -288 L20 -262 Z" fill="var(--r-armR)" stroke="#444" stroke-width="1"/>
+    <path d="M2 -282 L4 -298 L18 -298 L18 -284 Z" fill="var(--r-face)" stroke="#444" stroke-width="1"/>
+    <path d="M2 -300 Q2 -330 16 -334 Q30 -336 32 -318 Q33 -310 30 -306 L32 -302 L27 -300 Q26 -294 18 -294 L4 -294 Z"
+          fill="var(--r-face)" stroke="#444" stroke-width="1"/>
+    <path d="M2 -300 Q-4 -332 14 -336 Q24 -337 29 -328 Q18 -332 8 -324 Q4 -314 6 -298 Z" fill="var(--r-hair)" stroke="#444" stroke-width="1"/>
+    <path d="M2 -300 Q-6 -290 -4 -268 L6 -268 Q4 -286 8 -298 Z" fill="var(--r-hair)" stroke="#444" stroke-width="1"/>
+  </g>
+
+  <!-- FRONT view figure, 340 tall, origin feet centre -->
+  <g id="front">
+    <path d="M-26 0 L-24 -170 L-4 -170 L-6 0 Z" fill="var(--p-legR)" stroke="#111" stroke-width="1"/>
+    <path d="M6 0 L4 -170 L24 -170 L26 0 Z" fill="var(--p-legL)" stroke="#111" stroke-width="1"/>
+    <path d="M-26 0 L-6 0 L-6 -8 L-26 -8 Z" fill="var(--p-legR)" stroke="#111" stroke-width="1"/>
+    <path d="M6 0 L26 0 L26 -8 L6 -8 Z" fill="var(--p-legL)" stroke="#111" stroke-width="1"/>
+    <path d="M-24 -170 Q-30 -230 -26 -284 L26 -284 Q30 -230 24 -170 Z" fill="var(--p-torso)" stroke="#111" stroke-width="1"/>
+    <path d="M24 -276 L58 -310 L66 -300 L30 -264 Z" fill="var(--p-armR)" stroke="#111" stroke-width="1"/>
+    <path d="M-24 -276 L-36 -208 L-26 -206 L-16 -270 Z" fill="var(--p-armL)" stroke="#111" stroke-width="1"/>
+    <path d="M-8 -284 L-8 -300 L8 -300 L8 -284 Z" fill="var(--p-face)" stroke="#111" stroke-width="1"/>
+    <ellipse cx="0" cy="-316" rx="19" ry="24" fill="var(--p-face)" stroke="#111" stroke-width="1"/>
+    <path d="M-19 -318 Q-19 -344 0 -344 Q19 -344 19 -318 Q19 -330 0 -330 Q-19 -330 -19 -318 Z" fill="var(--p-hair)" stroke="#111" stroke-width="1"/>
+    <path d="M-19 -320 Q-27 -300 -24 -272 L-13 -272 Q-17 -300 -14 -322 Z" fill="var(--p-hair)" stroke="#111" stroke-width="1"/>
+    <path d="M19 -320 Q27 -300 24 -272 L13 -272 Q17 -300 14 -322 Z" fill="var(--p-hair)" stroke="#111" stroke-width="1"/>
+    <ellipse cx="-7" cy="-320" rx="2.6" ry="1.8" fill="#111"/><ellipse cx="7" cy="-320" rx="2.6" ry="1.8" fill="#111"/>
+    <path d="M-4 -306 Q0 -303 4 -306" fill="none" stroke="#111" stroke-width="1"/>
+  </g>
+  <g id="frontSil">
+    <path d="M-26 0 L-24 -170 L-4 -170 L-6 0 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M6 0 L4 -170 L24 -170 L26 0 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M-26 0 L-6 0 L-6 -8 L-26 -8 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M6 0 L26 0 L26 -8 L6 -8 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M-24 -170 Q-30 -230 -26 -284 L26 -284 Q30 -230 24 -170 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M24 -276 L58 -310 L66 -300 L30 -264 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M-24 -276 L-36 -208 L-26 -206 L-16 -270 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M-8 -284 L-8 -300 L8 -300 L8 -284 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <ellipse cx="0" cy="-316" rx="19" ry="24" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M-19 -318 Q-19 -344 0 -344 Q19 -344 19 -318 Q19 -330 0 -330 Q-19 -330 -19 -318 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M-19 -320 Q-27 -300 -24 -272 L-13 -272 Q-17 -300 -14 -322 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    <path d="M19 -320 Q27 -300 24 -272 L13 -272 Q17 -300 14 -322 Z" fill="#8B7FA8" stroke="#4B4260" stroke-width="1"/>
+    
+    
+  </g>
+  <g id="frontR">
+    <path d="M-26 0 L-24 -170 L-4 -170 L-6 0 Z" fill="var(--r-legR)" stroke="#444" stroke-width="1"/>
+    <path d="M6 0 L4 -170 L24 -170 L26 0 Z" fill="var(--r-legL)" stroke="#444" stroke-width="1"/>
+    <path d="M-26 0 L-6 0 L-6 -8 L-26 -8 Z" fill="var(--r-legR)" stroke="#444" stroke-width="1"/>
+    <path d="M6 0 L26 0 L26 -8 L6 -8 Z" fill="var(--r-legL)" stroke="#444" stroke-width="1"/>
+    <path d="M-24 -170 Q-30 -230 -26 -284 L26 -284 Q30 -230 24 -170 Z" fill="var(--r-torso)" stroke="#444" stroke-width="1"/>
+    <path d="M24 -276 L58 -310 L66 -300 L30 -264 Z" fill="var(--r-armR)" stroke="#444" stroke-width="1"/>
+    <path d="M-24 -276 L-36 -208 L-26 -206 L-16 -270 Z" fill="var(--r-armR)" stroke="#444" stroke-width="1"/>
+    <path d="M-8 -284 L-8 -300 L8 -300 L8 -284 Z" fill="var(--r-hair)" stroke="#444" stroke-width="1"/>
+    <ellipse cx="0" cy="-316" rx="19" ry="24" fill="var(--r-hair)" stroke="#444" stroke-width="1"/>
+  </g>
+
+  <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+    <path d="M0 0 L7 3 L0 6 z" fill="var(--dim)"/>
+  </marker>
+</defs>
+</svg>
+
+<h2 id="g1">1 · Purpose and outcomes</h2>
+<div class="outcome"><b>The tool solves an inverse problem and hands you something you can execute.</b>
+<p>Given an observed mirror portrait, find a physically consistent apparatus that reproduces its composition, and emit instructions you can carry out with a real mirror and a real phone. The artwork is a representational circuit: direct embodied front self, mirror reflected rear self, phone digitally framed self, outer world. The value is in those states holding together in one image.</p></div>
+<p>Four products, which with two diagnostics are the six output modes: <code>FINAL_CAMERA</code>, <code>COMPOSITION_OVERLAY</code>, <code>REFERENCE_RENDER</code>, <code>STAGING_PRESCRIPTION</code>, plus <code>MASK</code> and <code>FULL_SENSOR</code>.</p>
+<h3>What done looks like</h3>
+<table class="req">
+<tr><th>the artist can</th><th>and knows</th></tr>
+<tr><td>Tap any anatomy and pose it without touching a rig</td><td>which limit stopped the drag, and why</td></tr>
+<tr><td>Drag a landmark in the capture frame</td><td>what the solver moved to satisfy it</td></tr>
+<tr><td>Ask for a bigger phone in the frame</td><td>that the camera and arm moved as a consequence</td></tr>
+<tr><td>See exactly which body parts the mirror shows</td><td>what mounting height would show more</td></tr>
+<tr><td>Declare which regions must, may or must not be covered</td><td>that overlap is a choice, not an error</td></tr>
+<tr><td>Compare a render against a reference part by part</td><td>which parts are wrong and by how much</td></tr>
+<tr><td>Read whether a configuration is reachable at all</td><td>which constraint binds and which variable can move</td></tr>
+<tr><td>Print a setup card and go take the photograph</td><td>which of its numbers are measured and which are assumed</td></tr>
+</table>
+
+<h2 id="g2">2 · Geometry requirements <span class="count">10 requirements</span></h2>
+<div class="outcome"><b>The physics has to be right before the interface can be judged.</b>
+<p>These ten come from analysing the apparatus rather than the interface. Each is a closed-form result or a measured fact, and each corresponds to a defect found in the current build or a gap in the existing catalogue.</p></div>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">G01</td><td><b>Reflection transform applies to skinned meshes</b><br><span class="sub">Reflected skinned meshes must use detached bind mode so the Householder matrix reaches the vertices.</span><br><span class="sub">test · ACC-REF-01</span></td><td>The reflection appears inside the mirror and the direct body renders once.</td><td class="fail">Attached bind cancels the mesh world matrix, so the reflected clone renders coincident with the direct body at partial opacity.</td></tr>
+<tr><td class="id">G02</td><td><b>Semantic bones resolve through the loader</b><br><span class="sub">Bone lookup uses the original glTF name, preserved at userData.name, not the sanitised node name.</span><br><span class="sub">test · ACC-RIG-01</span></td><td>All 24 semantic joints drive the mesh; boot fails loudly if any does not.</td><td class="fail">GLTFLoader strips dots, so 47 of 54 bones silently fail to resolve and every limb stays in rest pose.</td></tr>
+<tr><td class="id">G03</td><td><b>Vertical field of view is derived correctly</b><br><span class="sub">vfov = 2·atan((H/W)·tan(hfov/2)). Never hfov divided by aspect.</span><br><span class="sub">test · ACC-CAM-02</span></td><td>The preview frames the same content as the export.</td><td class="fail">Dividing degrees by aspect gives 132.8° where 86.1° is correct on a portrait phone.</td></tr>
+<tr><td class="id">G04</td><td><b>Aperture visibility is a band, not a boolean</b><br><span class="sub">Reflection height is z_r = (p·z_c + c·z_p)/(c+p). Required aperture height is stature·c/(c+p) and required sill is p·z_c/(c+p).</span><br><span class="sub">test · ACC-REF-02</span></td><td>The artist sees which body parts survive the mirror and what mounting height would fix it.</td><td class="fail">A boolean per point tells the artist nothing about what to change.</td></tr>
+<tr><td class="id">G05</td><td><b>Lateral offset is a hard constraint</b><br><span class="sub">The phone must sit at least (1 + a/2m) head radii off the face axis or the direct head eclipses its own reflection.</span><br><span class="sub">test · ACC-FEA-01</span></td><td>The reflection is always visible; the tool warns before it is not.</td><td class="fail">Vertical offset alone cannot separate them: in the vertical section face and mirror overlap by 27.4°.</td></tr>
+<tr><td class="id">G06</td><td><b>Reach is handed</b><br><span class="sub">Reach is measured shoulder to camera, not face to camera, and crossing the body costs 6 to 8 cm.</span><br><span class="sub">test · ACC-FEA-01</span></td><td>Which hand holds the phone constrains which side the mirror can be on, and the tool says so.</td><td class="fail">Treating arm extension as a free scalar admits configurations no human can hold.</td></tr>
+<tr><td class="id">G07</td><td><b>The reflected phone is a calibration target</b><br><span class="sub">Its image position is the mirror-normal vanishing point, its apparent roll is the mirror&#x27;s own, and it sits at exactly 2c.</span><br><span class="sub">test · ACC-PQ-01</span></td><td>Four of the mirror&#x27;s six degrees of freedom are measured from one small region in every frame.</td><td class="fail">Ignoring it forces mirror pose to be inferred from soft body landmarks instead.</td></tr>
+<tr><td class="id">G08</td><td><b>Scale ratio is the trusted quantity</b><br><span class="sub">R = |C−F′|/|C−F| is a ratio of image sizes, so focal length cancels. Absolute distances inherit the full HFOV error.</span><br><span class="sub">test · ACC-EPI-01</span></td><td>Calibration-free numbers render solid; calibration-dependent ones render hollow with a band.</td><td class="fail">One measured phone dimension portrayed as making every scene distance certain.</td></tr>
+<tr><td class="id">G09</td><td><b>Recursion is synthesis, declared as such</b><br><span class="sub">Scale per level is W_s/(4c·tan(hfov/2)), about 0.016 at 70°. Level three does not exist optically.</span><br><span class="sub">test · —</span></td><td>The recursion mode is labelled as a construction on a solved apparatus.</td><td class="fail">Presenting the Print Gallery render as an optical prediction of the photograph.</td></tr>
+<tr><td class="id">G10</td><td><b>Reference masks are machine-read</b><br><span class="sub">Hue carries the semantic part, value carries reflection state, and the mirror polygon partitions direct from reflected.</span><br><span class="sub">test · ACC-MSK-01</span></td><td>Occupancy, centroids, bounding boxes and medial axes extract automatically; adding a tenth reference takes minutes.</td><td class="fail">Hand-measuring landmarks, and a value convention applied inconsistently so classification by value fails.</td></tr>
+</table>
+
+<h2 id="g3">3 · Body And Pose <span class="count">11 requirements</span></h2>
+<div class="outcome"><b>The artist poses a body, not a rig.</b><p>Tapping anatomy selects that anatomy. Bend, Tilt and Rotate act on the joint under the finger. Bone lengths never change, feet stay where they were planted, and the figure never falls over. Limits stop a drag visibly and say which limit stopped it.</p></div>
+<svg viewBox="0 0 1120 430" role="img" aria-label="Representation layers">
+  <line x1="820" y1="28" x2="820" y2="402" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">REPRESENTATION LAYERS · gesture → volume → contour</text>
+  <text class="H" x="850" y="26">RULES</text>
+
+  <!-- A gesture -->
+  <text class="XS" x="150" y="56" text-anchor="middle" style="fill:var(--ink)">A · GESTURE RIG</text>
+  <g stroke="var(--ink)" stroke-width="2.2" fill="none" stroke-linecap="round">
+    <circle cx="150" cy="104" r="17"/>
+    <path d="M150 121 L150 150"/>
+    <path d="M124 156 L176 156"/><path d="M128 214 L172 214"/>
+    <path d="M150 150 L150 214"/>
+    <path d="M124 156 L106 206 L112 250"/><path d="M176 156 L204 190 L182 152"/>
+    <path d="M128 214 L120 288 L124 348"/><path d="M172 214 L182 288 L178 348"/>
+  </g>
+  <g fill="var(--sel)">
+    <circle cx="150" cy="150" r="4"/><circle cx="150" cy="214" r="4"/>
+    <circle cx="124" cy="156" r="4"/><circle cx="176" cy="156" r="4"/>
+    <circle cx="106" cy="206" r="4"/><circle cx="204" cy="190" r="4"/>
+    <circle cx="120" cy="288" r="4"/><circle cx="182" cy="288" r="4"/>
+  </g>
+  <text class="XS" x="150" y="376" text-anchor="middle" style="fill:var(--dim)">rhythm, weight shift, bend line</text>
+
+  <!-- B volume -->
+  <text class="XS" x="400" y="56" text-anchor="middle" style="fill:var(--ink)">B · VOLUME MANNEQUIN</text>
+  <g stroke="#111" stroke-width="1.2">
+    <ellipse cx="400" cy="104" rx="19" ry="24" fill="var(--face)"/>
+    <rect x="391" y="124" width="18" height="26" fill="var(--face)" stroke="#111" stroke-width="1.2"/>
+    <ellipse cx="400" cy="180" rx="34" ry="38" fill="var(--torso)" opacity=".85"/>
+    <rect x="372" y="212" width="56" height="42" rx="10" fill="var(--torso)" opacity=".6"/>
+    
+    <path d="M366 158 L344 210 L352 250" stroke="var(--armL)" stroke-width="15" fill="none" stroke-linecap="round"/>
+    <path d="M434 158 L462 190 L440 152" stroke="var(--armR)" stroke-width="15" fill="none" stroke-linecap="round"/>
+    <path d="M382 254 L374 300 L378 348" stroke="var(--legL)" stroke-width="21" fill="none" stroke-linecap="round"/>
+    <path d="M418 254 L428 300 L424 348" stroke="var(--legR)" stroke-width="21" fill="none" stroke-linecap="round"/>
+  </g>
+  <text class="XS" x="400" y="376" text-anchor="middle" style="fill:var(--dim)">ribcage egg, pelvis bucket, attached primitives</text>
+
+  <!-- C contour -->
+  <text class="XS" x="650" y="56" text-anchor="middle" style="fill:var(--ink)">C · CONTOUR MANNEQUIN</text>
+  <use href="#frontSil" transform="translate(650,352) scale(0.80,0.80)" opacity=".92"/>
+  <g stroke="var(--meas)" stroke-width=".9" stroke-dasharray="3 3" fill="none">
+    <ellipse cx="650" cy="128" rx="18" ry="5"/><ellipse cx="650" cy="160" rx="27" ry="7"/>
+    <ellipse cx="650" cy="208" rx="23" ry="6"/><ellipse cx="650" cy="244" rx="27" ry="7"/>
+    <ellipse cx="650" cy="300" rx="21" ry="6"/>
+  </g>
+  <text class="XS" x="650" y="376" text-anchor="middle" style="fill:var(--dim)">derived silhouette + contour rings</text>
+
+  <g class="S" fill="var(--ink)">
+    <text x="850" y="60">Contour is a consequence of volumes,</text>
+    <text x="850" y="78">never the starting point.</text>
+    <text x="850" y="112">Ribcage and pelvis are two oriented</text>
+    <text x="850" y="130">masses linked by a spine. Never a</text>
+    <text x="850" y="148">generic stick torso.</text>
+    <text x="850" y="182">Every mass needs a front and a side</text>
+    <text x="850" y="200">explanation. Front-only controls are</text>
+    <text x="850" y="218">blind to buttock projection, torso</text>
+    <text x="850" y="236">lean and head placement.</text>
+  </g>
+  <text class="H" x="850" y="278">WHICH LAYER FOR WHAT</text>
+  <g class="S" fill="var(--dim)">
+    <text x="850" y="304">A   posing, fastest, never exported</text>
+    <text x="850" y="322">B   solving, reach, support, occlusion</text>
+    <text x="850" y="340">C   mask comparison and guide export</text>
+  </g>
+  <text class="S" x="850" y="378" style="fill:var(--sel)">C must be good enough to score against</text>
+  <text class="S" x="850" y="396" style="fill:var(--sel)">a reference mask. That is its only job.</text>
+</svg>
+<svg viewBox="0 0 1120 430" role="img" aria-label="Numeric panel">
+  <line x1="600" y1="28" x2="600" y2="402" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">NUMBERS</text>
+  <text class="H" x="630" y="26">TORSO · THREE BOXES</text>
+
+  <rect x="40" y="44" width="530" height="150" fill="#FBFAF7" stroke="var(--faint)"/>
+  <text class="L" x="58" y="70" font-weight="600">elbow_R</text>
+  <text class="XS" x="140" y="70">frame: parent</text>
+  <g class="S" fill="var(--ink)">
+    <text x="58" y="98">theta  bend    132.9</text>
+    <text x="58" y="120">phi    plane     8.4</text>
+    <text x="58" y="142">psi    twist   -14.0</text>
+  </g>
+  <g transform="translate(430,118)">
+    <circle r="58" fill="none" stroke="var(--faint)"/>
+    <circle r="38" fill="none" stroke="var(--grid)"/>
+    <path d="M0 -12 L58 -12 L58 12 L0 12 Z" fill="var(--good)" opacity=".22"/>
+    <line x1="0" y1="0" x2="52" y2="7" stroke="var(--sel)" stroke-width="2"/>
+    <circle cx="52" cy="7" r="4.5" fill="var(--sel)"/>
+    <line x1="-58" y1="0" x2="58" y2="0" stroke="var(--hairr)" stroke-width=".6"/>
+    <line x1="0" y1="-58" x2="0" y2="58" stroke="var(--hairr)" stroke-width=".6"/>
+  </g>
+  <text class="XS" x="430" y="186" text-anchor="middle" style="fill:var(--good)">hinge · legal band, phi within +/-12</text>
+  <text class="XS" x="500" y="60" style="fill:var(--dim)">theta 150 limit</text>
+  <line x1="498" y1="64" x2="490" y2="104" stroke="var(--dim)" stroke-width=".7"/>
+
+  <rect x="40" y="206" width="530" height="164" fill="#FBFAF7" stroke="var(--faint)"/>
+  <text class="L" x="58" y="232" font-weight="600">right arm</text>
+  <text class="XS" x="150" y="232">frame: head · 7 DOF, no redundancy</text>
+  <g class="S" fill="var(--ink)">
+    <text x="58" y="260">hand r        0.368 m</text>
+    <text x="58" y="280">     theta      22.4</text>
+    <text x="58" y="300">     phi        55.0</text>
+    <text x="58" y="320">swivel        -31.0</text>
+    <text x="58" y="340">wrist b/t/r   4 / -9 / 12</text>
+  </g>
+  <g transform="translate(420,296)">
+    <circle r="56" fill="none" stroke="var(--faint)" stroke-dasharray="3 3"/>
+    <path d="M0 0 L-56 0 A56 56 0 0 1 40 -40 Z" fill="var(--good)" opacity=".16"/>
+    <circle r="3" fill="var(--ink)"/>
+    <circle cx="28" cy="-17" r="5" fill="var(--sel)"/>
+    <circle cx="28" cy="-17" r="12" fill="none" stroke="var(--sel)" stroke-width=".9" stroke-dasharray="2 3"/>
+  </g>
+  <text class="XS" x="420" y="230" text-anchor="middle" style="fill:var(--dim)">shoulder</text>
+  <text class="XS" x="492" y="272" style="fill:var(--sel)">hand 0.44</text>
+  <text class="XS" x="492" y="284" style="fill:var(--sel)">of 0.63</text>
+  <line x1="490" y1="276" x2="454" y2="282" stroke="var(--sel)" stroke-width=".7"/>
+  <text class="XS" x="492" y="330" style="fill:var(--warn)">cross-body</text>
+  <text class="XS" x="492" y="342" style="fill:var(--warn)">0.50 of 0.63</text>
+
+  <g class="S" fill="var(--ink)">
+    <text x="630" y="60">pelvis    yaw -12   tilt  2   lean 0</text>
+    <text x="630" y="82">ribcage   yaw +21   tilt -4   lean 3    rel. pelvis</text>
+    <text x="630" y="104">head      aim to mirror centre          constraint</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="630" y="140">Spine joints are never exposed. They</text>
+    <text x="630" y="158">interpolate between the two boxes with</text>
+    <text x="630" y="176">a per-axis distribution:</text>
+    <text x="650" y="204">twist     lumbar 12  thoracic 53  cervical 35</text>
+    <text x="650" y="222">flexion   lumbar 41  thoracic 25  cervical 34</text>
+    <text x="650" y="240">bend      lumbar 33  thoracic 34  cervical 33</text>
+  </g>
+  <g class="S" fill="var(--ink)">
+    <text x="630" y="278">Head aim defaults to the mirror, so turning</text>
+    <text x="630" y="296">the body does not drag the gaze. In this</text>
+    <text x="630" y="314">genre the gaze is pinned and the body</text>
+    <text x="630" y="332">angle is the variable.</text>
+  </g>
+  <text class="S" x="630" y="368" style="fill:var(--sel)">Tap a unit to cycle its frame: parent ·</text>
+  <text class="S" x="630" y="386" style="fill:var(--sel)">anatomical · head · mirror · image · world.</text>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D01</td><td><b>Semantic body registration</b><br><span class="sub">driver · load/change rig, body representation, pose or reference fixture</span><br><span class="sub">preserve · one semantic joint hierarchy and one authoritative pose state</span><br><span class="sub">may move · render representation only; no independent pose copy</span></td><td>visible mesh, hit regions, controls, landmarks, reflected proxy and masks all reproject from the same joints</td><td class="fail">any visible anatomical part and its selectable/control location disagree. This is a hard UI validity failure, not a cosmetic issue.</td></tr>
+<tr><td class="id">D02</td><td><b>Direct anatomical selection</b><br><span class="sub">driver · tap/double-tap a visible body region</span><br><span class="sub">preserve · anatomical left/right identity and current pose</span><br><span class="sub">may move · selection/workspace state only</span></td><td>contextual HUD changes to the selected anatomical operation set</td><td class="fail">selection resolves to generic Body when a specific limb/joint is visible; giant pick spheres obscure anatomy.</td></tr>
+<tr><td class="id">D03</td><td><b>Ordinary-joint semantic FK</b><br><span class="sub">driver · Bend / Tilt / Rotate/Twist selected anatomy</span><br><span class="sub">preserve · bone lengths, semantic joint frame, active support/contact unless explicitly released</span><br><span class="sub">may move · selected local joint DOFs and any declared distributed torso chain</span></td><td>surface, silhouette, reflection, camera frame, masks and targets update continuously</td><td class="fail">raw world XYZ/Euler controls become the normal workflow or biological limits are silently clamped.</td></tr>
+<tr><td class="id">D04</td><td><b>Direct hand/foot IK</b><br><span class="sub">driver · drag a hand or foot target in 3D/editor/camera-supported space</span><br><span class="sub">preserve · fixed segment lengths; declared joint limits; pinned support; grip relation if active</span><br><span class="sub">may move · relevant chain and, only when declared, root compensation or multi-effector variables</span></td><td>elbow/knee position, wrist/ankle frame, surface geometry, grip/phone relation and camera result update</td><td class="fail">bone stretching, unstable elbow/knee flips, camera orbit taking the same pointer, or disappearance of requested target.</td></tr>
+<tr><td class="id">D05</td><td><b>Elbow/knee branch and joint-limit dynamics</b><br><span class="sub">driver · continue an IK drag, switch branch, or adjust pole/swivel</span><br><span class="sub">preserve · fixed link lengths and anatomical limits</span><br><span class="sub">may move · legal two-link circle/arc and branch variable</span></td><td>elbow/knee and downstream endpoint orientation</td><td class="fail">discontinuous branch flips or silent joint projection</td></tr>
+<tr><td class="id">D06</td><td><b>Head and gaze</b><br><span class="sub">driver · Bend/Tilt/Rotate head; optionally create an aim/gaze target</span><br><span class="sub">preserve · neck/torso relation and declared gaze constraint</span><br><span class="sub">may move · head/neck rotational DOFs; torso/neck solve only if explicitly enabled</span></td><td>facial plane, camera composition, reflection and landmarks</td><td class="fail">head behaves as a default world-space endpoint translation</td></tr>
+<tr><td class="id">D07</td><td><b>Pelvis/ribcage/head counter-rotation</b><br><span class="sub">driver · rotate/lean pelvis or ribcage, or adjust head frame</span><br><span class="sub">preserve · body proportions and support contacts</span><br><span class="sub">may move · pelvis frame, ribcage relative frame, distributed spine interpolation and head frame</span></td><td>shoulder/hip placement, limb bases, silhouette, balance/support geometry, camera result</td><td class="fail">dozens of independent spine controls in normal UI or rigid torso block unable to reproduce strong counter-rotation</td></tr>
+<tr><td class="id">D08</td><td><b>Support/contact</b><br><span class="sub">driver · set/pin/release planted, heel-lifted, instep/kneeling, reclining/support-surface or free contact</span><br><span class="sub">preserve · pinned contact positions/orientations and active support class</span><br><span class="sub">may move · root/pelvis and unpinned limb DOFs according to solve mask</span></td><td>feasible pose region and staging output</td><td class="fail">silent floor penetration, forced planted feet for all poses, invented force/load distribution</td></tr>
+<tr><td class="id">D09</td><td><b>Pose mirroring and local symmetry</b><br><span class="sub">driver · mirror pose L↔︎R or apply local symmetry</span><br><span class="sub">preserve · anatomical semantics and scene/world frame</span><br><span class="sub">may move · authored pose DOFs only</span></td><td>body state; phone/grip only if configured as part of the mirrored pose operation</td><td class="fail">confuse authoring symmetry with physical mirror parity or preview/save flip</td></tr>
+<tr><td class="id">D10</td><td><b>Body/proportion calibration</b><br><span class="sub">driver · change model height, bone lengths or construction-body proportions</span><br><span class="sub">preserve · pose intention where possible; semantic topology</span><br><span class="sub">may move · calibrated body dimensions and dependent surface/construction masses</span></td><td>reach, silhouette, camera scale, mirror hit set and feasible regions</td><td class="fail">independent free-floating masses that drift from joints</td></tr>
+<tr><td class="id">D11</td><td><b>Pose seeds, hand presets and snapshots</b><br><span class="sub">driver · load STAND/TWIST/KNEEL/RECLINE/SIDE or a saved pose; choose hand-pose preset</span><br><span class="sub">preserve · scene calibration and non-pose state unless the snapshot explicitly contains it</span><br><span class="sub">may move · pose requested state</span></td><td>pose re-solve, support initialisation, phone/grip consequences if relationship is active</td><td class="fail">conflate numbered pose slots, A–E whole-scene variants, display styles and history</td></tr>
+</table>
+<h2 id="g4">4 · Phone, Hand, Grip And Physical Camera <span class="count">7 requirements</span></h2>
+<div class="outcome"><b>The phone is a rigid body with a camera inside it, not a proxy square.</b><p>Wrist, grip, phone, optical centre and screen corners are five separate things with declared offsets. Asking for a bigger phone in frame moves the camera and the arm follows. Rotating the phone moves the camera off the wrist by the lever length and the composition readout knows it.</p></div>
+<svg viewBox="0 0 1120 620" role="img" aria-label="Exploded phone grip camera rig">
+  <line x1="740" y1="28" x2="740" y2="592" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">EXPLODED CHAIN</text>
+  <text class="H" x="770" y="26">GATES AND OFFSETS</text>
+
+  <!-- forearm -->
+  <path d="M60 470 L150 420" stroke="#C9BCB0" stroke-width="26" stroke-linecap="round"/>
+  <text class="XS" x="60" y="500">forearm</text>
+
+  <!-- 1 wrist joint -->
+  <circle cx="165" cy="412" r="9" fill="none" stroke="var(--ink)" stroke-width="2"/>
+  <circle cx="165" cy="412" r="3" fill="var(--ink)"/>
+  <text class="L" x="165" y="392" text-anchor="middle">1</text>
+  <text class="XS" x="165" y="440" text-anchor="middle" style="fill:var(--ink)">wrist joint</text>
+
+  <!-- 2 grip frame -->
+  <g transform="translate(265,372) rotate(-18)">
+    <rect x="-26" y="-20" width="52" height="40" rx="5" fill="none" stroke="var(--good)" stroke-width="2" stroke-dasharray="5 3"/>
+    <line x1="-26" y1="0" x2="26" y2="0" stroke="var(--good)" stroke-width=".8"/>
+    <line x1="0" y1="-20" x2="0" y2="20" stroke="var(--good)" stroke-width=".8"/>
+  </g>
+  <text class="L" x="265" y="336" text-anchor="middle">2</text>
+  <text class="XS" x="265" y="412" text-anchor="middle" style="fill:var(--good)">hand / grip frame</text>
+
+  <!-- 3 phone rigid body -->
+  <g transform="translate(410,300) rotate(-18)">
+    <rect x="-34" y="-70" width="68" height="140" rx="8" fill="#2A2A2E" stroke="var(--ink)" stroke-width="1.5"/>
+    <rect x="-28" y="-62" width="56" height="124" rx="4" fill="var(--meas)" opacity=".22"/>
+  </g>
+  <text class="L" x="410" y="212" text-anchor="middle">3</text>
+  <text class="XS" x="410" y="392" text-anchor="middle" style="fill:var(--ink)">phone rigid body</text>
+
+  <!-- 6 screen plane + corners exploded off -->
+  <g transform="translate(560,268) rotate(-18)">
+    <rect x="-28" y="-62" width="56" height="124" rx="3" fill="#BBD4FF" opacity=".5" stroke="var(--meas)" stroke-width="1.6"/>
+    <circle cx="-28" cy="-62" r="4" fill="var(--meas)"/><circle cx="28" cy="-62" r="4" fill="var(--meas)"/>
+    <circle cx="28" cy="62" r="4" fill="var(--meas)"/><circle cx="-28" cy="62" r="4" fill="var(--meas)"/>
+    <rect x="-34" y="-70" width="68" height="140" rx="6" fill="none" stroke="var(--warn)" stroke-width="1.4" stroke-dasharray="4 3"/>
+  </g>
+  <text class="L" x="560" y="180" text-anchor="middle">6</text>
+  <text class="XS" x="560" y="374" text-anchor="middle" style="fill:var(--meas)">screen plane · S₁..S₄</text>
+  <text class="XS" x="560" y="388" text-anchor="middle" style="fill:var(--warn)">7 · bezel clearance</text>
+
+  <!-- 4 optical centre + 5 axis -->
+  <g transform="translate(672,238) rotate(-18)">
+    <circle cx="0" cy="-52" r="7" fill="var(--sel)"/>
+    <circle cx="0" cy="-52" r="13" fill="none" stroke="var(--sel)" stroke-width="1.2"/>
+    <line x1="0" y1="-52" x2="0" y2="-140" stroke="var(--sel)" stroke-width="1.6"/>
+    <path d="M0 -140 l-5 8 M0 -140 l5 8" stroke="var(--sel)" stroke-width="1.6" fill="none"/>
+    <path d="M0 -52 L-46 -150 M0 -52 L46 -150" stroke="var(--sel)" stroke-width=".9" stroke-dasharray="4 3" fill="none"/>
+  </g>
+  <line x1="672" y1="186" x2="628" y2="150" stroke="var(--sel)" stroke-width=".8"/>
+  <text class="L" x="624" y="147" text-anchor="end">4·5</text>
+  <text class="XS" x="700" y="300" text-anchor="middle" style="fill:var(--sel)">optical centre + axis</text>
+
+  <!-- offset chain -->
+  <g stroke="var(--dim)" stroke-width="1" stroke-dasharray="3 3">
+    <line x1="174" y1="412" x2="240" y2="380"/><line x1="292" y1="362" x2="380" y2="330"/>
+    <line x1="440" y1="288" x2="532" y2="272"/><line x1="588" y1="256" x2="650" y2="240"/>
+  </g>
+  <g class="XS" fill="var(--dim)">
+    <text x="207" y="384" text-anchor="middle">g₁</text>
+    <text x="336" y="336" text-anchor="middle">g₂</text>
+    <text x="486" y="262" text-anchor="middle">g₃</text>
+    <text x="619" y="234" text-anchor="middle">g₄</text>
+  </g>
+
+  <!-- true-scale inset -->
+  <rect x="300" y="512" width="230" height="70" fill="#FBFAF7" stroke="var(--faint)"/>
+  <text class="XS" x="308" y="528" style="fill:var(--ink)">TRUE SCALE</text>
+  <circle cx="326" cy="558" r="4" fill="none" stroke="var(--ink)" stroke-width="1.4"/>
+  <rect x="360" y="536" width="22" height="44" rx="3" fill="#2A2A2E"/>
+  <circle cx="371" cy="542" r="2.6" fill="var(--sel)"/>
+  <g stroke="var(--dim)" stroke-width=".8"><line x1="326" y1="572" x2="371" y2="572"/><line x1="326" y1="568" x2="326" y2="576"/><line x1="371" y1="568" x2="371" y2="576"/></g>
+  <text class="XS" x="348" y="590" text-anchor="middle">0.22 m wrist → optical centre</text>
+
+  <!-- right column -->
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="56">1  wrist joint          FK output</text>
+    <text x="770" y="76">2  hand / grip frame    g₁ from wrist</text>
+    <text x="770" y="96">3  phone rigid body     g₂, releasable</text>
+    <text x="770" y="116">4  optical centre       g₃, per device</text>
+    <text x="770" y="136">5  optical axis         yaw/pitch/roll</text>
+    <text x="770" y="156">6  screen plane S₁..S₄  g₄, four corners</text>
+    <text x="770" y="176">7  bezel / finger       occluder polygon</text>
+    <text x="770" y="196">8  external camera      optional mode</text>
+  </g>
+  <text class="H" x="770" y="240">WHY EACH OFFSET MATTERS</text>
+  <g class="S" fill="var(--dim)">
+    <text x="770" y="266">g₁  grip release, deliberate offset · D15</text>
+    <text x="770" y="286">g₂  phone drives hand vs hand drives phone</text>
+    <text x="770" y="306">g₃  the 0.22 m lever: yaw moves the camera</text>
+    <text x="770" y="324">    laterally by 0.22·sin(yaw), 7.5 cm at 20°,</text>
+    <text x="770" y="342">    which is half the separation budget</text>
+    <text x="770" y="362">g₄  screen ≠ camera. P is the screen quad,</text>
+    <text x="770" y="380">    not the phone outline</text>
+  </g>
+  <text class="H" x="770" y="424">SCREEN QUAD GATES · D17, §20</text>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="450">positive area</text>
+    <text x="770" y="468">front-facing angle within limit</text>
+    <text x="770" y="486">projected pixel footprint sufficient</text>
+    <text x="770" y="504">homography well conditioned</text>
+    <text x="770" y="522">no forbidden occlusion</text>
+    <text x="770" y="540">bezel / edge clearance</text>
+  </g>
+  <text class="XS" x="770" y="574" style="fill:var(--bad)">The square SCR_W proxy in the build is the</text>
+  <text class="XS" x="770" y="588" style="fill:var(--bad)">zero-rotation front-facing special case only.</text>
+</svg>
+<svg viewBox="0 0 1120 470" role="img" aria-label="Phone scale propagation">
+  <line x1="700" y1="28" x2="700" y2="442" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">D18 · PHONE SCALE PROPAGATION</text>
+  <text class="H" x="730" y="26">THE RELATION</text>
+
+  <!-- three arm states, side view, shoulder fixed -->
+  <g>
+    <text class="XS" x="130" y="60" text-anchor="middle" style="fill:var(--dim)">SMALL IN FRAME</text>
+    <text class="XS" x="350" y="60" text-anchor="middle" style="fill:var(--ink)">CURRENT</text>
+    <text class="XS" x="570" y="60" text-anchor="middle" style="fill:var(--dim)">LARGE IN FRAME</text>
+  </g>
+  <g stroke="#C9BCB0" stroke-width="17" stroke-linecap="round" fill="none">
+    <path d="M96 300 L140 232 L200 196"/>
+    <path d="M316 300 L342 236 L392 214"/>
+    <path d="M536 300 L548 244 L580 244"/>
+  </g>
+  <g fill="var(--phone)" stroke="#111" stroke-width="1.2">
+    <rect x="198" y="184" width="10" height="22" rx="2"/>
+    <rect x="386" y="198" width="16" height="34" rx="2"/>
+    <rect x="572" y="220" width="26" height="55" rx="3"/>
+  </g>
+  <g fill="var(--ink)"><circle cx="96" cy="300" r="4"/><circle cx="316" cy="300" r="4"/><circle cx="536" cy="300" r="4"/></g>
+  <g class="XS" fill="var(--dim)">
+    <text x="96" y="322">shoulder</text><text x="316" y="322">shoulder</text><text x="536" y="322">shoulder</text>
+  </g>
+  <g class="XS" fill="var(--ink)">
+    <text x="130" y="352" text-anchor="middle">arm extended</text>
+    <text x="130" y="368" text-anchor="middle">elbow open</text>
+    <text x="350" y="352" text-anchor="middle">a = 0.368 m</text>
+    <text x="350" y="368" text-anchor="middle">elbow 133°</text>
+    <text x="570" y="352" text-anchor="middle">arm drawn in</text>
+    <text x="570" y="368" text-anchor="middle">elbow closed</text>
+  </g>
+  <g stroke="var(--sel)" stroke-width="1.6" fill="none" marker-end="url(#ar2)">
+    <line x1="230" y1="404" x2="470" y2="404"/>
+  </g>
+  <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 z" fill="var(--sel)"/></marker></defs>
+  <text class="R" x="350" y="396" text-anchor="middle">requesting a bigger phone in frame</text>
+  <text class="XS" x="350" y="424" text-anchor="middle" style="fill:var(--dim)">camera comes closer to the mirror · hand follows · elbow closes · m and R both fall</text>
+
+  <g class="S" fill="var(--ink)">
+    <text x="730" y="58">The phone visible in frame is the</text>
+    <text x="730" y="76">reflected one, at 2c. So</text>
+  </g>
+  <text class="L" x="730" y="112">f  =  W_p / ( 2c · 2·tan(hfov/2) )</text>
+  <g class="S" fill="var(--dim)">
+    <text x="730" y="144">W_p 0.075 m, c = m + u</text>
+  </g>
+  
+  <line x1="730" y1="168" x2="1060" y2="168" stroke="var(--faint)"/>
+  <g class="XS" fill="var(--dim)">
+    <text x="730" y="184">c</text><text x="860" y="184" text-anchor="end">hfov</text><text x="990" y="184" text-anchor="end">f</text>
+  </g>
+  <line x1="730" y1="192" x2="1060" y2="192" stroke="var(--faint)"/>
+  <g class="S">
+    <text x="730" y="212" fill="var(--ink)">1.54 m</text><text x="860" y="212" text-anchor="end" fill="var(--ink)">70°</text><text x="990" y="212" text-anchor="end" fill="var(--ink)">0.017</text>
+    <text x="730" y="232" fill="var(--ink)">1.06 m</text><text x="860" y="232" text-anchor="end" fill="var(--ink)">55°</text><text x="990" y="232" text-anchor="end" fill="var(--ink)">0.034</text>
+    <text x="730" y="252" fill="var(--warn)">0.45 m</text><text x="860" y="252" text-anchor="end" fill="var(--warn)">55°</text><text x="990" y="252" text-anchor="end" fill="var(--warn)">0.080</text>
+    <text x="730" y="272" fill="var(--warn)">0.34 m</text><text x="860" y="272" text-anchor="end" fill="var(--warn)">70°</text><text x="990" y="272" text-anchor="end" fill="var(--warn)">0.080</text>
+  </g>
+  <g class="S" fill="var(--bad)">
+    <text x="730" y="312">Your sim runs f = 0.08 with body↔mirror</text>
+    <text x="730" y="330">720 mm. Those are inconsistent: f = 0.08</text>
+    <text x="730" y="348">requires the camera 0.34 to 0.45 m from</text>
+    <text x="730" y="366">the mirror, not 0.72 m plus an arm.</text>
+  </g>
+  <g class="S" fill="var(--ink)">
+    <text x="730" y="398">Either the sliders are independent rather</text>
+    <text x="730" y="416">than solved, or f means the direct phone,</text>
+    <text x="730" y="434">which is behind the camera and cannot</text>
+    <text x="730" y="452">appear. Worth resolving before D18 ships.</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D12</td><td><b>Explicit hand → grip → phone → camera chain</b><br><span class="sub">driver · edit any authorised element in this chain</span><br><span class="sub">preserve · locked relations</span><br><span class="sub">may move · downstream/upstream objects according to selected authority mode</span></td><td>arm solve, camera optics, mirror/reflection and P</td><td class="fail">phone visually detached from hand; camera treated as independent convenience camera; grip collapsed into wrist position</td></tr>
+<tr><td class="id">D13</td><td><b>PHONE DRIVES HAND</b><br><span class="sub">driver · move/rotate phone</span><br><span class="sub">preserve · grip/contact frame, bone lengths, other active locks</span><br><span class="sub">may move · hand target and arm chain; root only if declared</span></td><td>camera follows rigid phone calibration; reflection and Camera view update</td><td class="fail">arm does not follow phone, or global phone-authority pills remain visible when an unrelated object is selected</td></tr>
+<tr><td class="id">D14</td><td><b>HAND DRIVES PHONE</b><br><span class="sub">driver · move the hand while grip is locked</span><br><span class="sub">preserve · phone-to-grip transform and camera calibration</span><br><span class="sub">may move · phone/camera as rigid payload and relevant arm chain</span></td><td>screen quad, reflection, P, camera result</td><td class="fail">phone lags or rotates independently despite locked grip</td></tr>
+<tr><td class="id">D15</td><td><b>Grip release / deliberate grip offset</b><br><span class="sub">driver · lock grip, release grip, or adjust permitted grip offset</span><br><span class="sub">preserve · whichever side retains authority</span><br><span class="sub">may move · phone relative to hand only when unlocked/offset edit is explicit</span></td><td>contact/occlusion geometry and physical camera</td><td class="fail">hidden grip drift</td></tr>
+<tr><td class="id">D16</td><td><b>Physical camera calibration</b><br><span class="sub">driver · declare/change phone-camera calibration, lens/HFOV or capture mode</span><br><span class="sub">preserve · phone-local relationship and calibration provenance</span><br><span class="sub">may move · calibration values only through explicit calibration action</span></td><td>camera optical centre, axes, projection, all camera-space measurements and P</td><td class="fail">lookAt() convenience behaviour; editor orbit changing capture optics</td></tr>
+<tr><td class="id">D17</td><td><b>Four-corner screen projection</b><br><span class="sub">driver · move/rotate phone or edit a screen composition target</span><br><span class="sub">preserve · rigid screen geometry and calibrated camera</span><br><span class="sub">may move · physical variables declared by transaction</span></td><td>four world screen corners → camera projection → image quadrilateral; width/height/area/centroid/orientation measures</td><td class="fail">screen represented only as scalar percentage or axis-aligned rectangle</td></tr>
+<tr><td class="id">D18</td><td><b>Projected phone/screen scale compensation</b><br><span class="sub">driver · request larger/smaller phone or screen in the final frame while preserving selected centre/relationship</span><br><span class="sub">preserve · declared image-space centre, grip, mirror relation or other locks</span><br><span class="sub">may move · phone/camera distance, arm IK, mirror normal distance or other declared variables</span></td><td>elbow bend/reach, camera-to-face distance, reflection and P</td><td class="fail">treat phone scale as a visual-only slider with no scene consequences</td></tr>
+</table>
+<h2 id="g5">5 · Mirror And Reflection <span class="count">7 requirements</span></h2>
+<div class="outcome"><b>The mirror is a finite aperture in a real wall, and the reflection obeys it.</b><p>Reflected content is clipped hard at the aperture. Which body parts appear is a computed band with per-part percentages, not a boolean. Overlap between the direct body and the reflection is declared intent, not a fault.</p></div>
+<svg viewBox="0 0 1120 800">
+  <!-- grid: draw 40..700, divider 740, labels 770.. -->
+  <line x1="740" y1="28" x2="740" y2="472" stroke="var(--faint)"/>
+  <line x1="40" y1="500" x2="1090" y2="500" stroke="var(--ink)" stroke-width="1"/>
+  <text class="H" x="40" y="26">ELEVATION · APERTURE BAND</text>
+  <text class="H" x="770" y="26">READOUT</text>
+
+  <!-- ground -->
+  <line x1="40" y1="440" x2="700" y2="440" stroke="var(--ink)" stroke-width="1.4"/>
+  <!-- virtual wash -->
+  <rect x="40" y="42" width="328" height="398" fill="#F4F2EE"/>
+  <text class="XS" x="50" y="58">VIRTUAL</text>
+
+  <!-- mirror as glass panel with frame. sill .85 -> y=270 ; top 1.95 -> y=50 -->
+  <rect x="362" y="50" width="12" height="220" fill="var(--glass)"/>
+  <rect x="362" y="50" width="12" height="220" fill="none" stroke="var(--ink)" stroke-width="1.4"/>
+  <rect x="359" y="44" width="18" height="8" fill="var(--ink)"/>
+  <rect x="359" y="268" width="18" height="8" fill="var(--ink)"/>
+  <g stroke="#fff" stroke-width="1.4" opacity=".8">
+    <line x1="364" y1="90" x2="372" y2="72"/><line x1="364" y1="150" x2="372" y2="132"/><line x1="364" y1="210" x2="372" y2="192"/>
+  </g>
+  <line x1="368" y1="276" x2="368" y2="440" stroke="var(--hairr)" stroke-width="1" stroke-dasharray="3 4"/>
+
+  <!-- figures: scale 1.0 (340 units = 1.70m at 200px/m) -->
+  <use href="#sideR" transform="translate(128,440) scale(-1,1)"/>
+  <use href="#side" transform="translate(608,440)"/>
+
+  <!-- phone + camera at 676, z 1.665 -> y 107 -->
+  <rect x="670" y="92" width="13" height="30" rx="2" fill="var(--p-phone)" stroke="#111" stroke-width="1"/>
+  <circle cx="676.5" cy="107" r="4" fill="var(--meas)"/>
+  <rect x="53" y="92" width="13" height="30" rx="2" fill="var(--r-phone)" stroke="#444" stroke-width="1"/>
+
+  <!-- cone -->
+  <path d="M676.5 107 L128 100 L128 440 Z" fill="var(--meas)" opacity=".07"/>
+  <g stroke="var(--meas)" stroke-width="1.2">
+    <line x1="676.5" y1="107" x2="128" y2="100"/>
+    <line x1="676.5" y1="107" x2="128" y2="440"/>
+  </g>
+  <circle cx="368" cy="103" r="3.4" fill="var(--meas)"/>
+  <circle cx="368" cy="294" r="3.4" fill="var(--meas)" opacity=".35"/>
+  <!-- sill blocks the feet ray: mark where it actually cuts, y=270 -->
+  <circle cx="368" cy="270" r="3.4" fill="var(--bad)"/>
+
+  <!-- ray that grazes the sill, back to the body: from camera through (368,270) -->
+  <line x1="676.5" y1="107" x2="368" y2="270" stroke="var(--bad)" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <line x1="368" y1="270" x2="128" y2="397" stroke="var(--bad)" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
+
+  <!-- cut overlay, aligned to the figure -->
+  <rect x="592" y="397" width="40" height="43" fill="var(--bad)" opacity=".32"/>
+  <line x1="588" y1="397" x2="636" y2="397" stroke="var(--bad)" stroke-width="1.4"/>
+  <line x1="612" y1="440" x2="612" y2="462" stroke="var(--bad)" stroke-width=".8"/>
+  <text class="B" x="612" y="474" text-anchor="middle">cut · lowest 0.215 m</text>
+
+  <!-- visible bracket -->
+  <g stroke="var(--good)" stroke-width="2">
+    <line x1="520" y1="100" x2="520" y2="397"/>
+    <line x1="514" y1="100" x2="526" y2="100"/><line x1="514" y1="397" x2="526" y2="397"/>
+  </g>
+  <text class="G" x="508" y="160" text-anchor="end">visible band</text>
+  <text class="G" x="508" y="176" text-anchor="end">0.215 → 1.70 m</text>
+
+  <!-- DIRECT sight line: camera to the near face -->
+  <line x1="676.5" y1="107" x2="620" y2="130" stroke="var(--sel)" stroke-width="2"/>
+  <path d="M676.5 107 L604 138 L604 172 L676.5 130 Z" fill="var(--sel)" opacity=".16"/>
+  <line x1="640" y1="122" x2="598" y2="100" stroke="var(--sel)" stroke-width=".8"/>
+  <text class="R" x="594" y="98" text-anchor="end">direct · a 0.368 m</text>
+
+  <!-- distance chain along the top -->
+  <g stroke="var(--dim)" stroke-width="1">
+    <line x1="608" y1="66" x2="676.5" y2="66"/>
+    <line x1="608" y1="62" x2="608" y2="70"/><line x1="676.5" y1="62" x2="676.5" y2="70"/>
+    <line x1="374" y1="66" x2="608" y2="66"/><line x1="374" y1="62" x2="374" y2="70"/>
+  </g>
+  <text class="XS" x="642" y="58" text-anchor="middle">u 0.34</text>
+  <text class="XS" x="491" y="58" text-anchor="middle">m 1.20</text>
+
+  <!-- z_r labels placed in verified-clear zones -->
+  <line x1="364" y1="103" x2="300" y2="88" stroke="var(--dim)" stroke-width=".8"/>
+  <text class="S" x="296" y="85" text-anchor="end">z_r 1.684 · crown</text>
+  <line x1="364" y1="270" x2="300" y2="300" stroke="var(--bad)" stroke-width=".8"/>
+  <text class="B" x="296" y="298" text-anchor="end">z_r 0.850 · sill</text>
+  <text class="XS" x="296" y="314" text-anchor="end" style="fill:var(--bad)">0.729 needed</text>
+
+  <!-- axis ticks -->
+  <g class="XS" fill="var(--hairr)">
+    <text x="34" y="444" text-anchor="end">0</text>
+    <text x="34" y="344" text-anchor="end">0.5</text>
+    <text x="34" y="244" text-anchor="end">1.0</text>
+    <text x="34" y="144" text-anchor="end">1.5</text>
+    <text x="34" y="54" text-anchor="end">2.0 m</text>
+  </g>
+
+  <!-- gutter -->
+  <g class="L">
+    <text x="770" y="60">z_r = (p·z_c + c·z_p) / (c+p)</text>
+  </g>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="92">visible band      0.215 → 1.70 m</text>
+    <text x="770" y="112">cut               0.215 m of leg</text>
+    <text x="770" y="140">required sill     0.729 m</text>
+    <text x="770" y="160">actual sill       0.850 m</text>
+    <text x="770" y="180" fill="var(--bad)">too high by       0.121 m</text>
+    <text x="770" y="208">required height   0.955 m</text>
+    <text x="770" y="228">actual height     1.100 m   ok</text>
+  </g>
+  <text class="H" x="770" y="270">PER PART</text>
+  <g class="S">
+    <text x="770" y="296" fill="var(--good)">head    100 %</text>
+    <text x="770" y="314" fill="var(--good)">torso   100 %</text>
+    <text x="770" y="332" fill="var(--good)">thighs  100 %</text>
+    <text x="770" y="350" fill="var(--warn)">shins    62 %</text>
+    <text x="770" y="368" fill="var(--bad)">feet      0 %</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="770" y="404">sill sensitivity 0.44 m per m</text>
+    <text x="770" y="422">of camera height. Raising the</text>
+    <text x="770" y="440">phone 0.10 m loses another</text>
+    <text x="770" y="458">0.08 m off the bottom.</text>
+  </g>
+
+  <!-- ══ ROW B ══ -->
+  <line x1="40" y1="505" x2="1090" y2="505" stroke="var(--ink)" stroke-width="1"/>
+  <text class="H" x="40" y="534">PHONE → FACE → MIRROR</text>
+  <text class="H" x="700" y="534">RESULTING FRAME · vertical section</text>
+
+  <!-- chain, 120 px/m, camera at 600 -->
+  <line x1="200" y1="650" x2="620" y2="650" stroke="var(--ink)" stroke-width="1.2"/>
+  <circle cx="600" cy="650" r="5.5" fill="var(--meas)"/>
+  <text class="XS" x="600" y="670" text-anchor="middle" style="fill:var(--meas)">CAMERA</text>
+  <circle cx="559" cy="650" r="5.5" fill="var(--p-face)" stroke="#111"/>
+  <text class="XS" x="553" y="670" text-anchor="end" style="fill:var(--ink)">FACE</text>
+  <rect x="411" y="626" width="8" height="48" fill="var(--glass)" stroke="var(--ink)" stroke-width="1.2"/>
+  <text class="XS" x="415" y="690" text-anchor="middle" style="fill:var(--ink)">MIRROR</text>
+  <circle cx="271" cy="650" r="5.5" fill="var(--r-face)" stroke="#444"/>
+  <text class="XS" x="271" y="670" text-anchor="middle" style="fill:var(--dim)">FACE'</text>
+  <circle cx="230" cy="650" r="4.5" fill="var(--r-phone)" stroke="#444"/>
+  <text class="XS" x="222" y="670" text-anchor="end" style="fill:var(--dim)">PHONE'</text>
+
+  <g stroke="var(--sel)" stroke-width="1.4">
+    <line x1="559" y1="616" x2="600" y2="616"/>
+    <line x1="559" y1="612" x2="559" y2="620"/><line x1="600" y1="612" x2="600" y2="620"/>
+  </g>
+  <text class="R" x="580" y="608" text-anchor="middle" font-size="9">0.368</text>
+  <g stroke="var(--dim)" stroke-width="1">
+    <line x1="415" y1="616" x2="559" y2="616"/><line x1="415" y1="612" x2="415" y2="620"/>
+  </g>
+  <text class="XS" x="487" y="608" text-anchor="middle">1.20</text>
+  <g stroke="var(--meas)" stroke-width="1.2">
+    <line x1="271" y1="706" x2="600" y2="706"/>
+    <line x1="271" y1="702" x2="271" y2="710"/><line x1="600" y1="702" x2="600" y2="710"/>
+    <line x1="230" y1="730" x2="600" y2="730"/>
+    <line x1="230" y1="726" x2="230" y2="734"/><line x1="600" y1="726" x2="600" y2="734"/>
+  </g>
+  <text class="M" x="435" y="700" text-anchor="middle" font-size="9">2.74 · to the reflected face</text>
+  <text class="M" x="415" y="748" text-anchor="middle" font-size="9">3.08 · to the reflected phone, always the farthest thing in frame</text>
+
+  <text class="R" x="40" y="576" font-size="11">R = 2.744 / 0.368 = 7.46 ×</text>
+  <text class="XS" x="40" y="592">one lens, two focal-length looks: a wide-angle near</text>
+  <text class="XS" x="40" y="606">face and a near-orthographic small figure behind it</text>
+
+  <!-- frame section, true 3:4 -->
+  <rect x="700" y="550" width="150" height="200" fill="#FBFAF7" stroke="var(--ink)" stroke-width="1.4"/>
+  <defs><clipPath id="fsec"><rect x="700" y="550" width="150" height="200"/></clipPath></defs>
+  <g clip-path="url(#fsec)">
+    <rect x="730" y="625.6" width="77.2" height="89.2" fill="var(--glass)" opacity=".6"/>
+    <rect x="730" y="625.6" width="77.2" height="89.2" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+    <use href="#frontR" transform="translate(778,722.7) scale(0.219,0.219)"/>
+    <rect x="783" y="646" width="5" height="9" fill="var(--r-phone)"/>
+    <circle cx="803.4" cy="693.4" r="32.6" fill="var(--p-face)" stroke="#111" stroke-width="1.2"/>
+    <path d="M770.8 693.4 a32.6 32.6 0 0 1 65.2 0 Z" fill="var(--p-hair)" stroke="#111" stroke-width="1"/>
+  </g>
+  <line x1="686" y1="650" x2="856" y2="650" stroke="var(--meas)" stroke-width=".8" stroke-dasharray="4 3"/>
+  <text class="XS" x="682" y="653" text-anchor="end" style="fill:var(--meas)">axis</text>
+
+  <g stroke="var(--ink)" stroke-width="1.2">
+    <line x1="870" y1="625.6" x2="870" y2="714.8"/>
+    <line x1="866" y1="625.6" x2="874" y2="625.6"/><line x1="866" y1="714.8" x2="874" y2="714.8"/>
+  </g>
+  <g stroke="var(--sel)" stroke-width="1.2">
+    <line x1="888" y1="651.1" x2="888" y2="735.8"/>
+    <line x1="884" y1="651.1" x2="892" y2="651.1"/><line x1="884" y1="735.8" x2="892" y2="735.8"/>
+  </g>
+  <g class="XS">
+    <text x="906" y="632" fill="var(--ink)">mirror   38.4°   44.6% of height</text>
+    <text x="906" y="650" fill="var(--sel)">face     36.4°   42.3% of height</text>
+    <text x="906" y="668" fill="var(--bad)">overlap  27.4°   31.8%</text>
+  </g>
+  <g class="XS" fill="var(--ink)">
+    <text x="906" y="700">Vertically the face covers almost the</text>
+    <text x="906" y="716">whole lower mirror band. Clearance</text>
+    <text x="906" y="732">comes from the lateral offset, never</text>
+    <text x="906" y="748">from height alone.</text>
+  </g>
+</svg>
+<svg viewBox="0 0 1120 500">
+  <line x1="400" y1="28" x2="400" y2="472" stroke="var(--faint)"/>
+  <line x1="740" y1="28" x2="740" y2="472" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">FINAL CAMERA</text>
+  <text class="H" x="430" y="26">DEPTH LADDER</text>
+  <text class="H" x="770" y="26">APERTURE COVERAGE</text>
+
+  <!-- frame 3:4, 270 x 360 -->
+  <defs><clipPath id="fr3"><rect x="70" y="60" width="270" height="360"/></clipPath></defs>
+  <rect x="70" y="60" width="270" height="360" fill="#FBFAF7"/>
+  <g clip-path="url(#fr3)">
+    <rect x="112" y="92" width="128" height="192" fill="var(--glass)" opacity=".55"/>
+    <rect x="112" y="92" width="128" height="192" fill="none" stroke="var(--ink)" stroke-width="4"/>
+    <use href="#frontR" transform="translate(195,278) scale(0.5,0.5)"/>
+    <rect x="199" y="126" width="7" height="15" rx="1" fill="var(--r-phone)" stroke="#444" stroke-width=".8"/>
+    <!-- direct subject, close: only head and shoulders in frame -->
+    <use href="#front" transform="translate(232,1030) scale(2.6,2.6)"/>
+  </g>
+  <rect x="70" y="60" width="270" height="360" fill="none" stroke="var(--ink)" stroke-width="1.6"/>
+
+  <!-- ladder -->
+  <g>
+    <rect x="430" y="52" width="270" height="30" fill="var(--p-face)" stroke="#111" stroke-width=".8"/>
+    <text class="XS" x="442" y="71" style="fill:#111">1 · direct face + hair          0.368 m</text>
+    <rect x="430" y="88" width="270" height="30" fill="#F193B7" stroke="#111" stroke-width=".8"/>
+    <text class="XS" x="442" y="107" style="fill:#3A0A1C">2 · direct arm                  0.30 m</text>
+    <rect x="430" y="124" width="270" height="30" fill="var(--glass)" stroke="var(--ink)" stroke-width=".8"/>
+    <text class="XS" x="442" y="143" style="fill:#111">3 · mirror aperture             1.54 m</text>
+    <rect x="430" y="160" width="270" height="30" fill="var(--r-torso)" stroke="#444" stroke-width=".8"/>
+    <text class="XS" x="442" y="179" style="fill:#fff">4 · reflected body              2.74 m</text>
+    <rect x="430" y="196" width="270" height="30" fill="#C9AE3E" stroke="#444" stroke-width=".8"/>
+    <text class="XS" x="442" y="215" style="fill:#1F1A00">5 · reflected phone             3.08 m</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="430" y="254">Always this order. The reflected</text>
+    <text x="430" y="272">phone is the farthest object in</text>
+    <text x="430" y="290">any mirror portrait.</text>
+  </g>
+  <text class="H" x="430" y="332">INTENT PER PART</text>
+  <g class="S">
+    <text x="430" y="358" fill="var(--ink)">reflected head</text><text x="640" y="358" fill="var(--good)" text-anchor="end">REQUIRED</text>
+    <text x="430" y="378" fill="var(--ink)">reflected torso</text><text x="640" y="378" fill="var(--warn)" text-anchor="end">PERMITTED</text>
+    <text x="430" y="398" fill="var(--ink)">reflected legs</text><text x="640" y="398" fill="var(--good)" text-anchor="end">REQUIRED</text>
+    <text x="430" y="418" fill="var(--ink)">reflected phone</text><text x="640" y="418" fill="var(--good)" text-anchor="end">REQUIRED</text>
+    <text x="430" y="438" fill="var(--ink)">direct face</text><text x="640" y="438" fill="var(--bad)" text-anchor="end">PROHIBITED</text>
+  </g>
+
+  <!-- coverage -->
+  <g class="S">
+    <text x="770" y="62" fill="var(--ink)">direct hair</text>
+    <rect x="900" y="52" width="150" height="12" fill="var(--faint)"/>
+    <rect x="900" y="52" width="47" height="12" fill="var(--p-hair)"/>
+    <text x="1064" y="62" fill="var(--ink)" text-anchor="end">31%</text>
+    <text x="770" y="88" fill="var(--ink)">direct face</text>
+    <rect x="900" y="78" width="150" height="12" fill="var(--faint)"/>
+    <rect x="900" y="78" width="18" height="12" fill="var(--p-face)" stroke="#111" stroke-width=".5"/>
+    <text x="1064" y="88" fill="var(--ink)" text-anchor="end">12%</text>
+    <text x="770" y="114" fill="var(--ink)">direct arm</text>
+    <rect x="900" y="104" width="150" height="12" fill="var(--faint)"/>
+    <rect x="900" y="104" width="11" height="12" fill="var(--p-armR)"/>
+    <text x="1064" y="114" fill="var(--ink)" text-anchor="end">7%</text>
+    <line x1="770" y1="130" x2="1064" y2="130" stroke="var(--faint)"/>
+    <text x="770" y="152" fill="var(--ink)" font-weight="600">clear</text>
+    <rect x="900" y="142" width="150" height="12" fill="var(--faint)"/>
+    <rect x="900" y="142" width="75" height="12" fill="var(--good)"/>
+    <text x="1064" y="152" fill="var(--good)" text-anchor="end">50%</text>
+  </g>
+  <text class="H" x="770" y="196">RESULT</text>
+  <g class="S">
+    <text x="770" y="222" fill="var(--good)">head      visible</text>
+    <text x="770" y="242" fill="var(--bad)">torso     covered by direct head</text>
+    <text x="770" y="262" fill="var(--good)">legs      visible</text>
+    <text x="770" y="282" fill="var(--warn)">phone     2 px from the hair edge</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="770" y="326">Overlap is compositional. Panels C, H</text>
+    <text x="770" y="344">and I are built on the direct hair mass</text>
+    <text x="770" y="362">crossing the aperture.</text>
+    <text x="770" y="392">So the constraint is not a margin. It is</text>
+    <text x="770" y="410">three states per part, and the solver</text>
+    <text x="770" y="428">only reports a violation when a part</text>
+    <text x="770" y="446">marked REQUIRED goes under.</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D19</td><td><b>Production mirror relation</b><br><span class="sub">driver · edit mirror normal distance, U/V window position or physical aperture size</span><br><span class="sub">preserve · production mirror orientation relation to the phone/camera apparatus</span><br><span class="sub">may move · only declared production DOFs</span></td><td>hit set, reflection, mirror projected geometry and P</td><td class="fail">expose arbitrary yaw/pitch/roll in normal production UI after the later relation-lock decision</td></tr>
+<tr><td class="id">D20</td><td><b>Four distinct pan operations</b><br><span class="sub">driver · —</span><br><span class="sub">preserve · —</span></td><td>—</td><td class="fail">one generic pan control with ambiguous mathematics</td></tr>
+<tr><td class="id">D21</td><td><b>Functional finite-aperture reflection + reflected interaction</b><br><span class="sub">driver · any pose, phone, camera or mirror edit</span><br><span class="sub">preserve · same authoritative scene state</span><br><span class="sub">may move · reflected rendering proxy only as a derived render; it is never an editable scene authority</span></td><td>exact reflection transform, finite-aperture mask/stencil, reflected body/phone/screen</td><td class="fail">translucent duplicate outside mirror, stale reflected pose, separate reflected-body editing</td></tr>
+<tr><td class="id">D22</td><td><b>Reflection-ray visibility</b><br><span class="sub">driver · select a reflected point, or investigate a missing reflection</span><br><span class="sub">preserve · physical camera, mirror plane and target point</span><br><span class="sub">may move · nothing in diagnostic mode</span></td><td>A per-point trace: camera to mirror intersection, aperture membership, camera-to-mirror occlusion, mirror-to-target occlusion. The artist learns which of the four stages failed.</td><td class="fail">Reporting only that a point is not visible. The four states NO_MIRROR_INTERSECTION, OUTSIDE_APERTURE, OCCLUDED_CAMERA_TO_MIRROR and OCCLUDED_MIRROR_TO_TARGET each imply a different fix.</td></tr>
+<tr><td class="id">D23</td><td><b>Vertical aperture / reflected-body visibility</b><br><span class="sub">driver · adjust camera height, mirror height/size, body/mirror distance or pose</span><br><span class="sub">preserve · other declared apparatus relations</span><br><span class="sub">may move · current solve mask</span></td><td>body height band whose reflected rays cross the aperture; per-part visible fractions</td><td class="fail">return only a boolean aperture test</td></tr>
+<tr><td class="id">D24</td><td><b>Semantic occlusion intent</b><br><span class="sub">driver · declare visibility intent for each semantic region</span><br><span class="sub">preserve · —</span><br><span class="sub">states · REQUIRED / PERMITTED / PROHIBITED / IGNORE / TARGET</span></td><td>solver violations only when the measured final-camera overlap conflicts with intent</td><td class="fail">universal “keep mirror clear” or one scalar MIRROR_OCCUPANCY target</td></tr>
+<tr><td class="id">D25</td><td><b>Mirror auto-fit and proposal</b><br><span class="sub">driver · request auto-fit or set a reflected visibility target</span><br><span class="sub">preserve · current requested mirror unless a change is accepted</span><br><span class="sub">may move · solver computes candidate centre/size; does not silently commit</span></td><td>mirror-local ray-hit cloud, minimum feasible aperture, feasible centre region, requested/effective/proposed centre/size</td><td class="fail">silently resize/move mirror or fit only a few skeletal points while clipping other required rays</td></tr>
+</table>
+<h2 id="g6">6 · Camera, Composition And Multi-View <span class="count">8 requirements</span></h2>
+<div class="outcome"><b>What you see in the capture pane is what gets exported.</b><p>One scene, several projections. The capture pane renders the real crop at the real field of view and agrees with the export to within two pixels. Editor navigation never touches physical optics.</p></div>
+<svg viewBox="0 0 1120 470" role="img" aria-label="Apparatus topology and yaw">
+  <defs>
+    <clipPath id="tpL"><rect x="40" y="46" width="470" height="300"/></clipPath>
+    <clipPath id="tpR"><rect x="590" y="46" width="470" height="300"/></clipPath>
+  </defs>
+  <line x1="560" y1="28" x2="560" y2="442" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">ONE TOPOLOGY · FRONT_CAMERA_SELFIE</text>
+  <text class="H" x="590" y="26">YAW PRODUCES THE SECOND FAMILY</text>
+
+  <g clip-path="url(#tpL)">
+    <rect x="40" y="46" width="200" height="300" fill="#F4F2EE"/>
+    <path d="M440 176 L100 -62 L100 414 Z" fill="var(--meas)" opacity=".08"/>
+    <g stroke="var(--meas)" stroke-width="1.1"><line x1="440" y1="176" x2="100" y2="-62"/><line x1="440" y1="176" x2="100" y2="414"/></g>
+    <line x1="440" y1="176" x2="44" y2="176" stroke="var(--meas)" stroke-width="1" stroke-dasharray="6 4"/>
+  </g>
+  <line x1="240" y1="46" x2="240" y2="346" stroke="var(--ink)" stroke-width="2.5"/>
+  <text class="XS" x="240" y="40" text-anchor="middle" style="fill:var(--ink)">MIRROR</text>
+  <circle cx="396" cy="200" r="14" fill="var(--face)" stroke="#111" stroke-width="1.2"/>
+  <path d="M382 200 a14 14 0 0 1 28 0 Z" fill="var(--hair)" stroke="#111" stroke-width="1"/>
+  <text class="XS" x="396" y="232" text-anchor="middle" style="fill:var(--ink)">FACE</text>
+  <rect x="434" y="164" width="12" height="26" rx="2" fill="var(--phone)" stroke="#111"/>
+  <circle cx="440" cy="176" r="3.6" fill="var(--meas)"/>
+  <text class="XS" x="456" y="166" style="fill:var(--meas)">CAMERA</text>
+  <circle cx="84" cy="200" r="14" fill="var(--rface)" stroke="#444" stroke-width="1.1"/>
+  <path d="M70 200 a14 14 0 0 1 28 0 Z" fill="var(--rhair)" stroke="#444" stroke-width="1"/>
+  <text class="XS" x="84" y="232" text-anchor="middle" style="fill:var(--dim)">FACE′</text>
+  <rect x="34" y="164" width="12" height="26" rx="2" fill="var(--rphone)" stroke="#444"/>
+  <g class="XS">
+    <text x="275" y="380" text-anchor="middle" fill="var(--meas)">yaw 0° · face at 22° off axis, inside the frame</text>
+    <text x="275" y="400" text-anchor="middle" fill="var(--sel)">direct-dominant · A C H I</text>
+    <text x="275" y="420" text-anchor="middle" fill="var(--dim)">mirror 0.11 – 0.23 · direct body 0.50 – 0.67</text>
+  </g>
+
+  <g clip-path="url(#tpR)">
+    <rect x="590" y="46" width="200" height="300" fill="#F4F2EE"/>
+    <g transform="rotate(-31 990 176)">
+      <path d="M990 176 L650 -62 L650 414 Z" fill="var(--meas)" opacity=".08"/>
+      <line x1="990" y1="176" x2="650" y2="-62" stroke="var(--meas)" stroke-width="1.1"/>
+      <line x1="990" y1="176" x2="650" y2="414" stroke="var(--meas)" stroke-width="1.1"/>
+      <line x1="990" y1="176" x2="594" y2="176" stroke="var(--meas)" stroke-width="1" stroke-dasharray="6 4"/>
+    </g>
+  </g>
+  <line x1="790" y1="46" x2="790" y2="346" stroke="var(--ink)" stroke-width="2.5"/>
+  <text class="XS" x="790" y="40" text-anchor="middle" style="fill:var(--ink)">MIRROR</text>
+  <circle cx="946" cy="200" r="14" fill="var(--face)" stroke="#111" stroke-width="1.2"/>
+  <path d="M932 200 a14 14 0 0 1 28 0 Z" fill="var(--hair)" stroke="#111" stroke-width="1"/>
+  <text class="XS" x="946" y="232" text-anchor="middle" style="fill:var(--ink)">FACE</text>
+  <rect x="984" y="164" width="12" height="26" rx="2" fill="var(--phone)" stroke="#111"/>
+  <circle cx="990" cy="176" r="3.6" fill="var(--meas)"/>
+  <circle cx="634" cy="200" r="14" fill="var(--rface)" stroke="#444" stroke-width="1.1"/>
+  <path d="M620 200 a14 14 0 0 1 28 0 Z" fill="var(--rhair)" stroke="#444" stroke-width="1"/>
+  <text class="XS" x="634" y="232" text-anchor="middle" style="fill:var(--dim)">FACE′</text>
+  <rect x="584" y="164" width="12" height="26" rx="2" fill="var(--rphone)" stroke="#444"/>
+  <path d="M948 130 a52 52 0 0 1 26 30" fill="none" stroke="var(--warn)" stroke-width="1.6"/>
+  <text class="W" x="944" y="124" text-anchor="end">yaw 31°</text>
+  <g class="XS">
+    <text x="825" y="380" text-anchor="middle" fill="var(--meas)">face inner edge crosses the frame edge</text>
+    <text x="825" y="400" text-anchor="middle" fill="var(--sel)">mirror-dominant · B E F</text>
+    <text x="825" y="420" text-anchor="middle" fill="var(--dim)">mirror 0.47 – 0.72 · no direct face at all</text>
+  </g>
+</svg>
+<svg viewBox="0 0 1120 470" role="img" aria-label="Pane architecture">
+  <rect x="40" y="30" width="230" height="410" rx="18" fill="#fff" stroke="var(--ink)" stroke-width="2"/>
+  <text class="S" x="40" y="22">PHONE · 393 pt</text>
+  <rect x="48" y="38" width="214" height="34" fill="var(--grid)"/>
+  <text class="XS" x="155" y="59" text-anchor="middle" style="fill:var(--ink)">DECLARE   SOLVE   STAGE</text>
+  <rect x="48" y="76" width="214" height="150" fill="#F7F9FA" stroke="var(--meas)" stroke-width="1.4"/>
+  <text class="M" x="155" y="146" text-anchor="middle">OUTPUT  2/5</text>
+  <text class="XS" x="155" y="164" text-anchor="middle">6 modes</text>
+  <rect x="48" y="230" width="214" height="14" fill="var(--grid)"/>
+  <text class="XS" x="155" y="240" text-anchor="middle" style="fill:var(--dim)">drag rail · detents · swap</text>
+  <rect x="48" y="248" width="214" height="128" fill="#FBFAF7" stroke="var(--sel)" stroke-width="1.4"/>
+  <text class="R" x="155" y="308" text-anchor="middle">INPUT  3/5</text>
+  <text class="XS" x="155" y="326" text-anchor="middle">5 modes</text>
+  <rect x="48" y="380" width="214" height="52" fill="var(--grid)"/>
+  <text class="XS" x="155" y="400" text-anchor="middle" style="fill:var(--ink)">selection dock</text>
+  <text class="XS" x="155" y="416" text-anchor="middle" style="fill:var(--dim)">one parameter row + status</text>
+  <rect x="330" y="30" width="470" height="410" rx="14" fill="#fff" stroke="var(--ink)" stroke-width="2"/>
+  <text class="S" x="330" y="22">TABLET · numbers permanent</text>
+  <rect x="338" y="38" width="454" height="30" fill="var(--grid)"/>
+  <text class="XS" x="565" y="57" text-anchor="middle" style="fill:var(--ink)">DECLARE   SOLVE   STAGE</text>
+  <rect x="338" y="74" width="150" height="358" fill="#FBFAF7" stroke="var(--sel)" stroke-width="1.4"/>
+  <text class="R" x="413" y="248" text-anchor="middle">NUMBERS</text>
+  <text class="XS" x="413" y="266" text-anchor="middle">always visible</text>
+  <rect x="494" y="74" width="140" height="358" fill="#FBFAF7" stroke="var(--sel)" stroke-width="1.4"/>
+  <text class="R" x="564" y="248" text-anchor="middle">VIEWPORT</text>
+  <rect x="640" y="74" width="152" height="358" fill="#F7F9FA" stroke="var(--meas)" stroke-width="1.4"/>
+  <text class="M" x="716" y="248" text-anchor="middle">OUTPUT</text>
+  <text class="XS" x="716" y="266" text-anchor="middle">full height</text>
+  <text class="H" x="850" y="52">OUTPUT MODES</text>
+  <g class="S" fill="var(--ink)">
+    <text x="850" y="78">FINAL CAMERA   ·   EXPORT_FINAL_CAMERA</text>
+    <text x="850" y="98">COMPOSITION    ·   EXPORT_COMPOSITION_OVERLAY</text>
+    <text x="850" y="118">MASK           ·   the palette render</text>
+    <text x="850" y="138">RECURSION      ·   EXPORT_REFERENCE_RENDER</text>
+    <text x="850" y="158">STAGING        ·   EXPORT_STAGING_PRESCRIPTION</text>
+    <text x="850" y="178" fill="var(--dim)">FULL SENSOR      diagnostic</text>
+  </g>
+  <text class="H" x="850" y="230">INPUT MODES</text>
+  <g class="S" fill="var(--ink)">
+    <text x="850" y="256">VIEWPORT   ·   3D, pose and apparatus</text>
+    <text x="850" y="276">NUMBERS    ·   spherical joints, frames</text>
+    <text x="850" y="296">PLAN       ·   mirror geometry + balance</text>
+    <text x="850" y="316">ELEVATION  ·   aperture visibility</text>
+    <text x="850" y="336">FEASIBLE   ·   the reachable set</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="850" y="382">Rooms become phases, not object</text>
+    <text x="850" y="400">categories. Recursion is an output</text>
+    <text x="850" y="418">mode, not a room.</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D26</td><td><b>One scene, many representational views</b><br><span class="sub">driver · edit in whichever representation makes the desired relationship clearest</span><br><span class="sub">preserve · one semantic scene</span><br><span class="sub">may move · variables declared by that interaction, not the view itself</span></td><td>every other view updates from the same effective state</td><td class="fail">independent diagrams/rigs drifting from one another. Views: 3D Pose, Camera, Front, Side, Top, Iso, Plan, Elevation, Reflection, Mask, Feasible, Recursion</td></tr>
+<tr><td class="id">D27</td><td><b>Whole-body editor ↔︎ Camera coexistence</b><br><span class="sub">driver · pose or apparatus manipulation, or tap the Camera inset</span><br><span class="sub">preserve · both views remain immediately available</span><br><span class="sub">may move · presentation layout only when swapping main/inset</span></td><td>actual physical Camera result updates continuously</td><td class="fail">camera hidden several tabs away; inset too small to judge; whole body pushed off-screen by mirror/phone/empty space</td></tr>
+<tr><td class="id">D28</td><td><b>Stable diagnostic projections</b><br><span class="sub">driver · select Front / Side / Top / Iso</span><br><span class="sub">preserve · scene and physical capture camera</span><br><span class="sub">may move · editor camera only</span></td><td>stable diagnostic view; selection remains registered</td><td class="fail">arbitrary perspective/worm’s-eye view labelled Front or Top . Controls: Fit Body, Fit Selection, Fit Apparatus</td></tr>
+<tr><td class="id">D29</td><td><b>Editor navigation versus physical HFOV</b><br><span class="sub">driver · editor orbit/pan/zoom or physical HFOV edit</span><br><span class="sub">preserve · strict separation of editor view and artwork camera optics</span><br><span class="sub">may move · editor camera for workspace navigation; physical camera only through explicit camera context</span></td><td>—</td><td class="fail">viewport zoom changes capture FOV. OPEN: source conflict remains over whether pinch-inside-Camera should change HFOV or HFOV should avoid pinch due to browser/zoom ambiguity. Requirement that HFOV be explicit and not conflated with editor zoom is resolved; exact touch gesture is not</td></tr>
+<tr><td class="id">D30</td><td><b>Camera-space direct manipulation</b><br><span class="sub">driver · drag a visible head/body/phone/mirror/crop/composition target in Camera space</span><br><span class="sub">preserve · selected hard relationships and physical constraints</span><br><span class="sub">may move · declared scene variables</span></td><td>inverse solve updates 3D scene; Camera-space target moves toward requested location</td><td class="fail">literally translate rendered pixels or use crop to fake missing internal landmark spacing</td></tr>
+<tr><td class="id">D31</td><td><b>Crop and outer-frame framing</b><br><span class="sub">driver · pan/scale final crop/frame</span><br><span class="sub">preserve · calibrated physical camera model and internal scene relationships</span><br><span class="sub">may move · post-projection framing variables only</span></td><td>final camera composition and all post-crop residual/target measures</td><td class="fail">crop used to fix head-phone spacing or other upstream layout error</td></tr>
+<tr><td class="id">D32</td><td><b>Composition overlays and measurements</b><br><span class="sub">driver · enable relevant overlay or select target</span><br><span class="sub">preserve · scene; overlays are derived. Derived families: grid, bbox, centroid, measure, perspective/apparatus, correspondence, visibility, recursion, distortion</span></td><td>only overlays relevant to current task/selection; exact values secondary</td><td class="fail">overlays become independent geometry or all remain permanently on-screen</td></tr>
+<tr><td class="id">D33</td><td><b>Snapping</b><br><span class="sub">driver · move/rotate target with snap OFF / SOFT / HARD</span><br><span class="sub">preserve · semantic coordinate-space provenance</span><br><span class="sub">may move · current authored target only. Candidate snap families: canonical grid, angles, ratios, landmarks, pixels, projective/correspondence features</span></td><td>compact snap status + provenance when active</td><td class="fail">snap occurs with no indication of which coordinate space/feature caused it</td></tr>
+</table>
+<h2 id="g7">7 · Reference And Evidence <span class="count">6 requirements</span></h2>
+<div class="outcome"><b>A reference is evidence with provenance, not a background image.</b><p>Load a source, declare what was observed, compare part by part against a mask render, and see where the reconstruction is wrong and by how much. Observed, inferred and assumed never look the same on screen.</p></div>
+<svg viewBox="0 0 1120 470" role="img" aria-label="Mask mode and IoU">
+  <line x1="740" y1="28" x2="740" y2="442" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">REFERENCE</text>
+  <text class="H" x="270" y="26">MASK RENDER</text>
+  <text class="H" x="500" y="26">DIFF</text>
+  <text class="H" x="770" y="26">PER-PART IoU</text>
+  <defs>
+    <clipPath id="mA"><rect x="40" y="44" width="180" height="240"/></clipPath>
+    <clipPath id="mB"><rect x="270" y="44" width="180" height="240"/></clipPath>
+    <clipPath id="mC"><rect x="500" y="44" width="180" height="240"/></clipPath>
+  </defs>
+  <rect x="40" y="44" width="180" height="240" fill="#EFEDE7"/>
+  <g clip-path="url(#mA)">
+    <rect x="70" y="70" width="86" height="128" fill="#8E969B"/>
+    <use href="#frontR" transform="translate(126,196) scale(0.34,0.34)"/>
+    <use href="#front" transform="translate(152,700) scale(1.78,1.78)"/>
+  </g>
+  <rect x="40" y="44" width="180" height="240" fill="none" stroke="var(--ink)" stroke-width="1.3"/>
+  <rect x="270" y="44" width="180" height="240" fill="#EFEDE7"/>
+  <g clip-path="url(#mB)">
+    <rect x="303" y="76" width="86" height="128" fill="#8E969B"/>
+    <use href="#frontR" transform="translate(357,200) scale(0.32,0.32)"/>
+    <use href="#front" transform="translate(378,690) scale(1.70,1.70)"/>
+  </g>
+  <rect x="270" y="44" width="180" height="240" fill="none" stroke="var(--ink)" stroke-width="1.3"/>
+  <rect x="500" y="44" width="180" height="240" fill="#FBFAF7"/>
+  <g clip-path="url(#mC)">
+    <rect x="530" y="70" width="86" height="128" fill="var(--bad)" opacity=".34"/>
+    <rect x="533" y="76" width="86" height="128" fill="var(--good)" opacity=".34"/>
+    <circle cx="612" cy="196" r="34" fill="var(--bad)" opacity=".34"/>
+    <circle cx="608" cy="202" r="32" fill="var(--good)" opacity=".34"/>
+  </g>
+  <rect x="500" y="44" width="180" height="240" fill="none" stroke="var(--ink)" stroke-width="1.3"/>
+  <text class="XS" x="500" y="300" style="fill:var(--bad)">red · missing</text>
+  <text class="XS" x="600" y="300" style="fill:var(--good)">green · excess</text>
+
+  <g class="S">
+    <text x="770" y="62" fill="var(--ink)">mirror aperture</text><rect x="920" y="52" width="120" height="12" fill="var(--faint)"/><rect x="920" y="52" width="113" height="12" fill="var(--good)"/><text x="1076" y="62" fill="var(--ink)" text-anchor="end">.94</text>
+    <text x="770" y="88" fill="var(--ink)">direct hair</text><rect x="920" y="78" width="120" height="12" fill="var(--faint)"/><rect x="920" y="78" width="106" height="12" fill="var(--good)"/><text x="1076" y="88" fill="var(--ink)" text-anchor="end">.88</text>
+    <text x="770" y="114" fill="var(--ink)">direct face</text><rect x="920" y="104" width="120" height="12" fill="var(--faint)"/><rect x="920" y="104" width="98" height="12" fill="var(--good)"/><text x="1076" y="114" fill="var(--ink)" text-anchor="end">.82</text>
+    <text x="770" y="140" fill="var(--ink)">reflected torso</text><rect x="920" y="130" width="120" height="12" fill="var(--faint)"/><rect x="920" y="130" width="73" height="12" fill="var(--warn)"/><text x="1076" y="140" fill="var(--ink)" text-anchor="end">.61</text>
+    <text x="770" y="166" fill="var(--ink)">reflected legs</text><rect x="920" y="156" width="120" height="12" fill="var(--faint)"/><rect x="920" y="156" width="65" height="12" fill="var(--warn)"/><text x="1076" y="166" fill="var(--ink)" text-anchor="end">.54</text>
+    <text x="770" y="192" fill="var(--ink)">reflected phone</text><rect x="920" y="182" width="120" height="12" fill="var(--faint)"/><rect x="920" y="182" width="37" height="12" fill="var(--bad)"/><text x="1076" y="192" fill="var(--ink)" text-anchor="end">.31</text>
+  </g>
+  <text class="H" x="770" y="236">WEIGHTED, NOT SUMMED</text>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="260">Far DOF limit at a = 0.368 is 0.59 m.</text>
+    <text x="770" y="278">The reflection sits at 2.74 m, so it</text>
+    <text x="770" y="296">renders about 2.2 px softer in a</text>
+    <text x="770" y="314">1170 px frame.</text>
+    <text x="770" y="340" fill="var(--dim)">Reflected residuals carry less</text>
+    <text x="770" y="358" fill="var(--dim)">information and should carry less</text>
+    <text x="770" y="376" fill="var(--dim)">weight. The reflected phone is the</text>
+    <text x="770" y="394" fill="var(--dim)">exception: tiny, but it fixes four</text>
+    <text x="770" y="412" fill="var(--dim)">of the mirror's six DOF.</text>
+  </g>
+</svg>
+<svg viewBox="0 0 1120 460" role="img" aria-label="A to I occupancy chart">
+  <line x1="740" y1="28" x2="740" y2="432" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">OCCUPANCY BY PANEL</text>
+  <text class="H" x="770" y="26">STRUCTURE</text>
+  <line x1="120" y1="392" x2="700" y2="392" stroke="var(--ink)" stroke-width="1.2"/>
+  <line x1="120" y1="60" x2="120" y2="392" stroke="var(--ink)" stroke-width="1.2"/>
+  <g stroke="var(--grid)"><line x1="120" y1="309" x2="700" y2="309"/><line x1="120" y1="226" x2="700" y2="226"/><line x1="120" y1="143" x2="700" y2="143"/><line x1="120" y1="60" x2="700" y2="60"/></g>
+  <g class="XS" fill="var(--dim)">
+    <text x="112" y="396" text-anchor="end">0</text><text x="112" y="313" text-anchor="end">0.25</text>
+    <text x="112" y="230" text-anchor="end">0.50</text><text x="112" y="147" text-anchor="end">0.75</text>
+  </g>
+  <!-- bars: x per panel 60 wide -->
+  <g>
+    <!-- A -->
+    <rect x="132" y="341" width="16" height="51" fill="var(--mir)"/><rect x="150" y="199" width="16" height="193" fill="var(--torso)" opacity=".55"/><rect x="168" y="388" width="16" height="4" fill="var(--rtorso)"/>
+    <text class="XS" x="158" y="410" text-anchor="middle" style="fill:var(--ink)">A</text>
+    <!-- B -->
+    <rect x="196" y="235" width="16" height="157" fill="var(--mir)"/><rect x="214" y="296" width="16" height="96" fill="var(--torso)" opacity=".55"/><rect x="232" y="391" width="16" height="1" fill="var(--rtorso)"/>
+    <text class="XS" x="222" y="410" text-anchor="middle" style="fill:var(--ink)">B</text>
+    <!-- C -->
+    <rect x="260" y="371" width="16" height="21" fill="var(--mir)"/><rect x="278" y="184" width="16" height="208" fill="var(--torso)" opacity=".55"/><rect x="296" y="387" width="16" height="5" fill="var(--rtorso)"/>
+    <text class="XS" x="286" y="410" text-anchor="middle" style="fill:var(--ink)">C</text>
+    <!-- D -->
+    <rect x="324" y="275" width="16" height="117" fill="var(--mir)"/><rect x="342" y="319" width="16" height="73" fill="var(--torso)" opacity=".55"/><rect x="360" y="327" width="16" height="65" fill="var(--rtorso)"/>
+    <text class="XS" x="350" y="410" text-anchor="middle" style="fill:var(--ink)">D</text>
+    <!-- E -->
+    <rect x="388" y="155" width="16" height="237" fill="var(--mir)"/><rect x="406" y="346" width="16" height="46" fill="var(--torso)" opacity=".55"/><rect x="424" y="355" width="16" height="37" fill="var(--rtorso)"/>
+    <text class="XS" x="414" y="410" text-anchor="middle" style="fill:var(--ink)">E</text>
+    <!-- F -->
+    <rect x="452" y="207" width="16" height="185" fill="var(--mir)"/><rect x="470" y="302" width="16" height="90" fill="var(--torso)" opacity=".55"/><rect x="488" y="368" width="16" height="24" fill="var(--rtorso)"/>
+    <text class="XS" x="478" y="410" text-anchor="middle" style="fill:var(--ink)">F</text>
+    <!-- G -->
+    <rect x="516" y="287" width="16" height="105" fill="var(--mir)"/><rect x="534" y="358" width="16" height="34" fill="var(--torso)" opacity=".55"/><rect x="552" y="389" width="16" height="3" fill="var(--rtorso)"/>
+    <text class="XS" x="542" y="410" text-anchor="middle" style="fill:var(--ink)">G</text>
+    <!-- H -->
+    <rect x="580" y="355" width="16" height="37" fill="var(--mir)"/><rect x="598" y="169" width="16" height="223" fill="var(--torso)" opacity=".55"/><rect x="616" y="379" width="16" height="13" fill="var(--rtorso)"/>
+    <text class="XS" x="606" y="410" text-anchor="middle" style="fill:var(--ink)">H</text>
+    <!-- I -->
+    <rect x="644" y="316" width="16" height="76" fill="var(--mir)"/><rect x="662" y="226" width="16" height="166" fill="var(--torso)" opacity=".55"/><rect x="680" y="378" width="16" height="14" fill="var(--rtorso)"/>
+    <text class="XS" x="670" y="410" text-anchor="middle" style="fill:var(--ink)">I</text>
+  </g>
+  <g class="XS">
+    <rect x="132" y="40" width="10" height="10" fill="var(--mir)"/><text x="148" y="49" fill="var(--ink)">mirror</text>
+    <rect x="210" y="40" width="10" height="10" fill="var(--torso)" opacity=".55"/><text x="226" y="49" fill="var(--ink)">direct body</text>
+    <rect x="318" y="40" width="10" height="10" fill="var(--rtorso)"/><text x="334" y="49" fill="var(--ink)">reflected body</text>
+  </g>
+  <text class="S" x="410" y="438" text-anchor="middle">panel</text>
+
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="58">Three regimes fall straight out of the</text>
+    <text x="770" y="76">measurement, no interpretation needed.</text>
+  </g>
+  <g class="S">
+    <text x="770" y="112" fill="var(--sel)" font-weight="600">DIRECT-DOMINANT   A · C · H · I</text>
+    <text x="770" y="130" fill="var(--dim)">direct body over 0.50, mirror under 0.25,</text>
+    <text x="770" y="148" fill="var(--dim)">D:R ratio 12 to 55 ×</text>
+    <text x="770" y="184" fill="var(--meas)" font-weight="600">MIRROR-DOMINANT   B · E · F</text>
+    <text x="770" y="202" fill="var(--dim)">mirror 0.47 to 0.72, no direct face at all,</text>
+    <text x="770" y="220" fill="var(--dim)">same station, roughly 31 deg of camera yaw</text>
+    <text x="770" y="256" fill="var(--good)" font-weight="600">BALANCED   D</text>
+    <text x="770" y="274" fill="var(--dim)">D:R 1.1. G is the outlier at 0.56 wall,</text>
+    <text x="770" y="292" fill="var(--dim)">so it is mostly room, not a portrait</text>
+  </g>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="332" font-weight="600">D is the calibration panel.</text>
+    <text x="770" y="352" fill="var(--dim)">Direct and reflected bodies are within 10%</text>
+    <text x="770" y="370" fill="var(--dim)">of each other, so both scale observables</text>
+    <text x="770" y="388" fill="var(--dim)">are strong. Solve m twice, independently,</text>
+    <text x="770" y="406" fill="var(--dim)">and require agreement.</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D34</td><td><b>Private reference load and underlay</b><br><span class="sub">driver · load local/private source and adjust opacity/mode</span><br><span class="sub">preserve · privacy; reference is not public fixture data by default</span><br><span class="sub">may move · workspace/reference-display state. Modes: source-only, render-only, overlay, landmark-only, silhouette-only, mirror/phone-only</span></td><td>opacity accessible without leaving the working pose/scene cont</td><td class="fail">identifiable source committed to public repo/CDN as a requirement for operation</td></tr>
+<tr><td class="id">D35</td><td><b>Reference observation / annotation</b><br><span class="sub">driver · place/refine semantic landmarks and masks</span><br><span class="sub">preserve · source image and annotation provenance. Annotation states: observed, clipped, occluded, inferred, unresolved/alternative as appropriate</span></td><td>evidence objects with uncertainty, not scene objects</td><td class="fail">primitive stick-figure trace substitutes for actual mirror/body/phone structure</td></tr>
+<tr><td class="id">D36</td><td><b>Reference reconstruction loop</b><br><span class="sub">driver · choose/refine reference evidence or scene hypothesis</span><br><span class="sub">preserve · evidence uncertainty and alternative branches</span><br><span class="sub">may move · requested scene variables allowed by reconstruction transaction</span></td><td>one or more admissible 3D hypotheses → reprojection → residuals</td><td class="fail">lowest 2D residual presented as unique recovered 3D truth</td></tr>
+<tr><td class="id">D37</td><td><b>Semantic mask, silhouette and object-specific comparison</b><br><span class="sub">driver · render the current semantic evidence/output representation and compare it with the reference target type</span><br><span class="sub">preserve · reference annotations as evidence; metric semantics are object-specific</span></td><td>body-region IoU/contour/landmarks, hair boundary displacement, head/face bbox-centroid-silhouette measures, mirror polygon residual, phone/screen four-corner residual, P projective validity, crop margins and explicit relative-layout vectors</td><td class="fail">use one universal score for every object. A tiny screen can suffer a large IoU change from a few pixels while its four-corner geometry remains the meaningful measurement</td></tr>
+<tr><td class="id">D38</td><td><b>Landmark residuals and uncertainty</b><br><span class="sub">driver · compare reference landmarks to effective reprojection</span><br><span class="sub">preserve · named semantic identity and uncertainty radius/class</span></td><td>paired residual vectors in the appropriate image space</td><td class="fail">raw internal constraint IDs in artist-facing UI or false pixel-perfect precision for occluded/inferred points</td></tr>
+<tr><td class="id">D39</td><td><b>Composition-family semantics</b><br><span class="sub">driver · choose/reference a composition family or author an original composition</span><br><span class="sub">preserve · per-part visibility intent and source-specific target structure</span></td><td>different foreground face prominence, mirror-edge crossings, direct/reflected overlap, phone placement and pose families</td><td class="fail">universal target coordinate or universal “clear mirror” rule</td></tr>
+</table>
+<h2 id="g8">8 · Solving, Locks And Explainability <span class="count">6 requirements</span></h2>
+<div class="outcome"><b>The solver negotiates out loud.</b><p>Every edit is a transaction with a named driver, preserved relations, a solve mask and a result. When a request cannot be met it is projected to the nearest feasible state and the displacement and the binding constraint are both shown.</p></div>
+<svg viewBox="0 0 1120 500">
+  <line x1="740" y1="28" x2="740" y2="472" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">FEASIBLE SET · m = 1.20</text>
+  <text class="H" x="770" y="26">READING IT</text>
+
+  <!-- plot x 130..660, y 96..410 ; a 0.20-0.70 -> x = 130+(a-.2)*1060 ; e 0-0.32 -> y = 410-e*981 -->
+  <rect x="130" y="96" width="530" height="314" fill="#fff"/>
+  <g stroke="var(--grid)" stroke-width="1">
+    <line x1="236" y1="96" x2="236" y2="410"/><line x1="342" y1="96" x2="342" y2="410"/>
+    <line x1="448" y1="96" x2="448" y2="410"/><line x1="554" y1="96" x2="554" y2="410"/>
+    <line x1="130" y1="116" x2="660" y2="116"/><line x1="130" y1="214" x2="660" y2="214"/><line x1="130" y1="312" x2="660" y2="312"/>
+  </g>
+
+  <!-- eclipsed region under the clearance curve -->
+  <path d="M130 286 L236 284 L342 280 L448 276 L554 268 L660 263 L660 410 L130 410 Z" fill="var(--bad)" opacity=".10"/>
+  <!-- abduction ceiling -->
+  <path d="M130 96 L660 96 L660 108 L130 114 Z" fill="var(--warn)" opacity=".16"/>
+  <!-- same-side-only strip -->
+  <path d="M480 112 L554 110 L554 269 L480 275 Z" fill="var(--warn)" opacity=".16"/>
+  <!-- reach fail -->
+  <rect x="554" y="96" width="106" height="314" fill="var(--bad)" opacity=".16"/>
+  <!-- feasible, following the curve exactly -->
+  <path d="M183 285 L236 284 L342 280 L448 276 L480 275 L480 112 L183 114 Z" fill="var(--good)" opacity=".18"/>
+
+  <!-- iso-R -->
+  <g stroke="var(--meas)" stroke-width=".9" stroke-dasharray="2 4">
+    <line x1="236" y1="114" x2="236" y2="410"/><line x1="342" y1="114" x2="342" y2="410"/><line x1="448" y1="114" x2="448" y2="410"/>
+  </g>
+
+  <!-- boundaries -->
+  <path d="M130 286 L236 284 L342 280 L448 276 L554 268 L660 263" fill="none" stroke="var(--bad)" stroke-width="2.2"/>
+  <line x1="480" y1="96" x2="480" y2="410" stroke="var(--warn)" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <line x1="554" y1="96" x2="554" y2="410" stroke="var(--bad)" stroke-width="2.2"/>
+  <line x1="183" y1="96" x2="183" y2="410" stroke="var(--warn)" stroke-width="1.6" stroke-dasharray="4 4"/>
+  <line x1="130" y1="114" x2="660" y2="108" stroke="var(--warn)" stroke-width="1.6" stroke-dasharray="4 4"/>
+
+  <!-- axes -->
+  <line x1="130" y1="410" x2="660" y2="410" stroke="var(--ink)" stroke-width="1.3"/>
+  <line x1="130" y1="96" x2="130" y2="410" stroke="var(--ink)" stroke-width="1.3"/>
+  <g class="XS" fill="var(--dim)">
+    <text x="130" y="428" text-anchor="middle">0.20</text><text x="236" y="428" text-anchor="middle">0.30</text>
+    <text x="342" y="428" text-anchor="middle">0.40</text><text x="448" y="428" text-anchor="middle">0.50</text>
+    <text x="554" y="428" text-anchor="middle">0.60</text><text x="660" y="428" text-anchor="middle">0.70</text>
+    <text x="122" y="414" text-anchor="end">0</text><text x="122" y="316" text-anchor="end">0.10</text>
+    <text x="122" y="218" text-anchor="end">0.20</text><text x="122" y="120" text-anchor="end">0.30</text>
+  </g>
+  <text class="S" x="395" y="452" text-anchor="middle">a · arm extension, face to camera (m)</text>
+  <text class="S" x="62" y="253" text-anchor="middle" transform="rotate(-90 62 253)">e · perpendicular offset (m)</text>
+
+  <!-- boundary callouts: one band, ticks down, no overlaps -->
+  <g stroke="var(--warn)" stroke-width=".8">
+    <line x1="183" y1="72" x2="183" y2="94"/><line x1="480" y1="72" x2="480" y2="94"/>
+  </g>
+  <line x1="554" y1="56" x2="554" y2="94" stroke="var(--bad)" stroke-width=".8"/>
+  <text class="XS" x="183" y="66" text-anchor="middle" style="fill:var(--warn)">elbow in</text>
+  <text class="XS" x="480" y="66" text-anchor="middle" style="fill:var(--warn)">cross-body limit</text>
+  <text class="XS" x="554" y="50" text-anchor="middle" style="fill:var(--bad)">same-side limit</text>
+  <text class="XS" x="656" y="128" text-anchor="end" style="fill:var(--warn)">shoulder abduction ceiling</text>
+
+  <!-- in-plot labels, verified clear zones -->
+  <text class="G" x="330" y="180" text-anchor="middle" font-size="12">FEASIBLE</text>
+  <text class="G" x="330" y="196" text-anchor="middle" font-size="9">both hands</text>
+  <text class="B" x="300" y="370" text-anchor="middle">reflection eclipsed by the direct head</text>
+  <text class="XS" x="300" y="386" text-anchor="middle" style="fill:var(--bad)">e/r &lt; 1 + a/2m</text>
+  <text class="W" x="517" y="186" text-anchor="middle" font-size="8.5">same</text>
+  <text class="W" x="517" y="198" text-anchor="middle" font-size="8.5">side</text>
+  <text class="W" x="517" y="210" text-anchor="middle" font-size="8.5">only</text>
+  <text class="B" x="607" y="380" text-anchor="middle" font-size="8.5">beyond</text>
+  <text class="B" x="607" y="392" text-anchor="middle" font-size="8.5">reach</text>
+  <g class="M" font-size="8.5">
+    <text x="240" y="150">R 9.0</text><text x="346" y="150">R 7.0</text><text x="452" y="150">R 5.8</text>
+  </g>
+
+  <!-- current point, label above-left in clear green space -->
+  <circle cx="308" cy="271" r="5.5" fill="var(--sel)"/>
+  <circle cx="308" cy="271" r="11" fill="none" stroke="var(--sel)" stroke-width="1.2"/>
+  <line x1="308" y1="260" x2="308" y2="238" stroke="var(--sel)" stroke-width=".9"/>
+  <text class="R" x="308" y="232" text-anchor="middle" font-size="9">a 0.368 · e 0.140</text>
+  <text class="R" x="308" y="221" text-anchor="middle" font-size="9">clearance 1.24°</text>
+
+  <!-- gutter -->
+  <text class="R" x="770" y="62">you are here</text>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="84">a 0.368   e 0.140   R 7.46</text>
+    <text x="770" y="102" fill="var(--bad)">clearance 1.24° — marginal</text>
+    <text x="770" y="120" fill="var(--dim)">2 cm more offset would be comfortable</text>
+  </g>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="160">Blue dashes are iso-R at m = 1.20.</text>
+    <text x="770" y="178">Right lowers the ratio and flattens</text>
+    <text x="770" y="196">the near face. Up buys clearance at</text>
+    <text x="770" y="214">the cost of shoulder abduction.</text>
+  </g>
+  <text class="H" x="770" y="252">THE FLOOR IS FLAT</text>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="276">e must exceed 0.13 to 0.15 m almost</text>
+    <text x="770" y="294">regardless of a. Hold the phone at</text>
+    <text x="770" y="312">least a hand's width off the face</text>
+    <text x="770" y="330">axis, always.</text>
+  </g>
+  <text class="H" x="770" y="368">HANDEDNESS</text>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="392">Crossing the body costs 6 to 8 cm of</text>
+    <text x="770" y="410">reach: the whole difference between</text>
+    <text x="770" y="428">a = 0.53 and a = 0.60 being available.</text>
+  </g>
+  <text class="S" x="770" y="462" style="fill:var(--dim)">The nine references plot as nine dots.</text>
+</svg>
+<svg viewBox="0 0 1120 340" role="img" aria-label="Transaction card grammar">
+  <line x1="620" y1="28" x2="620" y2="312" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">EVERY EDIT IS A TRANSACTION</text>
+  <text class="H" x="650" y="26">RENDERED AS A CARD</text>
+  <line x1="40" y1="44" x2="580" y2="44" stroke="var(--faint)"/>
+  <g class="S">
+    <text x="40" y="66" style="fill:var(--ink)">DRIVER</text><text x="212" y="66" style="fill:var(--dim)">what the artist touched</text>
+    <text x="40" y="92" style="fill:var(--ink)">PRESERVE</text><text x="212" y="92" style="fill:var(--dim)">declared relations held fixed</text>
+    <text x="40" y="118" style="fill:var(--ink)">ALLOWED TO MOVE</text><text x="212" y="118" style="fill:var(--dim)">the solve mask</text>
+    <text x="40" y="144" style="fill:var(--ink)">DERIVED</text><text x="212" y="144" style="fill:var(--dim)">everything recomputed</text>
+    <text x="40" y="170" style="fill:var(--ink)">RESULT</text><text x="212" y="170" style="fill:var(--dim)">requested vs effective</text>
+    <text x="40" y="196" style="fill:var(--ink)">FAILURE</text><text x="212" y="196" style="fill:var(--dim)">the named anti-pattern</text>
+  </g>
+  <line x1="40" y1="212" x2="580" y2="212" stroke="var(--faint)"/>
+  <g class="S" fill="var(--dim)">
+    <text x="40" y="234">Five slots, one grammar, every dynamic.</text>
+    <text x="40" y="252">A lock is not a checkbox, it is an entry</text>
+    <text x="40" y="270">in PRESERVE. A compensation is not a</text>
+    <text x="40" y="288">toast, it is a difference in RESULT.</text>
+  </g>
+
+  <rect x="650" y="46" width="420" height="248" fill="#fff" stroke="var(--warn)" stroke-width="1.5" rx="6"/>
+  <rect x="650" y="46" width="420" height="28" fill="var(--warn)" rx="6"/>
+  <rect x="650" y="66" width="420" height="8" fill="var(--warn)"/>
+  <text class="XS" x="664" y="65" style="fill:#fff">MIRROR DISTANCE · SOLVER COMPENSATED</text>
+  <g class="S" fill="var(--ink)">
+    <text x="664" y="98">driver          you dragged the mirror</text>
+    <text x="664" y="120">preserve        reflected phone size · grip</text>
+    <text x="664" y="142">allowed         mirror normal distance</text>
+    <text x="664" y="164">derived         R, separation, aperture band</text>
+  </g>
+  <line x1="664" y1="180" x2="1056" y2="180" stroke="var(--faint)"/>
+  <g class="S">
+    <text x="664" y="202" fill="var(--dim)">requested</text><text x="1056" y="202" text-anchor="end" fill="var(--ink)">1.37 m</text>
+    <rect x="740" y="194" width="220" height="7" fill="var(--faint)"/><rect x="740" y="194" width="220" height="7" fill="var(--ink)"/>
+    <text x="664" y="226" fill="var(--dim)">effective</text><text x="1056" y="226" text-anchor="end" fill="var(--warn)">0.41 m</text>
+    <rect x="740" y="218" width="220" height="7" fill="var(--faint)"/><rect x="740" y="218" width="66" height="7" fill="var(--warn)"/>
+  </g>
+  <g class="XS" fill="var(--dim)"><text x="664" y="248">holding the reflected phone at its locked size</text></g>
+  <g>
+    <rect x="664" y="258" width="124" height="26" rx="5" fill="var(--ink)"/><text class="XS" x="726" y="275" text-anchor="middle" style="fill:#fff">KEEP 0.41</text>
+    <rect x="798" y="258" width="124" height="26" rx="5" fill="none" stroke="var(--ink)"/><text class="XS" x="860" y="275" text-anchor="middle" style="fill:var(--ink)">RELEASE LOCK</text>
+    <rect x="932" y="258" width="124" height="26" rx="5" fill="none" stroke="var(--ink)"/><text class="XS" x="994" y="275" text-anchor="middle" style="fill:var(--ink)">REVERT</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D40</td><td><b>Relationship locks</b><br><span class="sub">driver · lock/release a visual or physical relation. Examples: phone area, reflected body scale, mirror projected fraction, screen fraction, grip, support, reflected landmark position, same-anatomy scale, P validity</span><br><span class="sub">preserve · locked relation target/tolerance</span><br><span class="sub">may move · explicitly declared owner variables</span></td><td>constraint network is re-solved</td><td class="fail">lock presented as a mysterious global pill or duplicate scalar DOF</td></tr>
+<tr><td class="id">D41</td><td><b>Unreachable request projection</b><br><span class="sub">driver · drag or request beyond the feasible region</span><br><span class="sub">preserve · hard constraints and the authored requested target</span><br><span class="sub">may move · only declared variables</span></td><td>The request is projected to the closest valid state, or reported as FAIL when no projection exists. Requested ghost, effective solid, residual vector and the limiting boundary are all drawn.</td><td class="fail">Silently clamping to the nearest valid value, so the artist sees the control stop moving and cannot tell whether they hit a limit or the tool broke.</td></tr>
+<tr><td class="id">D42</td><td><b>Automatic compensation</b><br><span class="sub">driver · edit one variable while preserving a relationship, e.g. phone move while reflected screen area is locked</span><br><span class="sub">preserve · relationship lock</span><br><span class="sub">may move · e.g. mirror normal distance if declared</span></td><td>compensated effective state</td><td class="fail">overwrite requested value with effective value and show only a fleeting toast</td></tr>
+<tr><td class="id">D43</td><td><b>Feasible-set exploration</b><br><span class="sub">driver · open feasible view or inspect a constrained selected object</span><br><span class="sub">preserve · current active constraints</span></td><td>region/intersection of valid states rather than only current point</td><td class="fail">binary “valid/invalid” where nearby choices matter</td></tr>
+<tr><td class="id">D44</td><td><b>Numeric precision</b><br><span class="sub">driver · tap visible value/measurement or choose Precise</span><br><span class="sub">preserve · main viewport layout</span><br><span class="sub">may move · one semantic value/target per commit</span></td><td>same normal transaction pathway as direct manipulation</td><td class="fail">persistent forms displace the visual scene or bypass solver semantics</td></tr>
+<tr><td class="id">D45</td><td><b>Epistemic/calibration propagation</b><br><span class="sub">driver · declare a measurement, calibrate optics/device/body, or inspect a result</span><br><span class="sub">preserve · provenance of every quantity</span><br><span class="sub">states · measured, calibrated, derived, constrained, free, empirical, reference-derived, hypothesis, provisional, unresolved</span></td><td>uncertainty of dependent absolute distances and staging outputs</td><td class="fail">one measured phone dimension automatically portrayed as making every scene distance certain</td></tr>
+</table>
+<h2 id="g9">9 · Recursion · P And Q <span class="count">5 requirements</span></h2>
+<div class="outcome"><b>The screen is a projective quadrilateral and its content is authored separately.</b><p>P is where the recursive image physically lands, derived from four world screen corners. Q is authored independently and mapped into P. The tool never claims the recursion is what the camera would record.</p></div>
+<svg viewBox="0 0 1120 450" role="img" aria-label="Screen quad P and content Q">
+  <line x1="740" y1="28" x2="740" y2="422" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">P AND Q ARE DIFFERENT OBJECTS</text>
+  <text class="H" x="770" y="26">CONSEQUENCES</text>
+
+  <!-- world screen -->
+  <text class="XS" x="120" y="58" style="fill:var(--dim)">phone-local S₁..S₄</text>
+  <g transform="translate(120,150) rotate(-14)">
+    <rect x="-30" y="-62" width="60" height="124" fill="#BBD4FF" opacity=".45" stroke="var(--meas)" stroke-width="1.6"/>
+    <circle cx="-30" cy="-62" r="4" fill="var(--meas)"/><circle cx="30" cy="-62" r="4" fill="var(--meas)"/>
+    <circle cx="30" cy="62" r="4" fill="var(--meas)"/><circle cx="-30" cy="62" r="4" fill="var(--meas)"/>
+  </g>
+  <text class="XS" x="120" y="248" text-anchor="middle" style="fill:var(--ink)">T_phone</text>
+  <path d="M180 150 L250 150" stroke="var(--dim)" stroke-width="1" marker-end="url(#ar3)"/>
+  <defs><marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 z" fill="var(--dim)"/></marker></defs>
+  <text class="XS" x="215" y="142" text-anchor="middle" style="fill:var(--dim)">Π_C</text>
+
+  <!-- image frame with P as a projective quad -->
+  <rect x="270" y="60" width="200" height="266" fill="#FBFAF7" stroke="var(--ink)" stroke-width="1.5"/>
+  <text class="XS" x="270" y="52" style="fill:var(--dim)">final camera frame</text>
+  <path d="M352 148 L410 138 L418 214 L346 208 Z" fill="#BBD4FF" opacity=".5" stroke="var(--meas)" stroke-width="2"/>
+  <g fill="var(--meas)"><circle cx="352" cy="148" r="3.6"/><circle cx="410" cy="138" r="3.6"/><circle cx="418" cy="214" r="3.6"/><circle cx="346" cy="208" r="3.6"/></g>
+  <text class="M" x="384" y="180" text-anchor="middle" font-size="9">P</text>
+  <text class="XS" x="370" y="346" text-anchor="middle" style="fill:var(--meas)">P = polygon(p₁..p₄), projective</text>
+
+  <!-- Q -->
+  <rect x="520" y="60" width="170" height="130" fill="#FBFAF7" stroke="var(--ink)" stroke-width="1.5"/>
+  <text class="XS" x="520" y="52" style="fill:var(--dim)">authored content Q</text>
+  <g stroke="var(--sel)" stroke-width="1.2" fill="none">
+    <rect x="540" y="78" width="130" height="94"/>
+    <line x1="540" y1="109" x2="670" y2="109"/><line x1="540" y1="141" x2="670" y2="141"/>
+    <line x1="583" y1="78" x2="583" y2="172"/><line x1="627" y1="78" x2="627" y2="172"/>
+  </g>
+  <path d="M605 200 L605 236" stroke="var(--dim)" stroke-width="1" marker-end="url(#ar3)"/>
+  <text class="XS" x="614" y="222" style="fill:var(--dim)">homography</text>
+  <!-- annulus -->
+  <rect x="520" y="248" width="170" height="120" fill="#FBFAF7" stroke="var(--ink)" stroke-width="1.5"/>
+  <path d="M520 248 h170 v120 h-170 z M578 292 h54 v40 h-54 z" fill="var(--warn)" opacity=".18" fill-rule="evenodd"/>
+  <rect x="578" y="292" width="54" height="40" fill="#fff" stroke="var(--meas)" stroke-width="1.4"/>
+  <text class="XS" x="605" y="316" text-anchor="middle" style="fill:var(--meas)">P</text>
+  <text class="XS" x="605" y="386" text-anchor="middle" style="fill:var(--warn)">annulus · doubly connected</text>
+
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="58">p_i = Π_C ( T_phone · S_i )</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="770" y="90">P is where the recursive image physically</text>
+    <text x="770" y="108">lands. It is a projective quadrilateral,</text>
+    <text x="770" y="126">not a square and not a scalar percent.</text>
+    <text x="770" y="158">Q is authored separately and mapped into</text>
+    <text x="770" y="176">P by homography. Container and content</text>
+    <text x="770" y="194">must never be one control.</text>
+  </g>
+  <text class="H" x="770" y="234">WHY THE TOPOLOGY MATTERS</text>
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="260">The region between the outer frame and</text>
+    <text x="770" y="278">P is an annulus. A point-fixed similarity</text>
+    <text x="770" y="296">is analytically tractable; a finite</text>
+    <text x="770" y="314">off-centre portal is a different problem.</text>
+  </g>
+  <g class="S" fill="var(--bad)">
+    <text x="770" y="352">At 70° HFOV the recursion scale per level</text>
+    <text x="770" y="370">is 0.016. Level 2 is 19 px in 1170.</text>
+    <text x="770" y="388">Level 3 does not exist. RECURSION is</text>
+    <text x="770" y="406">synthesis, not an optical prediction.</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D46</td><td><b>Physical P derivation</b><br><span class="sub">driver · any pose/phone/mirror/camera change</span><br><span class="sub">preserve · physical scene and screen geometry</span><br><span class="sub">may move · P is not user-edited in physical AUTO</span></td><td>valid reflected physical screen corners → image quadrilateral P. Validity: reflected screen must exist, face correctly, be within finite aperture, project to a usable convex/nondegenerate quad and satisfy configured homography/area conditions</td><td class="fail">invalid P disables/refuses recursion with explicit reason</td></tr>
+<tr><td class="id">D47</td><td><b>Authored Q</b><br><span class="sub">driver · drag/scale/rotate Q or change fill basis/content state</span><br><span class="sub">preserve · physical P</span><br><span class="sub">may move · Q only</span></td><td>recursive mapping/content insertion changes without pretending to alter the physical screen. Controls: scale, offset, rotation, width/height/area/contain/cover basis as explicitly chosen, q/n and optional fixed point/pole state</td><td class="fail">P and Q treated as one rectangle</td></tr>
+<tr><td class="id">D48</td><td><b>Point-loop preview versus finite-screen portal</b><br><span class="sub">driver · select preview/test mode</span><br><span class="sub">preserve · explicit mode identity</span></td><td>fast mathematical point-loop or physically exact finite-screen portal</td><td class="fail">UI implies they are the same map</td></tr>
+<tr><td class="id">D49</td><td><b>Generated-grid mathematical test source</b><br><span class="sub">driver · configure diagnostic grid and shrunk inset. Controls: major/minor divisions, line width, inset enabled, scale_x/y, offset_x/y, rotation, optional projective quad. Purpose: validate Print Gallery/loop maths independently of portrait content</span><br><span class="sub">preserve · —</span></td><td>deterministic source/output grid with exact inset transformation</td><td class="fail">hide this specialist need inside normal portrait pose UI</td></tr>
+<tr><td class="id">D50</td><td><b>Recursion certificates and warp diagnostics</b><br><span class="sub">driver · inspect recursive output or specialist warp. Derived statuses: exact/approx/projective/non-closing/fold-risk plus detailed residuals. Specialist maps: recursion levels, fixed point/pole, Jacobian determinant, anisotropy, foldover, seam, protected-region error, minification/LOD</span><br><span class="sub">preserve · —</span></td><td>small certificate in production; full maps in Specialist</td><td class="fail">broad theory occupies core product surface when it does not affect the current artistic decision</td></tr>
+</table>
+<h2 id="g10">10 · History, Staging, Privacy, Boundary <span class="count">7 requirements</span></h2>
+<div class="outcome"><b>Work is reversible and the result leaves the screen.</b><p>Gestures group into undoable transactions. Snapshots compare. The staging prescription prints metres and degrees a person can set, and refuses to print a number it cannot justify.</p></div>
+<svg viewBox="0 0 1120 380" role="img" aria-label="Staging prescription">
+  <line x1="740" y1="28" x2="740" y2="352" stroke="var(--faint)"/>
+  <text class="H" x="40" y="26">STAGING PRESCRIPTION</text>
+  <text class="H" x="400" y="26">FLOOR MARK</text>
+  <text class="H" x="770" y="26">WHY THIS EXISTS</text>
+
+  <rect x="40" y="44" width="310" height="290" fill="#fff" stroke="var(--ink)" stroke-width="1.5"/>
+  <rect x="40" y="44" width="310" height="30" fill="var(--ink)"/>
+  <text class="XS" x="54" y="64" style="fill:#fff">PANEL E · mirror-dominant, yawed 31 deg</text>
+  <g class="S" fill="var(--ink)">
+    <text x="58" y="102">stand      1.20 m from the mirror</text>
+    <text x="58" y="124">turn       12 deg left of square</text>
+    <text x="58" y="146">phone      0.34 m forward of the face</text>
+    <text x="58" y="168">           0.12 m above the eye line</text>
+    <text x="58" y="190">           0.08 m to the right</text>
+    <text x="58" y="212">hold       right hand, same side</text>
+    <text x="58" y="234">lens       front, 1x</text>
+    <text x="58" y="256">weight     left foot, right toe down</text>
+  </g>
+  <rect x="58" y="278" width="274" height="34" fill="var(--warn)" opacity=".16"/>
+  <text class="XS" x="70" y="299" style="fill:var(--warn)">distances +/-20% until the camera is calibrated</text>
+
+  <rect x="400" y="44" width="290" height="290" fill="#FBFAF7" stroke="var(--faint)"/>
+  <line x1="430" y1="80" x2="660" y2="80" stroke="var(--ink)" stroke-width="4"/>
+  <text class="XS" x="545" y="70" text-anchor="middle" style="fill:var(--ink)">MIRROR</text>
+  <line x1="545" y1="80" x2="545" y2="216" stroke="var(--dim)" stroke-width="1" stroke-dasharray="4 3"/>
+  <text class="XS" x="552" y="152" style="fill:var(--dim)">1.20 m</text>
+  <g transform="translate(545,224) rotate(12)">
+    <ellipse cx="-10" cy="0" rx="7" ry="15" fill="var(--p-legR)" stroke="#111"/>
+    <ellipse cx="10" cy="6" rx="7" ry="15" fill="var(--p-legL)" stroke="#111"/>
+  </g>
+  <circle cx="545" cy="224" r="4" fill="var(--sel)"/>
+  <line x1="545" y1="252" x2="545" y2="278" stroke="var(--sel)" stroke-width=".8"/>
+  <text class="R" x="545" y="292" text-anchor="middle" font-size="9">stand here · 12 deg</text>
+  <circle cx="590" cy="200" r="6" fill="var(--p-phone)" stroke="#111"/>
+  <line x1="598" y1="196" x2="632" y2="176" stroke="var(--dim)" stroke-width=".7"/>
+  <text class="XS" x="636" y="174" style="fill:var(--ink)">phone</text>
+
+  <g class="S" fill="var(--ink)">
+    <text x="770" y="60">The prescription is how the apparatus gets</text>
+    <text x="770" y="78">reproduced in a room. It is the only</text>
+    <text x="770" y="96">product that leaves the screen.</text>
+    <text x="770" y="130">Everything the tool computes is only</text>
+    <text x="770" y="148">useful if it survives the walk to the</text>
+    <text x="770" y="166">mirror. Metres and degrees a person can</text>
+    <text x="770" y="184">actually set, not solver state.</text>
+  </g>
+  <g class="S" fill="var(--ink)" font-weight="600">
+    <text x="770" y="222">Refuses to export while any printed</text>
+    <text x="770" y="240">distance is calibration-dependent.</text>
+  </g>
+  <g class="S" fill="var(--dim)">
+    <text x="770" y="276">Declaring one phone width, measured</text>
+    <text x="770" y="294">with a ruler, turns every hollow</text>
+    <text x="770" y="312">number solid.</text>
+  </g>
+</svg>
+<table class="req"><tr><th style="width:44px">id</th><th style="width:34%">requirement</th><th style="width:33%">wanted outcome</th><th>failure mode</th></tr>
+<tr><td class="id">D51</td><td><b>Undo/redo/history transaction</b><br><span class="sub">driver · one completed gesture or numeric commit</span><br><span class="sub">preserve · requested intent and transaction semantics</span></td><td>history stores authored/requested state sufficient to re-solve; derived meshes are not the authority</td><td class="fail">one drag generates dozens of undo steps or history restores stale derived geometry</td></tr>
+<tr><td class="id">D52</td><td><b>Pose snapshot versus scene snapshot versus compare</b><br><span class="sub">driver · save/restore/compare</span><br><span class="sub">preserve · explicit snapshot scope</span></td><td>restored snapshot becomes new requested state and re-solves</td><td class="fail">A–E display modes, pose slots and whole-scene variants treated as identical</td></tr>
+<tr><td class="id">D53</td><td><b>Image parity state graph</b><br><span class="sub">driver · mirror pose, physical reflection, preview flip, save/transmission transform</span><br><span class="sub">preserve · anatomical L/R identity</span></td><td>explicit image-state transition</td><td class="fail">one ambiguous flip boolean; phone/camera arm identity changes due to screen parity</td></tr>
+<tr><td class="id">D54</td><td><b>Staging prescription</b><br><span class="sub">driver · enter Stage or export staging</span><br><span class="sub">preserve · effective solved state and epistemic status. Derived output: mirror size/centre height, subject/mirror offsets, phone/camera placement, camera height, device/lens/capture mode, support/contact, critical tolerances and uncertainty</span></td><td>final Camera thumbnail + floor plan + elevation + concise setup card</td><td class="fail">output raw solver state or falsely precise uncalibrated dimensions</td></tr>
+<tr><td class="id">D55</td><td><b>Paint Guide / composition exports</b><br><span class="sub">driver · choose export product. Possible outputs: clean final camera raster; composition overlay; crop/grids/bboxes/landmarks; semantic masks; mirror/phone/P; ratios/residuals; recursion reference render; scene/target JSON with provenance; canvas-mm conversion when canvas dimensions are known</span><br><span class="sub">preserve · same governed effective state</span></td><td>—</td><td class="fail">export code invents independent maths or only emits a debug screenshot</td></tr>
+<tr><td class="id">D56</td><td><b>Private asset/provenance handling</b><br><span class="sub">driver · load/reference/export source assets</span><br><span class="sub">preserve · private source does not need public repo/CDN exposure. Requirements: local file or authenticated private asset; exports may record asset ID/hash; build identity includes APP/UI/CORE, commit/assets/known failures; errors rendered safely as text</span></td><td>provenance/build stamp in Inspect/export, not core viewport</td><td class="fail">arbitrary mutable @main loader or executable repo query parameter treated as trusted production origin</td></tr>
+<tr><td class="id">D57</td><td><b>UI/domain architecture boundary</b><br><span class="sub">driver · —</span><br><span class="sub">preserve · —</span></td><td>—</td><td class="fail">UI becomes a second solver/scene authority</td></tr>
+</table>
+
+<h2 id="acc">11 · Acceptance suite</h2>
+<div class="outcome"><b>Every invariant has a number and a file name.</b>
+<p>An assertion without a threshold is a slogan. The suite below is executable; the last row is a human gate because some failures are only visible.</p></div>
+<table class="req">
+<tr><th style="width:110px">id</th><th style="width:46%">assertion</th><th>threshold</th></tr>
+<tr><td class="id">ACC-RIG-01</td><td>every semantic joint resolves through GLTFLoader by <code>userData.name</code></td><td>24 / 24, boot throws otherwise</td></tr>
+<tr><td class="id">ACC-REG-01</td><td>rendered bone position against solver FK, all joints</td><td>&lt; 5 mm</td></tr>
+<tr><td class="id">ACC-REG-02</td><td>the same test on reflected presentations</td><td>&lt; 5 mm</td></tr>
+<tr><td class="id">ACC-REF-01</td><td>reflected skinned meshes use detached bind</td><td>Householder applies, asserted</td></tr>
+<tr><td class="id">ACC-REF-02</td><td>rendered aperture boundary against <code>finiteApertureTest</code></td><td>within a versioned tolerance ID</td></tr>
+<tr><td class="id">ACC-CAM-01</td><td>preview against export projection of the same landmark</td><td>&lt; 2 px in 1170</td></tr>
+<tr><td class="id">ACC-CAM-02</td><td>vfov = 2·atan((H/W)·tan(hfov/2))</td><td>exact</td></tr>
+<tr><td class="id">ACC-MSK-01</td><td>per-part IoU against the declared reference</td><td>per-part floor, versioned</td></tr>
+<tr><td class="id">ACC-FEA-01</td><td>current state lies inside the feasible region</td><td>boolean plus distance to the nearest boundary</td></tr>
+<tr><td class="id">ACC-PQ-01</td><td>screen quad passes all six gates</td><td>area, angle, footprint, conditioning, occlusion, bezel</td></tr>
+<tr><td class="id">ACC-EPI-01</td><td>staging export blocked while any printed distance is hollow</td><td>refuses</td></tr>
+<tr><td class="id">ACC-TXN-01</td><td>every edit produces one undoable transaction with a named driver</td><td>history depth matches gesture count</td></tr>
+<tr><td class="id">ACC-SHOT-01</td><td>four checked-in screenshots diffed per build</td><td>human review gate</td></tr>
+</table>
+
+<h2 id="ord">12 · Build order</h2>
+<div class="outcome"><b>Nothing downstream is judgeable while the rig and the reflection are broken.</b>
+<p>Phases 0 to 3 make the picture trustworthy. Only then is it worth arguing about docks and framing.</p></div>
+<table class="req">
+<tr><th style="width:44px">phase</th><th style="width:46%">work</th><th>gate</th></tr>
+<tr><td class="id">0</td><td>BoneIndex with a boot assertion, rig round-trip test, checked-in screenshot set</td><td>the rig test fails on the baseline for the right reason</td></tr>
+<tr><td class="id">1</td><td>G02 name lookup, drop the phantom spine joint, 24 symmetric pick targets</td><td>knee, left wrist and head all move the mesh</td></tr>
+<tr><td class="id">2</td><td>G01 detached bind, aperture clipping planes, reflected screen geometry</td><td>reflection inside the mirror, direct body no longer doubled</td></tr>
+<tr><td class="id">3</td><td>G03 correct vfov, render at crop aspect, editor layer off the capture camera</td><td>ACC-CAM-01 under 2 px</td></tr>
+<tr><td class="id">4</td><td>split main pane from editor view, six diagnostic views, framing policy</td><td>swapping panes preserves the view</td></tr>
+<tr><td class="id">5</td><td>transaction cards, occlusion intent, feasible panel</td><td>compensation never arrives as a toast</td></tr>
+<tr><td class="id">6</td><td>screen quad with a four-corner dragger and six gates, P and Q separated</td><td>the quad survives rotation off axis</td></tr>
+<tr><td class="id">7</td><td>mask render mode, per-part IoU, A–I extraction into fixtures</td><td>the nine panels plot on the feasible map</td></tr>
+</table>
+
+<h2 id="open">13 · Open decisions</h2>
+<div class="outcome"><b>Five disagreements, stated rather than averaged.</b>
+<p>Four of the five collapse the moment a phone width and a device HFOV are recorded as MEASURED. That is a ruler and a lens specification.</p></div>
+<table class="req">
+<tr><th style="width:22%">item</th><th style="width:26%">existing sources</th><th style="width:26%">this analysis</th><th>how to settle</th></tr>
+<tr><td>operating point</td><td>m 720 mm, a 430 mm, 55°, R about 4.3</td><td>m 1200 mm, a 368 mm, 70°, R 7.46</td><td>one measured phone width plus a device HFOV record</td></tr>
+<tr><td>phone scale f</td><td>0.08 alongside m = 720 mm</td><td>f = 0.08 implies c between 0.34 and 0.45 m</td><td>decide whether the sim sliders are solved or independent</td></tr>
+<tr><td>B, E, F topology</td><td>CAMERA_BETWEEN candidate</td><td>same station, about 31° of camera yaw</td><td>check whether any panel shows the phone's back</td></tr>
+<tr><td>P0 identity</td><td>fixture mirror occupancy 0.238</td><td>no panel matches; I is nearest at 0.228</td><td>state whether occupancy is silhouette area or bounding box</td></tr>
+<tr><td>head silhouette</td><td>not declared</td><td>clearance is 1.24° with hair, 4.24° without</td><td>declare the radius used for the head</td></tr>
+</table>
+</div></body></html>
