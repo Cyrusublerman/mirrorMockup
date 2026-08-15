@@ -14,9 +14,7 @@ import { TransactionCard } from "./hud/transaction_card.js";
 import { FeasiblePanel } from "./hud/feasible_panel.js";
 import { ElevationPanel } from "./hud/elevation_panel.js";
 import { InputModeStrip } from "./hud/input_mode_strip.js";
-import { hitScreenCorner } from "../domains/carrier_p/screen_quad.js";
-import { applyScreenCorner } from "./manipulators/screen_quad.js";
-import { FeasibleSet } from "../domains/apparatus/feasible_set.js";
+import { applyScreenCorner, hitScreenCorner } from "./manipulators/screen_quad.js";
 import { drawOverlays } from "./overlays/composition_overlay_stack.js";
 import { createReferenceLayer } from "./overlays/reference_layer.js";
 import { InsetInput } from "./viewport/artwork_camera_inset.js";
@@ -73,7 +71,6 @@ export async function bootUi(root, app) {
   const feasiblePanel = new FeasiblePanel();
   const elevationPanel = new ElevationPanel();
   const inputModes = new InputModeStrip();
-  const feasibleSet = new FeasibleSet();
   workspace.warp = app.getRequested().recursion.mode;
   workspace.q = app.getRequested().recursion.q;
   workspace.n = app.getRequested().recursion.n;
@@ -325,7 +322,7 @@ export async function bootUi(root, app) {
       paintScene();
     });
     if (workspace.input_mode === "FEASIBLE") {
-      feasiblePanel.mount(diagEl, proj.feasible, feasibleSet.referenceDots());
+      feasiblePanel.mount(diagEl, proj.feasible);
     } else if (workspace.input_mode === "ELEVATION") {
       elevationPanel.mount(diagEl, proj.aperture_band);
     } else {

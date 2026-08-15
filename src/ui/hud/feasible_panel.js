@@ -1,5 +1,16 @@
+import { PANELS_AI } from "../../../fixtures/reference/panels_ai.js";
+
 export class FeasiblePanel {
-  mount(el, fea, dots = []) {
+  dots() {
+    return Object.entries(PANELS_AI).map(([id, row]) => ({
+      id,
+      a: row.a_m,
+      e: row.e_m,
+      regime: row.regime,
+    }));
+  }
+
+  mount(el, fea, dots = this.dots()) {
     el.replaceChildren();
     if (!fea) {
       el.hidden = true;
