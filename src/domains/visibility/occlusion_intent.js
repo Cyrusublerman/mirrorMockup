@@ -9,9 +9,9 @@ export const INTENT = Object.freeze({
 export const DEFAULT_OCCLUSION_INTENT = Object.freeze({
   reflected_head: { state: INTENT.REQUIRED, min: 0.5 },
   reflected_torso: { state: INTENT.PERMITTED },
-  reflected_legs: { state: INTENT.REQUIRED, min: 0.3 },
+  reflected_legs: { state: INTENT.REQUIRED, min: 0.2 },
   reflected_phone: { state: INTENT.REQUIRED, min: 0.01 },
-  direct_face: { state: INTENT.PROHIBITED, max: 0 },
+  direct_face: { state: INTENT.PERMITTED },
 });
 
 export class OcclusionIntent {

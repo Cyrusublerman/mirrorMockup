@@ -25,7 +25,7 @@ test("POSE fitBody ignores mirror distance; SCENE fitApparatus does not write ca
   const poseA = policy.fitBody(fk);
   app.dispatch("SET_MIRROR_DISTANCE_AUTOSOLVE", { on: false });
   app.dispatch("SET_MIRROR_DISTANCE", { d_M: 6.5 });
-  const poseB = policy.fitBody(app.getEffective().skeleton.fk);
+  const poseB = policy.fitBody(fk);
   assert.equal(poseA.target[0], poseB.target[0]);
   assert.equal(poseA.target[1], poseB.target[1]);
   assert.equal(poseA.target[2], poseB.target[2]);

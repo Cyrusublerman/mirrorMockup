@@ -42,18 +42,21 @@ export class ContextualDock {
       row.appendChild(chip("HFOV", false, () => handlers.openPrecision?.(), "Field of view"));
       row.appendChild(chip("FINAL CROP", workspace.crop_mode !== "FULL_SENSOR", () => handlers.setCropMode?.("FINAL_CROP"), "Final crop"));
       row.appendChild(chip("FULL SENSOR", workspace.crop_mode === "FULL_SENSOR", () => handlers.setCropMode?.("FULL_SENSOR"), "Full sensor"));
-    } else if (workspace.room === "POSE") {
-      row.appendChild(chip("RIGGED", workspace.body_mode === "RIGGED", () => handlers.setBodyMode("RIGGED"), "Rigged"));
-      row.appendChild(chip("STICK", workspace.body_mode === "STICK", () => handlers.setBodyMode("STICK"), "Stick"));
-      row.appendChild(chip("SIMPLE", workspace.body_mode === "SIMPLE", () => handlers.setBodyMode("SIMPLE"), "Simple"));
-      for (const id of ["A", "B", "C"]) {
-        row.appendChild(chip("POSE " + id, false, () => handlers.loadSnapshot?.(id), "Load pose snapshot " + id));
+    } else if (workspace.room === "DECLARE" || workspace.room === "POSE") {
+      row.appendChild(chip("GESTURE", workspace.body_mode === "RIGGED" || workspace.body_mode === "GESTURE", () => handlers.setBodyMode("RIGGED"), "Gesture"));
+      row.appendChild(chip("VOLUME", workspace.body_mode === "SIMPLE" || workspace.body_mode === "VOLUME", () => handlers.setBodyMode("SIMPLE"), "Volume"));
+      row.appendChild(chip("CONTOUR", workspace.body_mode === "SILHOUETTE" || workspace.body_mode === "CONTOUR", () => handlers.setBodyMode("SILHOUETTE"), "Contour"));
+      for (const id of ["STAND", "TWIST", "KNEEL"]) {
+        row.appendChild(chip(id, false, () => handlers.loadPoseSeed?.(id), "Load pose " + id));
       }
-    } else if (workspace.room === "SCENE") {
+    } else if (workspace.room === "SOLVE" || workspace.room === "SCENE") {
       row.appendChild(chip("APPARATUS", sel?.id === "apparatus", () => handlers.select({ kind: "apparatus", id: "apparatus", label: "Apparatus pan" }), "Pan apparatus"));
-    } else if (workspace.room === "RECURSION") {
+      for (const id of ["direct-dominant", "mirror-dominant", "balanced"]) {
+        row.appendChild(chip(id.replace("-dominant", "").toUpperCase(), workspace.family === id || proj.requested?.composition?.family === id, () => handlers.setFamily?.(id), "Family " + id));
+      }
+    } else if (workspace.room === "STAGE" || workspace.room === "RECURSION") {
       const pOk = !!proj.portal?.valid;
-      row.appendChild(chip("AUTO", workspace.warp === "AUTO" && pOk, () => handlers.setWarp("AUTO"), "AUTO warp"));
+      row.appendChild(chip("AUTO", workspace.warp === "AUTO" && pOk, () => handlers.setWarp("AUTO"), "AUTO warp · synthesis"));
       row.appendChild(chip("OFF", workspace.warp === "OFF", () => handlers.setWarp("OFF"), "Warp off"));
     }
     if (sel?.kind === "joint" && !IK_JOINTS.includes(sel.id) && kind !== "HEAD") {

@@ -19,7 +19,7 @@ function cloneMerge(base, patch) {
 const NO_HISTORY = new Set([
   "UNDO", "REDO",
   "EXPORT_IMAGE", "EXPORT_FINAL_CAMERA", "EXPORT_STAGING_PRESCRIPTION",
-  "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER",
+  "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER", "EXPORT_MASK",
   "SAVE_SNAPSHOT",
 ]);
 
@@ -81,7 +81,7 @@ export function createApp() {
       requested = last.requested;
       return last;
     }
-    if (name === "EXPORT_IMAGE" || name === "EXPORT_FINAL_CAMERA" || name === "EXPORT_STAGING_PRESCRIPTION" || name === "EXPORT_COMPOSITION_OVERLAY" || name === "EXPORT_REFERENCE_RENDER") {
+    if (name === "EXPORT_IMAGE" || name === "EXPORT_FINAL_CAMERA" || name === "EXPORT_STAGING_PRESCRIPTION" || name === "EXPORT_COMPOSITION_OVERLAY" || name === "EXPORT_REFERENCE_RENDER" || name === "EXPORT_MASK") {
       last.export = exportImage(activeRequested(), last.effective, { ...payload, product: name });
       last.export.sidecar = { ...last.export.sidecar, build: BUILD, solver: last.effective.solver };
       if (name === "EXPORT_STAGING_PRESCRIPTION" && last.export.staging?.refused) {

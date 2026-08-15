@@ -33,6 +33,10 @@ export class FeasiblePanel {
     const map = document.createElement("div");
     map.className = "mp-fea-map";
     map.setAttribute("aria-label", "A–I on a–e plane");
+    const band = document.createElement("span");
+    band.className = "mp-fea-band";
+    band.title = "eclipse / e-floor";
+    map.appendChild(band);
     for (const d of dots) {
       const dot = document.createElement("span");
       dot.className = "mp-fea-dot";

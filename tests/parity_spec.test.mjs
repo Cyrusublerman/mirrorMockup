@@ -16,7 +16,7 @@ import { PUBLISHED, certifyKernel } from "../fixtures/recursion/kernel.js";
 import { SHELL_CSS } from "../src/ui/shell.js";
 
 test("UI rooms and overlay catalogue", () => {
-  assert.deepEqual(PRODUCTION_ROOMS, ["POSE", "SCENE", "RECURSION"]);
+  assert.deepEqual(PRODUCTION_ROOMS, ["DECLARE", "SOLVE", "STAGE"]);
   for (const id of ["GRID", "BBOX", "CENTROID", "MEASURE", "PERSPECTIVE", "CORRESPONDENCE", "VISIBILITY", "APPARATUS", "RECURSION", "DISTORTION"]) {
     assert.ok(CATALOGUE.includes(id));
   }

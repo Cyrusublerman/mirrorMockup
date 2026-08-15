@@ -542,7 +542,8 @@ export async function createScene3D(canvas, app, opts = {}) {
     swapInset,
     dragDeltaWorld,
     setBodyMode: (kind) => {
-      bodyMode.kind = kind;
+      const alias = { GESTURE: "RIGGED", VOLUME: "SIMPLE", CONTOUR: "SILHOUETTE" };
+      bodyMode.kind = alias[kind] || kind;
     },
     setRoom: (id) => {
       room.id = id;

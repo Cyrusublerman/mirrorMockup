@@ -10,6 +10,10 @@ import { StagingPrescription } from "../src/domains/export/staging_prescription.
 import { PANELS_AI } from "../fixtures/reference/panels_ai.js";
 import { t } from "../fixtures/tolerances.js";
 import { createDispatchAdapter } from "../src/ui/adapters/action_dispatch_adapter.js";
+import { ReflectionRay, RAY_STATE } from "../src/domains/visibility/reflection_ray.js";
+import { PhoneScale } from "../src/domains/phone/scale_propagate.js";
+import { PHASES, OUTPUT_MODES } from "../src/ui/state/phase_state.js";
+import { DEC } from "../fixtures/decisions.js";
 
 test("ACC-FEA-01 feasible set reports inside and boundary distance", () => {
   const set = new FeasibleSet();
@@ -116,6 +120,40 @@ test("ACC-EPI-01 staging refuses hollow distances", () => {
     { feasible: { m: 1.2, u: 0.34, e: 0.14 }, apparatus: { d_M: 1.2 }, camera: { world: { translation: [0, 0, 1.6] } } },
   );
   assert.equal(card.refused, false);
+});
+
+test("ACC-FEA-01 boot state lies inside the feasible region", () => {
+  const app = createApp();
+  const row = app.getEffective().feasible;
+  assert.equal(row.inside, true);
+  assert.equal(typeof row.distance_to_boundary, "number");
+  assert.ok(row.e >= E_FLOOR_M);
+  assert.ok(row.clearance >= 0);
+  assert.equal(DEC["DEC-OP"].value, "ANALYSIS_STATION");
+});
+
+test("ACC-REF-03 reflection ray names four failure states", () => {
+  const ray = new ReflectionRay();
+  const basis = { n: [0, -1, 0], u: [1, 0, 0], v: [0, 0, 1] };
+  const mirror = { centre: [0, 2, 1.2], basis, width_m: 0.6, height_m: 0.8 };
+  const miss = ray.trace([0, 0, 1.2], [0, 0.2, 1.2], { ...mirror, basis: { n: [1, 0, 0], u: [0, 1, 0], v: [0, 0, 1] } });
+  assert.ok(Object.values(RAY_STATE).includes(miss.state));
+  const out = ray.trace([3, 0.5, 1.2], [0, 0.2, 1.2], mirror);
+  assert.equal(out.state, RAY_STATE.OUTSIDE_APERTURE);
+});
+
+test("D18 phone scale maps f to camera distance", () => {
+  const s = new PhoneScale();
+  const hfov = (70 * Math.PI) / 180;
+  const c = s.distanceForFraction(0.05, 0.071, hfov);
+  const f = s.fractionForDistance(c, 0.071, hfov);
+  assert.ok(Math.abs(f - 0.05) < 1e-9);
+});
+
+test("§13 phases and output modes", () => {
+  assert.deepEqual(PHASES, ["DECLARE", "SOLVE", "STAGE"]);
+  assert.ok(OUTPUT_MODES.includes("MASK"));
+  assert.ok(OUTPUT_MODES.includes("FINAL_CAMERA"));
 });
 
 test("ACC-TXN-01 edit writes one named driver", () => {

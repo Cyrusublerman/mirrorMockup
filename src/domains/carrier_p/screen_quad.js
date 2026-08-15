@@ -76,6 +76,17 @@ export class ScreenQuad {
     const inside = quad.every((p) => p[0] >= margin && p[0] <= 1 - margin && p[1] >= margin && p[1] <= 1 - margin);
     return { ok: inside && minIn >= 1e-4, value: minIn };
   }
+
+  inverseCorner(translation, cam, duv) {
+    const depth = 0.4;
+    const r = cam?.basis?.right || [1, 0, 0];
+    const u = cam?.basis?.up || [0, 0, 1];
+    return [
+      translation[0] + r[0] * duv[0] * depth + u[0] * (-duv[1]) * depth,
+      translation[1] + r[1] * duv[0] * depth + u[1] * (-duv[1]) * depth,
+      translation[2] + r[2] * duv[0] * depth + u[2] * (-duv[1]) * depth,
+    ];
+  }
 }
 
 function optsAngle() {

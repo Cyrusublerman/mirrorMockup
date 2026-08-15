@@ -306,12 +306,14 @@ export function exportImage(requested, effective, opts = {}) {
     const autoEff = { ...effective, recursion: autoRec, view: { ...effective.view, tau: 2, segment: "APPROACH" } };
     recursive_reference = encodePng(w, h, renderField(autoEff, autoReq, w, h).rgba);
   }
+  const maskPng = encodePng(w, h, renderMaskRgba(effective, w, h));
   return {
     png,
     final_camera: png,
     unwarped,
     overlay,
     recursive_reference,
+    mask: maskPng,
     sidecar,
     staging,
     products: {
@@ -319,8 +321,46 @@ export function exportImage(requested, effective, opts = {}) {
       EXPORT_STAGING_PRESCRIPTION: staging,
       EXPORT_COMPOSITION_OVERLAY: overlay,
       EXPORT_REFERENCE_RENDER: recursive_reference,
+      EXPORT_MASK: maskPng,
     },
   };
+}
+
+const MASK_HUE = [0, 10, 25, 45, 210, 130, 160, 280];
+
+function hsl(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+  };
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+}
+
+export function renderMaskRgba(effective, width, height) {
+  const rgba = new Uint8Array(width * height * 4);
+  const src = effective?.mask_labels;
+  if (!src || !src.length) {
+    for (let i = 0; i < rgba.length; i += 4) rgba[i + 3] = 255;
+    return rgba;
+  }
+  const sw = Math.round(Math.sqrt(src.length * width / height)) || width;
+  const sh = Math.round(src.length / sw) || height;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const sx = Math.min(sw - 1, Math.floor((x / width) * sw));
+      const sy = Math.min(sh - 1, Math.floor((y / height) * sh));
+      const code = src[sy * sw + sx] || 0;
+      const direct = code >= 1 && code <= 3;
+      const rgb = code === 0 ? [8, 8, 10] : hsl(MASK_HUE[code] || 0, 0.55, direct ? 0.62 : 0.38);
+      const i = (y * width + x) * 4;
+      rgba[i] = rgb[0];
+      rgba[i + 1] = rgb[1];
+      rgba[i + 2] = rgb[2];
+      rgba[i + 3] = 255;
+    }
+  }
+  return rgba;
 }
 
 export function pngToDataUrl(png) {

@@ -1,6 +1,7 @@
 export function createWorkspaceState() {
   return {
-    room: "POSE",
+    room: "DECLARE",
+    output_mode: "FINAL_CAMERA",
     editor_view: "ISO",
     selected: null,
     precision: false,

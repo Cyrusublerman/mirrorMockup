@@ -1,5 +1,5 @@
 export class ElevationPanel {
-  mount(el, band) {
+  mount(el, band, onHeight) {
     el.replaceChildren();
     if (!band?.parts) {
       el.hidden = true;
@@ -17,6 +17,17 @@ export class ElevationPanel {
       kv("required height", m(band.required_height)),
       kv("actual height", m(band.actual_height)),
     );
+    if (onHeight) {
+      const lab = document.createElement("label");
+      lab.textContent = "mount height";
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.step = "0.01";
+      inp.value = Number(band.actual_sill + (band.actual_height || 0) / 2).toFixed(3);
+      inp.addEventListener("change", () => onHeight(Number(inp.value)));
+      lab.appendChild(inp);
+      el.appendChild(lab);
+    }
     for (const [name, p] of Object.entries(band.parts)) {
       el.appendChild(kv(name, `${Math.round((p.visible || 0) * 100)} %`));
     }

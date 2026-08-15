@@ -1,6 +1,8 @@
 import { injectShellCss } from "./shell.js";
 import { createWorkspaceState } from "./state/workspace_state.js";
 import { ViewState } from "./state/view_state.js";
+import { PhaseState, PHASE_TO_ROOM } from "./state/phase_state.js";
+import { OutputRail } from "./hud/output_rail.js";
 import { createInteractionMachine } from "./state/interaction_state_machine.js";
 import { createDispatchAdapter } from "./adapters/action_dispatch_adapter.js";
 import { projectForHud } from "./adapters/selector_projection_adapter.js";
@@ -14,7 +16,7 @@ import { TransactionCard } from "./hud/transaction_card.js";
 import { FeasiblePanel } from "./hud/feasible_panel.js";
 import { ElevationPanel } from "./hud/elevation_panel.js";
 import { InputModeStrip } from "./hud/input_mode_strip.js";
-import { applyScreenCorner, hitScreenCorner } from "./manipulators/screen_quad.js";
+import { applyScreenCorner, hitScreenCorner, inverseCorner } from "./manipulators/screen_quad.js";
 import { drawOverlays } from "./overlays/composition_overlay_stack.js";
 import { createReferenceLayer } from "./overlays/reference_layer.js";
 import { InsetInput } from "./viewport/artwork_camera_inset.js";
@@ -63,7 +65,9 @@ export async function bootUi(root, app) {
   injectShellCss(root.ownerDocument);
   const workspace = createWorkspaceState();
   const viewState = new ViewState();
+  const phaseState = new PhaseState();
   workspace.viewState = viewState;
+  workspace.phaseState = phaseState;
   const machine = createInteractionMachine();
   const dispatch = createDispatchAdapter(app);
   const reference = createReferenceLayer();
@@ -71,6 +75,7 @@ export async function bootUi(root, app) {
   const feasiblePanel = new FeasiblePanel();
   const elevationPanel = new ElevationPanel();
   const inputModes = new InputModeStrip();
+  const outputRail = new OutputRail();
   workspace.warp = app.getRequested().recursion.mode;
   workspace.q = app.getRequested().recursion.q;
   workspace.n = app.getRequested().recursion.n;
@@ -100,13 +105,14 @@ export async function bootUi(root, app) {
   toast.setAttribute("role", "status");
   toast.setAttribute("aria-live", "polite");
   const compEl = el("div", "mp-comp");
+  const diagEl = el("div");
   stage.append(canvas, overlay, viewsEl, viewLab, insetWrap, toast, compEl, diagEl);
   const hud = el("div", "mp-hud");
   const contextEl = el("div");
   const validEl = el("div");
   const modeEl = el("div");
-  const diagEl = el("div");
-  hud.append(contextEl, modeEl, validEl);
+  const outEl = el("div");
+  hud.append(contextEl, modeEl, outEl, validEl);
   const inspectEl = el("div", "mp-inspect");
   const sheetEl = el("div", "mp-sheet");
   const menuEl = el("div", "mp-menu");
@@ -129,7 +135,7 @@ export async function bootUi(root, app) {
     throw err;
   }
   scene3d.setEditorView(viewState.editor_view);
-  scene3d.setRoom(workspace.room);
+  scene3d.setRoom(PHASE_TO_ROOM[workspace.room] || workspace.room);
 
   let euler = { bend: 0, tilt: 0, twist: 0 };
   let drag = null;
@@ -145,7 +151,7 @@ export async function bootUi(root, app) {
       a.click();
       return;
     }
-    const buf = name === "EXPORT_COMPOSITION_OVERLAY" ? last.export.overlay : name === "EXPORT_REFERENCE_RENDER" ? (last.export.recursive_reference || last.export.png) : last.export.png;
+    const buf = name === "EXPORT_COMPOSITION_OVERLAY" ? last.export.overlay : name === "EXPORT_REFERENCE_RENDER" ? (last.export.recursive_reference || last.export.png) : name === "EXPORT_MASK" ? last.export.mask : last.export.png;
     const a = document.createElement("a");
     a.href = bytesToPngUrl(buf);
     a.download = filename;
@@ -183,11 +189,12 @@ export async function bootUi(root, app) {
       mk("EXPORT STAGING", () => { workspace.menu = false; exportProduct("EXPORT_STAGING_PRESCRIPTION", "staging.json"); paintHud(); }),
       mk("EXPORT OVERLAY", () => { workspace.menu = false; exportProduct("EXPORT_COMPOSITION_OVERLAY", "overlay.png"); paintHud(); }),
       mk("EXPORT RECURSION", () => { workspace.menu = false; exportProduct("EXPORT_REFERENCE_RENDER", "recursion.png"); paintHud(); }),
+      mk("EXPORT MASK", () => { workspace.menu = false; exportProduct("EXPORT_MASK", "mask.png"); paintHud(); }),
     );
     const snaps = el("div", "mp-row");
     for (const id of ["A", "B", "C", "D", "E"]) {
       snaps.appendChild(mk("SAVE " + id, () => {
-        app.dispatch("SAVE_SNAPSHOT", { id, kind: workspace.room === "POSE" ? "POSE" : "SCENE" });
+        app.dispatch("SAVE_SNAPSHOT", { id, kind: workspace.room === "DECLARE" || workspace.room === "POSE" ? "POSE" : "SCENE" });
         workspace.menu = false;
         paintHud();
       }));
@@ -220,6 +227,17 @@ export async function bootUi(root, app) {
       loadSnapshot(id) {
         const last = app.dispatch("LOAD_SNAPSHOT", { id, label: "Load " + id });
         if (last.error) app.dispatch("SAVE_SNAPSHOT", { id, kind: "POSE" });
+        paintHud();
+        paintScene();
+      },
+      loadPoseSeed(id) {
+        app.dispatch("SET_POSE_SEED", { id }, { label: "Pose " + id });
+        paintHud();
+        paintScene();
+      },
+      setFamily(id) {
+        workspace.family = id;
+        app.dispatch("SET_COMPOSITION_FAMILY", { family: id }, { label: "Family " + id });
         paintHud();
         paintScene();
       },
@@ -289,8 +307,20 @@ export async function bootUi(root, app) {
     const proj = projectForHud(app);
     mountTopModeStrip(strip, workspace, (room) => {
       workspace.room = room;
-      scene3d.setRoom(room);
-      app.dispatch("SET_WORKSPACE_MODE", { mode: room });
+      phaseState.setPhase(room);
+      scene3d.setRoom(PHASE_TO_ROOM[room] || "POSE");
+      app.dispatch("SET_PHASE", { phase: room }, { preview: true });
+      paintHud();
+      paintScene();
+    });
+    outputRail.mount(outEl, workspace.output_mode, (id) => {
+      workspace.output_mode = id;
+      phaseState.setOutput(id);
+      app.dispatch("SET_OUTPUT_MODE", { mode: id }, { preview: true });
+      const hh = hudHandlers();
+      if (id === "FULL_SENSOR") hh.setCropMode("FULL_SENSOR");
+      if (id === "FINAL_CAMERA") hh.setCropMode("FINAL_CROP");
+      if (id === "RECURSION") hh.setWarp("AUTO");
       paintHud();
       paintScene();
     });
@@ -324,7 +354,11 @@ export async function bootUi(root, app) {
     if (workspace.input_mode === "FEASIBLE") {
       feasiblePanel.mount(diagEl, proj.feasible);
     } else if (workspace.input_mode === "ELEVATION") {
-      elevationPanel.mount(diagEl, proj.aperture_band);
+      elevationPanel.mount(diagEl, proj.aperture_band, (z) => {
+        app.dispatch("SET_MIRROR_HEIGHT", { z }, { label: "Mount height" });
+        paintHud();
+        paintScene();
+      });
     } else {
       diagEl.hidden = true;
       diagEl.replaceChildren();
@@ -391,10 +425,17 @@ export async function bootUi(root, app) {
     }
     if (sel?.kind === "phone") {
       const t = req.phone.transform_request.translation;
+      const arm = app.getEffective().arm_seven;
+      const scale = app.getEffective().phone_scale;
       return [
         { key: "x", label: "X (m)", value: t[0] },
         { key: "y", label: "Y (m)", value: t[1] },
         { key: "z", label: "Z (m)", value: t[2] },
+        { key: "f", label: "Phone scale f", value: scale ?? req.composition.phone_scale_request ?? 0 },
+        { key: "swivel", label: "Arm swivel (rad)", value: req.body.pose_targets.swivel?.arm_R || 0 },
+        { key: "r", label: "Hand r (m)", value: arm?.r ?? 0 },
+        { key: "theta", label: "θ (rad)", value: arm?.theta ?? 0 },
+        { key: "phi", label: "φ (rad)", value: arm?.phi ?? 0 },
       ];
     }
     if (sel?.id === "d_M") return [{ key: "d_M", label: "d_M (m)", value: req.apparatus.mirror_distance_request_m }];
@@ -415,7 +456,9 @@ export async function bootUi(root, app) {
       return;
     }
     if (sel?.kind === "phone") {
-      app.dispatch("MOVE_PHONE", { translation: [out.x, out.y, out.z] }, { label: "Precision phone" });
+      if (out.x != null) app.dispatch("MOVE_PHONE", { translation: [out.x, out.y, out.z] }, { label: "Precision phone" });
+      if (out.f != null) app.dispatch("SET_PHONE_SCALE", { f: out.f }, { label: "Phone scale" });
+      if (out.swivel != null) app.dispatch("SET_ARM_SWIVEL", { chain: "arm_R", swivel: out.swivel }, { label: "Arm swivel" });
       return;
     }
     if (sel?.id === "d_M") {
@@ -515,7 +558,7 @@ export async function bootUi(root, app) {
   });
 
   function beginDragFromHit(hit, req) {
-    if (hit.kind === "joint" && IK_JOINTS.includes(hit.id) && workspace.room !== "SCENE") {
+    if (hit.kind === "joint" && IK_JOINTS.includes(hit.id) && workspace.room !== "SOLVE" && workspace.room !== "SCENE") {
       const world = (req.body.pose_targets.endpoint_targets[hit.id] || app.getEffective().skeleton.fk[hit.id] || hit.point).slice();
       drag = { kind: "ik", end: hit.id, world, started: false };
     } else if (hit.kind === "joint") {
@@ -616,9 +659,16 @@ export async function bootUi(root, app) {
       } else if (drag.kind === "joint") {
         euler = applySemanticJoint(dispatch, drag.joint, euler, workspace.axis, -step.dy * 0.01, true);
       } else if (drag.kind === "phone" || drag.kind === "screen_corner") {
-        drag.translation = [drag.translation[0] + worldD[0], drag.translation[1] + worldD[1], drag.translation[2] + worldD[2]];
-        if (drag.kind === "screen_corner") applyScreenCorner(dispatch, drag.translation, true);
-        else applyRigidPhone(dispatch, drag.translation, true);
+        if (drag.kind === "screen_corner" && viewState.main_pane === "CAPTURE") {
+          const box = overlay.getBoundingClientRect();
+          const duv = [step.dx / Math.max(1, box.width), step.dy / Math.max(1, box.height)];
+          drag.translation = inverseCorner(drag.translation, projectForHud(app).camera?.basis, duv);
+          applyScreenCorner(dispatch, drag.translation, true);
+        } else {
+          drag.translation = [drag.translation[0] + worldD[0], drag.translation[1] + worldD[1], drag.translation[2] + worldD[2]];
+          if (drag.kind === "screen_corner") applyScreenCorner(dispatch, drag.translation, true);
+          else applyRigidPhone(dispatch, drag.translation, true);
+        }
       } else if (drag.kind === "d_M") {
         drag.d_M = Math.max(0.25, drag.d_M - step.dy * 0.004);
         applyMirrorDistance(dispatch, drag.d_M, true);

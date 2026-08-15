@@ -14,6 +14,14 @@ import { ScreenQuad } from "../domains/carrier_p/screen_quad.js";
 import { FeasibleSet } from "../domains/apparatus/feasible_set.js";
 import { ApertureBand } from "../domains/visibility/aperture_band.js";
 import { OcclusionIntent } from "../domains/visibility/occlusion_intent.js";
+import { PhoneScale } from "../domains/phone/scale_propagate.js";
+import { GazeConstraint } from "../domains/body/gaze.js";
+import { VolumeMannequin } from "../domains/body/volume_mannequin.js";
+import { ContourMannequin } from "../domains/body/contour_mannequin.js";
+import { ArmSeven } from "../domains/body/arm_seven.js";
+import { MaskCompare } from "../domains/composition/mask_compare.js";
+import { MaskRender } from "../domains/reference/mask_extract.js";
+import { add, scale } from "../shared_math/vector.js";
 import { evaluateQ } from "../domains/content_q/content.js";
 import { evaluateRecursion } from "../domains/recursion/kernel.js";
 import { evaluateMetrics, p0Targets } from "../domains/composition/targets.js";
@@ -34,6 +42,13 @@ const FD_STEP = 1e-3;
 const screenQuad = new ScreenQuad();
 const feasibleSet = new FeasibleSet();
 const apertureBand = new ApertureBand();
+const phoneScale = new PhoneScale();
+const gaze = new GazeConstraint();
+const volumes = new VolumeMannequin();
+const contours = new ContourMannequin();
+const armSeven = new ArmSeven();
+const maskCompare = new MaskCompare();
+const maskRender = new MaskRender();
 
 function solvePhonePose(req) {
   if (req.phone.authority === "HAND_DRIVES_PHONE") {
@@ -111,6 +126,9 @@ function solveOnce(req) {
   }
 
   const mirror = evaluateMirror(apparatus, req);
+  if (req.body?.pose_targets?.gaze === "MIRROR" && mirror.centre) {
+    pose = gaze.apply(pose, mirror.centre);
+  }
   const reflection = evaluateReflection(cam, mirror);
   const support = evaluateSupport(pose.fk, req);
   const bodyOcc = silhouetteOccluder(pose);
@@ -192,7 +210,12 @@ function placePhoneByCrop(req, parts) {
   const want = landmarks.features.phone.bbox_centre;
   req.camera.crop_request.pan = panToPlace([cx, cy], want, req.camera.crop_request.scale ?? 1);
   req.camera.crop_request.aspect = 3 / 4;
-  return solveOnce(cloneState(req));
+  req.camera.crop_request.authored = true;
+  const saved = req.apparatus.mirror_distance_auto_solve;
+  req.apparatus.mirror_distance_auto_solve = false;
+  const next = solveOnce(cloneState(req));
+  req.apparatus.mirror_distance_auto_solve = saved;
+  return next;
 }
 
 function compositionResidualConstraints(req, residuals) {
@@ -270,6 +293,75 @@ function slimLayoutEval(req) {
   return solveOnce(r);
 }
 
+function applyPhoneScale(req, parts) {
+  const f = req.composition?.phone_scale_request;
+  if (f == null || !parts.feasible || !parts.cam) return parts;
+  const out = phoneScale.solve({
+    c: parts.feasible.c,
+    f,
+    width_m: req.phone.body_dimensions_m.width,
+    hfov: parts.cam.hfov,
+  });
+  if (Math.abs(out.delta_c) < 1e-4) return parts;
+  const fwd = parts.cam.basis?.forward;
+  if (!fwd) return parts;
+  req.phone.transform_request.translation = add(
+    req.phone.transform_request.translation,
+    scale(fwd, -out.delta_c),
+  );
+  return solveOnce(cloneState(req));
+}
+
+function nearestMaskRow(metrics) {
+  const measured = {
+    mirror: metrics?.mirror_occupancy ?? 0,
+    direct_body: metrics?.direct_head_occupancy ?? 0,
+    reflected_body: metrics?.reflected_body_occupancy ?? 0,
+  };
+  let best = null;
+  let bestScore = -1;
+  for (const id of Object.keys(maskCompare.panels())) {
+    const row = maskCompare.occupancyResidual(id, measured);
+    if (row && row.weighted > bestScore) {
+      best = row;
+      bestScore = row.weighted;
+    }
+  }
+  return best;
+}
+
+function applyFeasibleProject(req, parts) {
+  let cur = parts;
+  const savedAuto = req.apparatus.mirror_distance_auto_solve;
+  for (let i = 0; i < 2; i++) {
+    const row = cur.feasible;
+    if (!row || row.inside) break;
+    const n = cur.mirror?.basis?.n;
+    const face = cur.pose?.fk?.head;
+    const cam = cur.cam?.world?.translation;
+    if (!n || !face || !cam) break;
+    const out = feasibleSet.project(
+      req.phone.transform_request.translation,
+      req.apparatus.mirror_distance_request_m,
+      face,
+      cam,
+      n,
+      row,
+    );
+    req.phone.transform_request.translation = out.translation;
+    if (out.d_M !== req.apparatus.mirror_distance_request_m) {
+      req.apparatus.mirror_distance_request_m = out.d_M;
+      req.apparatus.apply_distance_request = true;
+    }
+    req.apparatus.mirror_distance_auto_solve = false;
+    cur = solveOnce(cloneState(req));
+  }
+  req.apparatus.mirror_distance_auto_solve = savedAuto;
+  const area = Math.abs(cur.carrier_p?.area_capture ?? cur.carrier_p?.area ?? 0);
+  if (area > 1e-12) req.apparatus.preserved_reflected_phone_ratio = area;
+  return cur;
+}
+
 function pinWorldMirror(req, parts) {
   if (req.mirror.frame_authority !== "WORLD" || !parts.apparatus?.centre) return;
   req.mirror.world_pose = {
@@ -335,11 +427,16 @@ export function solve(requested) {
     layout = fitLayout(req, slimLayoutEval);
     parts = solveOnce(cloneState(req));
   }
+  parts = applyReflectedNudge(req, parts);
+  parts = applyPhoneScale(req, parts);
+  const gapBeforeFeasible = parts.composition?.metrics?.gap_residual;
+  if (shouldLayoutFit(req) || !req.workspace?.last_edit) {
+    parts = applyFeasibleProject(req, parts);
+  }
   const mode = req.composition.solve_mode;
   if (mode === "P0_RECONSTRUCT" || mode === "COMPOSITION_FIT") {
     parts = placePhoneByCrop(req, parts);
   }
-  parts = applyReflectedNudge(req, parts);
 
   const {
     phone, cam, apparatus, mirror, reflection, grip, pose, support,
@@ -460,6 +557,7 @@ export function solve(requested) {
       cost: layout.cost,
       accepted: layout.accepted,
       optical_lock: opticalLockHolds(parts),
+      gap_residual: gapBeforeFeasible,
     };
   }
   if (carrierConflict) {
@@ -501,7 +599,15 @@ export function solve(requested) {
     sensitivity = [];
   }
 
-  const last_edit = requested.workspace?.last_edit || null;
+  if (!req.workspace.last_edit) {
+    req.workspace.last_edit = {
+      action: "BOOT",
+      driver: req.composition.driver || req.composition.solve_mode,
+      preserve: (req.composition.active_preserve_set || []).slice(),
+      allowed_to_move: (req.composition.solve_freedoms || []).slice(),
+    };
+  }
+  const last_edit = req.workspace.last_edit;
   const solver = {
     solver_id: SOLVER_ID,
     solver_version: SOLVER_VERSION,
@@ -544,6 +650,16 @@ export function solve(requested) {
     feasible,
     aperture_band,
     occlusion_intent,
+    volume: volumes.update(pose.fk),
+    contour: contours.update(pose.fk),
+    arm_seven: armSeven.read(pose.fk, "R"),
+    mask: nearestMaskRow(composition.metrics),
+    mask_labels: maskRender.render(visibility, carrier_p, composition.metrics?.mirror_quad, 64, 64),
+    phone_scale: phoneScale.fractionForDistance(
+      feasible?.c || 1,
+      req.phone.body_dimensions_m.width,
+      cam.hfov,
+    ),
     last_edit,
     driver: last_edit?.driver || mask.driver,
     preserve: req.composition.active_preserve_set,

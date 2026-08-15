@@ -28,6 +28,13 @@ export const T = Object.freeze({
   "T-PQ-PX": { value: 16, unit: "px2", source: "v5 D17 footprint" },
   "T-PQ-BEZEL": { value: 0.002, unit: "IMAGE_NORM", source: "v5 D17 bezel" },
   "T-MSK-IOU": { value: 0.5, unit: "1", source: "v5 ACC-MSK-01 floor" },
+  "T-HEAD-R": { value: 0.115, unit: "m", source: "v5 DEC-R hair-included" },
+  "T-LEVER": { value: 0.22, unit: "m", source: "v5 g3 wrist→optical" },
+  "T-CROSS-BODY": { value: 0.07, unit: "m", source: "v5 G06" },
+  "T-REACH": { value: 0.63, unit: "m", source: "v5 same-side reach" },
+  "T-STATION-M": { value: 1.2, unit: "m", source: "v5 DEC-OP" },
+  "T-STATION-A": { value: 0.368, unit: "m", source: "v5 DEC-OP" },
+  "T-STATION-E": { value: 0.14, unit: "m", source: "v5 DEC-OP" },
 });
 
 export function t(id) {

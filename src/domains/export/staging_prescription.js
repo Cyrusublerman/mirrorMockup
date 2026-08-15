@@ -27,10 +27,21 @@ export class StagingPrescription {
       return { ...d, mark };
     });
     const hollow = printed.filter((d) => d.mark === "hollow");
+    const card = {
+      stand_m: effective.feasible?.m,
+      turn_deg: 0,
+      phone_forward_m: effective.feasible?.u,
+      phone_above_eye_m: (effective.camera?.world?.translation?.[2] || 0) - 1.55,
+      phone_lateral_m: effective.feasible?.e,
+      hold: "right hand, same side",
+      lens: "front, 1x",
+      weight: "both feet",
+    };
     return {
       refused: hollow.length > 0,
       hollow: hollow.map((d) => d.id),
       printed,
+      card,
       topology: "FRONT_CAMERA_SELFIE",
       synthesis: true,
     };

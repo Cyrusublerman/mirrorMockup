@@ -1,9 +1,11 @@
-import { add, distance, dot, length, normalize, scale, sub } from "../../shared_math/vector.js";
+import { add, cross, distance, dot, length, normalize, scale, sub } from "../../shared_math/vector.js";
 import { reflectPoint } from "../reflection/reflect.js";
 import { PANELS_AI } from "../../../fixtures/reference/panels_ai.js";
+import { t } from "../../../fixtures/tolerances.js";
+import { DEC } from "../../../fixtures/decisions.js";
 
-export const HEAD_RADIUS_M = 0.115;
-export const E_FLOOR_M = 0.13;
+export const HEAD_RADIUS_M = DEC["DEC-R"].value;
+export const E_FLOOR_M = t("T-FEA-E");
 export const CROSS_BODY_COST_M = 0.07;
 
 export class FeasibleSet {
@@ -78,6 +80,46 @@ export class FeasibleSet {
       distance_to_boundary,
       binding: reasons[0] || null,
     };
+  }
+
+  lateralDir(face, camera, n) {
+    const along = dot(sub(camera, face), n);
+    let lat = sub(sub(camera, face), scale(n, along));
+    if (length(lat) < 1e-6) lat = Math.abs(n[2]) < 0.9 ? cross(n, [0, 0, 1]) : cross(n, [1, 0, 0]);
+    return normalize(lat);
+  }
+
+  minMirrorDistance(row) {
+    const r = row.r || HEAD_RADIUS_M;
+    const e = Math.max(row.e, E_FLOOR_M + 0.01);
+    if (e <= r + 1e-6) return row.m;
+    return row.a / (2 * (e / r - 1)) + 0.02;
+  }
+
+  projectPhone(translation, face, camera, n, row) {
+    if (row.inside) return translation.slice();
+    const need = Math.max(row.eclipseLimit, E_FLOOR_M) - row.e + 0.006;
+    if (!(need > 0)) return translation.slice();
+    return add(translation, scale(this.lateralDir(face, camera, n), need));
+  }
+
+  project(translation, d_M, face, camera, n, row) {
+    if (row.inside) return { translation: translation.slice(), d_M, moved: false };
+    const dir = this.lateralDir(face, camera, n);
+    let nextT = translation.slice();
+    let nextD = d_M;
+    if (row.e < E_FLOOR_M) {
+      nextT = add(translation, scale(dir, E_FLOOR_M - row.e + 0.004));
+    }
+    const eUse = Math.max(row.e, E_FLOOR_M);
+    const r = row.r || HEAD_RADIUS_M;
+    if (eUse > r + 1e-6) {
+      const mMin = row.a / (2 * (eUse / r - 1)) + 0.01;
+      if (row.m < mMin) nextD = d_M + (mMin - row.m);
+    } else {
+      nextT = this.projectPhone(translation, face, camera, n, row);
+    }
+    return { translation: nextT, d_M: nextD, moved: true };
   }
 
   referenceDots() {

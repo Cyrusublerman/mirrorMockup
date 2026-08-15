@@ -185,6 +185,18 @@ html, body, #app {
   background: #395BD6;
 }
 .mp-fea-dot.is-here { background: #D82D84; width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+.mp-fea-band {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 28%;
+  background: rgba(181, 58, 58, 0.12);
+  border-top: 1px dashed #B53A3A;
+  pointer-events: none;
+}
+@media (min-width: 760px) {
+  .mp-input-modes { display: flex; }
+  .mp-sheet { max-height: 80dvh; }
+}
 .mp-input-modes { margin-top: 6px; }
 .mp-toast.is-on { display: block; }
 .mp-hud {

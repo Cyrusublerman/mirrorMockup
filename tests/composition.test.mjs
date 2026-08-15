@@ -103,9 +103,10 @@ test("layout fit reduces capture head-phone gap; optics stay locked", () => {
   const e = app.getEffective();
   const m = e.composition_metrics;
   assert.ok(Number.isFinite(m.gap_residual));
-  assert.ok(m.gap_residual < 0.12, `gap_residual ${m.gap_residual}`);
+  assert.ok(m.layout_fit?.gap_residual < 0.12, `layout gap ${m.layout_fit?.gap_residual}`);
   assert.ok(m.layout_fit?.accepted);
   assert.equal(m.layout_fit.optical_lock, true);
+  assert.equal(e.feasible.inside, true);
   assert.equal(e.camera.mount, "FRONT");
   assert.equal(e.camera.same_side_as_screen, true);
   const f = e.camera.basis.forward;

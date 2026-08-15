@@ -155,13 +155,13 @@ try {
         const { workspace, viewState, scene3d, paintHud, paintSceneNow, app } = ui;
         viewState.setMainPane("EDITOR");
         viewState.setEditorView("ISO");
-        workspace.room = "POSE";
+        workspace.room = "DECLARE";
         workspace.selected = null;
         scene3d.setRoom("POSE");
         if (${shot} === "scene") {
-          workspace.room = "SCENE";
+          workspace.room = "SOLVE";
           scene3d.setRoom("SCENE");
-          app.dispatch("SET_WORKSPACE_MODE", { mode: "SCENE" });
+          app.dispatch("SET_PHASE", { phase: "SOLVE" }, { preview: true });
         }
         if (${shot} === "pose-sel") {
           workspace.selected = { kind: "joint", id: "wrist_R", label: "Joint wrist_R", axis: "BEND" };

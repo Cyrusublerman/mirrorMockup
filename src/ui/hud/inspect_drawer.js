@@ -64,6 +64,14 @@ export function mountInspectDrawer(el, open, proj, workspace, handlers) {
     body.appendChild(row("feasible", proj.feasible.inside ? "inside" : (proj.feasible.binding || "out")));
     body.appendChild(row("a / e / R", `${Number(proj.feasible.a || 0).toFixed(3)} / ${Number(proj.feasible.e || 0).toFixed(3)} / ${Number(proj.feasible.R || 0).toFixed(2)}`));
   }
+  if (proj.arm_seven) {
+    body.appendChild(row("7-DOF r/θ/φ", `${Number(proj.arm_seven.r).toFixed(3)} / ${Number(proj.arm_seven.theta).toFixed(3)} / ${Number(proj.arm_seven.phi).toFixed(3)}`));
+  }
+  if (proj.phone_scale != null) body.appendChild(row("phone scale f", Number(proj.phone_scale).toFixed(4)));
+  if (proj.mask) body.appendChild(row("mask panel", `${proj.mask.panel} IoU ${Number(proj.mask.weighted).toFixed(3)}`));
+  if (proj.epistemic) {
+    body.appendChild(row("epistemic cam/body", `${proj.epistemic.camera} / ${proj.epistemic.body}`));
+  }
   if (proj.screen_gates) {
     for (const [k, g] of Object.entries(proj.screen_gates)) {
       body.appendChild(row("P " + k, g.ok ? "ok" : "fail"));

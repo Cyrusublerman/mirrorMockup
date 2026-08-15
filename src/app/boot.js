@@ -12,9 +12,10 @@ export async function boot(root) {
 async function applyShot(ui, shot) {
   const { workspace, viewState, scene3d, paintHud, paintSceneNow, app } = ui;
   if (shot === "scene") {
-    workspace.room = "SCENE";
+    workspace.room = "SOLVE";
+    workspace.phaseState?.setPhase("SOLVE");
     scene3d.setRoom("SCENE");
-    app.dispatch("SET_WORKSPACE_MODE", { mode: "SCENE" });
+    app.dispatch("SET_PHASE", { phase: "SOLVE" }, { preview: true });
   }
   if (shot === "pose-sel") {
     workspace.selected = { kind: "joint", id: "wrist_R", label: "Joint wrist_R", axis: "BEND" };

@@ -8,10 +8,10 @@ import { BUILD } from "../src/app/build_identity.js";
 import { projectForHud } from "../src/ui/adapters/selector_projection_adapter.js";
 import { createDispatchAdapter } from "../src/ui/adapters/action_dispatch_adapter.js";
 
-test("production rooms are POSE SCENE RECURSION", () => {
-  assert.deepEqual(PRODUCTION_ROOMS, ["POSE", "SCENE", "RECURSION"]);
+test("production phases are DECLARE SOLVE STAGE", () => {
+  assert.deepEqual(PRODUCTION_ROOMS, ["DECLARE", "SOLVE", "STAGE"]);
   assert.equal(PRODUCTION_ROOMS.includes("INSPECT"), false);
-  assert.equal(PRODUCTION_ROOMS.includes("COMPOSITION"), false);
+  assert.equal(PRODUCTION_ROOMS.includes("RECURSION"), false);
 });
 
 test("overlay catalogue is the production set", () => {
@@ -157,16 +157,16 @@ test("remote launcher pins SHA and does not exec arbitrary repo", () => {
   assert.match(html, /src\/app\/boot\.js/);
 });
 
-test("app shell is a three-room HUD not a five-mode form", () => {
+test("app shell is a three-phase HUD not a five-mode form", () => {
   const js = readFileSync(new URL("../src/ui/app_shell.js", import.meta.url), "utf8");
   assert.match(js, /mp-app/);
   assert.doesNotMatch(js, /data-mode="INSPECT"/);
-  assert.doesNotMatch(js, /data-mode="COMPOSITION"/);
-  assert.match(js, /PRODUCTION_ROOMS|POSE/);
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /src\/app\/boot\.js/);
   const strip = readFileSync(new URL("../src/ui/hud/top_mode_strip.js", import.meta.url), "utf8");
-  assert.match(strip, /POSE.*SCENE.*RECURSION/s);
+  const phases = readFileSync(new URL("../src/ui/state/phase_state.js", import.meta.url), "utf8");
+  assert.match(phases, /DECLARE[\s\S]*SOLVE[\s\S]*STAGE/);
+  assert.match(strip, /PHASES/);
   assert.doesNotMatch(strip, /EXPORT/);
 });
 

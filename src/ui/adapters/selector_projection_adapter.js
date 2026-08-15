@@ -98,6 +98,16 @@ export function projectForHud(app) {
     aperture_band: e.aperture_band,
     occlusion_intent: e.occlusion_intent,
     screen_gates: e.carrier_p?.gates,
+    arm_seven: e.arm_seven,
+    mask: e.mask,
+    phone_scale: e.phone_scale,
+    volume: e.volume,
+    contour: e.contour,
+    epistemic: {
+      camera: r.camera?.epistemic_status || "HYPOTHESIS",
+      body: r.body?.definition?.epistemic_status || "PROVISIONAL",
+      phone: r.phone?.width_epistemic || "ASSUMED",
+    },
     build: {
       APP: b.app,
       UI: b.ui,
