@@ -1,5 +1,4 @@
 import * as quat from "../../shared_math/quaternion.js";
-import { add, scale } from "../../shared_math/vector.js";
 import { fxFromHfov, vfovFromHfov } from "../../shared_math/projection.js";
 import * as xform from "../../shared_math/transform.js";
 import { PHONE_LOCAL } from "../phone/prism.js";
@@ -14,6 +13,15 @@ export function cameraLocalTransform(requested) {
 }
 
 export function captureCameraWorld(phoneWorld, requested) {
+  const camera = requested.camera || {};
+  const ext = camera.topology_request === "CAMERA_BETWEEN" ? camera.external_transform_request : null;
+  if (ext?.translation && ext?.rotation) {
+    return {
+      translation: ext.translation.slice(),
+      rotation: ext.rotation.slice(),
+      scale: (ext.scale || [1, 1, 1]).slice(),
+    };
+  }
   const local = cameraLocalTransform(requested);
   return xform.compose(phoneWorld, local);
 }
@@ -47,6 +55,7 @@ export function intrinsics(requested) {
 }
 
 export function evaluateCamera(phoneWorld, requested) {
+  const external = requested.camera?.topology_request === "CAMERA_BETWEEN";
   const world = captureCameraWorld(phoneWorld, requested);
   const basis = cameraBasis(world);
   const K = intrinsics(requested);
@@ -61,7 +70,7 @@ export function evaluateCamera(phoneWorld, requested) {
     distortion,
     distortion_status,
     epistemic_status: requested.camera.epistemic_status,
-    mount: "FRONT",
-    same_side_as_screen: true,
+    mount: external ? "EXTERNAL" : "FRONT",
+    same_side_as_screen: !external,
   };
 }
