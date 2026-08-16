@@ -38,3 +38,17 @@ jobs:
         with:
           name: acc-shot-current
           path: tests/screenshots/current/*.png
+      - name: Record exact branch source state
+        if: always()
+        shell: bash
+        run: |
+          git ls-tree -r HEAD > source-tree.txt
+          tar -czf source-state.tgz src tests fixtures tools package.json .github/workflows/ci.yml
+      - name: Upload exact branch source state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-state
+          path: |
+            source-tree.txt
+            source-state.tgz
