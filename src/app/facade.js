@@ -15,9 +15,6 @@ const PHYSICAL_COMP_ACTIONS=new Set(["MOVE_PHONE","ROTATE_PHONE","MOVE_POSE_TARG
 export function createApp(){
   let requested=defaultRequestedState();
   let last=solve(requested);
-  // One-time hydration of the requested P0 preset establishes the solved initial
-  // station and WORLD mirror anchor. Thereafter effective compensation never
-  // overwrites artist-requested values.
   requested=structuredClone(last.requested);
   let previewRequested=null;
   const history=createHistory(),snapshots={};
@@ -33,6 +30,13 @@ export function createApp(){
     last.effective.constraints=[...(last.effective.constraints||[]),{state:"PROJECTED",constraint_id:"autosolve_d_M",requested:from,effective:to,residual:to-from,tolerance:null,reason:comp.reason,moved_variables:[comp.variable]}];
     if(last.effective.transaction==="PASS")last.effective.transaction="PROJECTED";
     if(last.transaction==="PASS")last.transaction="PROJECTED";
+  }
+  function snapshotExternalCamera(result,beforeEff,name,payload){
+    if(name!=="SET_TOPOLOGY"||payload.topology!=="CAMERA_BETWEEN"||result.requested.camera.external_transform_request)return;
+    const w=beforeEff?.camera?.world;
+    if(!w?.translation||!w?.rotation)return;
+    result.requested.camera.external_transform_request={translation:w.translation.slice(),rotation:w.rotation.slice()};
+    result.requested.camera.external_transform_epistemic="HYPOTHESIS";
   }
 
   function dispatch(name,payload={},opts={}){
@@ -53,6 +57,7 @@ export function createApp(){
     }
     const beforeEff=last.effective;
     const base=opts.preview?(previewRequested||requested):requested,result=applyAction(base,name,payload);if(result.error)return{...last,error:result.error};
+    snapshotExternalCamera(result,beforeEff,name,payload);
     if(opts.preview){previewRequested=result.requested;resolve(previewRequested);inferCompensation(beforeEff,name);return last;}
     if(!NO_HISTORY.has(name))pushHistory(history,requested,opts.label||name);previewRequested=null;requested=result.requested;resolve(requested);inferCompensation(beforeEff,name);
     if(requested.workspace.pending_mirror_fit&&last.effective.proposal){requested.workspace.proposal=structuredClone(last.effective.proposal);requested.workspace.pending_mirror_fit=false;resolve(requested);}return last;
