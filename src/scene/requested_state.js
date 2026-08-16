@@ -70,6 +70,8 @@ export function defaultRequestedState() {
       epistemic_status: "HYPOTHESIS",
       topology_request: "FRONT_CAMERA_SELFIE",
       topology_epistemic: "UNRESOLVED",
+      external_transform_request: null,
+      external_transform_epistemic: "UNRESOLVED",
     },
     apparatus: {
       mirror_rotation_relation: "PARALLEL_TO_PHONE",
