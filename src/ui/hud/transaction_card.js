@@ -1,6 +1,8 @@
 export class TransactionCard {
-  mount(el, proj, handlers = {}) {
+  mount(el, input, handlers = {}) {
     el.replaceChildren();
+    const isCompOnly = !!input && typeof input === "object" && "from" in input && "to" in input && !("effective" in input);
+    const proj = isCompOnly ? { compensation: input } : (input || {});
     const le = proj.last_edit;
     const comp = proj.transaction_compensation || proj.compensation;
     const fea = proj.feasible;
@@ -13,7 +15,7 @@ export class TransactionCard {
     el.hidden = false;
     el.className = "mp-comp mp-txn";
     el.append(
-      kv("DRIVER", String(le?.driver || le?.action || "—")),
+      kv("DRIVER", String(le?.driver || le?.action || (comp ? "solver compensation" : "—"))),
       kv("PRESERVE", list(le?.preserve || proj.effective?.preserve)),
       kv("ALLOWED TO MOVE", list(le?.allowed_to_move || proj.effective?.allowed_to_move)),
       kv("DERIVED", derivedLine(fea, proj)),
