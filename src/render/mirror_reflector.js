@@ -1,3 +1,4 @@
+import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { householderAffine, finiteApertureTest } from "../domains/reflection/reflect.js";
 
 function nodeKey(obj) {
@@ -22,11 +23,10 @@ export class MirrorReflector {
     this.representation = "VOLUME";
   }
 
-  attachBody(gltfScene, skeletonClone) {
+  attachBody(gltfScene, skeletonClone = cloneSkeleton) {
     if (this.body) this.group.remove(this.body);
     this.bodySource = gltfScene;
-    const clone = skeletonClone || ((source) => source.clone(true));
-    this.body = clone(gltfScene);
+    this.body = skeletonClone(gltfScene);
     this.body.traverse((obj) => {
       if (obj.isSkinnedMesh) {
         obj.bindMode = "detached";
@@ -64,7 +64,7 @@ export class MirrorReflector {
     });
     dest.updateMatrixWorld(true);
     dest.traverse((obj) => {
-      if (obj.isSkinnedMesh?.valueOf?.() || obj.isSkinnedMesh) obj.skeleton?.update?.();
+      if (obj.isSkinnedMesh) obj.skeleton?.update?.();
     });
   }
 
