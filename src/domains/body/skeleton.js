@@ -94,13 +94,21 @@ export function measuredStature(fk) {
   return fk.head[2] - minZ;
 }
 
+function modelScale(requested) {
+  const labelled = requested.body?.definition?.stature;
+  const base = requested.body?.definition?.model_adapter?.base_height_m;
+  if (!(labelled > 0) || !(base > 0)) return 1;
+  return labelled / base;
+}
+
 export function p0RootWorld(requested) {
   const t = requested.body.pose_targets.root.translation;
   const yaw = requested.body.pose_targets.root.yaw;
+  const s = modelScale(requested);
   return {
     translation: t.slice(),
     rotation: quat.fromAxisAngle([0, 0, 1], yaw),
-    scale: [1, 1, 1],
+    scale: [s, s, s],
   };
 }
 
@@ -207,6 +215,18 @@ export function anatomicalQuat(bend = 0, tilt = 0, twist = 0) {
   return quat.bendTiltTwist(bend, tilt, twist);
 }
 
+function attachSurfaceReferences(fk, requested) {
+  const ratio = requested.body?.definition?.model_adapter?.face_head_extension_ratio ?? 0.645;
+  if (fk.head && fk.neck) {
+    fk.face_reference = [
+      fk.head[0] + ratio * (fk.head[0] - fk.neck[0]),
+      fk.head[1] + ratio * (fk.head[1] - fk.neck[1]),
+      fk.head[2] + ratio * (fk.head[2] - fk.neck[2]),
+    ];
+  }
+  return fk;
+}
+
 export function evaluateSkeleton(requested) {
   const raw = {
     ...p0PoseRotations(),
@@ -220,10 +240,12 @@ export function evaluateSkeleton(requested) {
   }
   const locals = applyPoseRotations(restLocals(), limited);
   const root_world = p0RootWorld(requested);
-  const { world, fk } = forwardKinematics(locals, root_world);
+  const posed = forwardKinematics(locals, root_world);
+  const fk = attachSurfaceReferences(posed.fk, requested);
+  const adapter = requested.body.definition.model_adapter || {};
   return {
     locals,
-    world,
+    world: posed.world,
     fk,
     root_world,
     glb: requested.body.definition.glb,
@@ -232,6 +254,7 @@ export function evaluateSkeleton(requested) {
     joint_limits_unknown: unknown,
     measured_stature_m: measuredStature(fk),
     labelled_stature_m: requested.body.definition.stature,
+    model_stature_m: (adapter.base_height_m || 0) * (root_world.scale?.[0] || 1),
   };
 }
 
