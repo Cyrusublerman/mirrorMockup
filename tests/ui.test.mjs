@@ -154,6 +154,8 @@ test("remote launcher pins SHA and does not exec arbitrary repo", () => {
   assert.doesNotMatch(html, /@main/);
   assert.doesNotMatch(html, /<base/);
   assert.match(html, /src\/app\/boot\.js/);
+  assert.match(html, /cdn\.jsdelivr\.net\/gh\//);
+  assert.match(html, /type="importmap"/);
 });
 
 test("app shell is a three-room HUD not a five-mode form", () => {

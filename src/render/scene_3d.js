@@ -42,8 +42,8 @@ function glbCandidates(rel) {
   const path = rel.replace(/^\.\//, "");
   const out = [];
   if (/^(https?:|blob:|data:)/i.test(path)) return [path];
-  out.push(new URL(path, repoRootUrl()).href);
   if (globalThis.MIRROR_REPO) out.push(new URL(path, String(globalThis.MIRROR_REPO).replace(/\/?$/, "/")).href);
+  out.push(new URL(path, repoRootUrl()).href);
   if (typeof document !== "undefined" && document.baseURI) out.push(new URL(path, document.baseURI).href);
   out.push(path);
   return [...new Set(out)];

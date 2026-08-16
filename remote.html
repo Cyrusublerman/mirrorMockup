@@ -2,8 +2,16 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://raw.githack.com; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'none'">
 <title>P0 composition tool (remote repo)</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
 <script>
   (function () {
     window.addEventListener("error", function (e) {
@@ -18,6 +26,11 @@
     var REPO = "mirrorMockup";
     var PINNED = "d0d5324da8e02d3fbeea26cf59b81d02bc65f557";
     var LOCAL = { "127.0.0.1": 1, "localhost": 1, "[::1]": 1 };
+    var SAME = {
+      "cdn.jsdelivr.net": 1,
+      "raw.githack.com": 1,
+      "rawcdn.githack.com": 1
+    };
     var params = new URLSearchParams(location.search);
     var repo = params.get("repo");
     var origin = null;
@@ -29,6 +42,9 @@
       x.hash = "";
       return x.href;
     }
+    function jsdelivr(ref) {
+      return "https://cdn.jsdelivr.net/gh/" + OWNER + "/" + REPO + "@" + ref + "/";
+    }
     if (repo) {
       try {
         var u = new URL(repo, location.href);
@@ -38,15 +54,15 @@
       } catch (e) {
         err = String(e && e.message || e);
       }
+    } else if (LOCAL[location.hostname] || SAME[location.hostname]) {
+      origin = slash(location.href);
     } else {
       var ref = params.get("ref") || PINNED;
       if (!/^[0-9a-f]{7,40}$/i.test(ref)) {
         err = "ref must be a commit SHA";
         ref = PINNED;
       }
-      origin = params.get("cdn") === "jsdelivr"
-        ? ("https://cdn.jsdelivr.net/gh/" + OWNER + "/" + REPO + "@" + ref + "/")
-        : ("https://raw.githack.com/" + OWNER + "/" + REPO + "/" + ref + "/");
+      origin = jsdelivr(ref);
     }
     window.MIRROR_BOOT_ERROR = err;
     window.MIRROR_REPO = origin;
@@ -79,20 +95,27 @@
     if (window.MIRROR_BOOT_ERROR) { fail(window.MIRROR_BOOT_ERROR); return; }
     if (!window.MIRROR_REPO) { fail("no trusted module origin"); return; }
     var repo = window.MIRROR_REPO;
-    var mapText = '{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}';
     try {
       var res = await fetch(new URL("importmap.json", repo).href);
-      if (res.ok) mapText = await res.text();
-    } catch (e) {}
-    var map = document.createElement("script");
-    map.type = "importmap";
-    map.textContent = mapText;
-    document.head.appendChild(map);
+      if (!res.ok) throw new Error("importmap.json HTTP " + res.status);
+      var map = JSON.parse(await res.text());
+      if (!map.imports || !map.imports.three) throw new Error("importmap.json missing three");
+    } catch (e) {
+      fail("Failed to load importmap from " + String(repo), String(e && e.stack || e));
+      return;
+    }
+    var href = new URL("src/app/boot.js", repo).href;
+    var mod;
     try {
-      var mod = await import(new URL("src/app/boot.js", repo).href);
+      mod = await import(href);
+    } catch (err) {
+      fail("Failed to load the tool from " + String(repo), String(err && err.stack || err));
+      throw err;
+    }
+    try {
       await mod.boot(root);
     } catch (err) {
-      fail("Failed to load or start the tool from " + String(repo), String(err && err.stack || err));
+      fail("Failed to start the tool from " + String(repo), String(err && err.stack || err));
       throw err;
     }
   })();
