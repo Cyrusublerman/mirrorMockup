@@ -1,7 +1,7 @@
 import { injectShellCss } from "./shell.js";
 import { createWorkspaceState, NUMERIC_FRAMES } from "./state/workspace_state.js";
 import { ViewState } from "./state/view_state.js";
-import { PhaseState, PHASE_TO_ROOM } from "./state/phase_state.js";
+import { PhaseState } from "./state/phase_state.js";
 import { OutputRail } from "./hud/output_rail.js";
 import { createInteractionMachine } from "./state/interaction_state_machine.js";
 import { createDispatchAdapter } from "./adapters/action_dispatch_adapter.js";
@@ -97,13 +97,13 @@ export async function bootUi(root, app) {
   const viewLab = el("div", "mp-view-lab");
   const toast = el("div", "mp-toast"); toast.setAttribute("role", "status"); toast.setAttribute("aria-live", "polite");
   const diagEl = el("div");
-  stage.append(canvas, overlay, viewsEl, viewLab, toast, diagEl);
+  const modeEl = el("div", "mp-input-wrap");
+  stage.append(canvas, overlay, viewsEl, viewLab, toast, diagEl, modeEl);
 
   const hud = el("section", "mp-hud"); hud.setAttribute("aria-label", "Selection dock");
   const contextEl = el("div", "mp-context");
   const validEl = el("div", "mp-valid-wrap");
-  const modeEl = el("div", "mp-input-wrap");
-  hud.append(contextEl, modeEl, validEl);
+  hud.append(contextEl, validEl);
   const inspectEl = el("div", "mp-inspect");
   const sheetEl = el("aside", "mp-sheet");
   const menuEl = el("div", "mp-menu");
@@ -116,7 +116,7 @@ export async function bootUi(root, app) {
   try { scene3d = await createScene3D(canvas, app, { insetCanvas, viewState }); }
   catch (err) { fail(root, "Viewport failed to start.", String(err?.stack || err)); throw err; }
   scene3d.setEditorView(viewState.editor_view);
-  scene3d.setRoom(PHASE_TO_ROOM[workspace.phase]);
+  scene3d.setFrameScope("BODY");
 
   let euler = { bend: 0, tilt: 0, twist: 0 };
   let drag = null;
@@ -197,7 +197,7 @@ export async function bootUi(root, app) {
       setWarp(mode){const proj=projectForHud(app);if(mode==="AUTO"&&!proj.portal?.valid){showToast("AUTO refused — "+(proj.reasons[0]||"P invalid"));return;}workspace.warp=mode;app.dispatch("SET_PRINT_GALLERY_MODE",{mode},{label:"Warp "+mode});paintAll();},
       nudgeQ(){workspace.q=workspace.q===1?-1:1;app.dispatch("SET_RECURSION_PARAMETER",{q:workspace.q},{label:"Set q"});paintAll();},
       nudgeN(){workspace.n=(workspace.n+1)%4;app.dispatch("SET_RECURSION_PARAMETER",{n:workspace.n},{label:"Set n"});paintAll();},
-      select(sel){workspace.selected=sel;app.dispatch("SET_SELECTION",{selection:sel.id||sel.kind},{preview:true});if(persistentNumbers)workspace.precision=true;paintHud();},
+      select(sel){workspace.selected=sel;app.dispatch("SET_SELECTION",{selection:sel.id||sel.kind},{preview:true});scene3d.setFrameScope(["joint","body","arm7","torso"].includes(sel.kind)?"BODY":"APPARATUS");if(persistentNumbers)workspace.precision=true;paintHud();},
       setAxis(axis){workspace.axis=axis;if(workspace.selected)workspace.selected.axis=axis;paintHud();},
     };
   }
@@ -259,12 +259,12 @@ export async function bootUi(root, app) {
 
   function paintHud() {
     const proj=projectForHud(app);
-    mountTopModeStrip(strip,workspace,(phase)=>{workspace.phase=phase;phaseState.setPhase(phase);scene3d.setRoom(PHASE_TO_ROOM[phase]);app.dispatch("SET_PHASE",{phase},{preview:true});paintAll();});
+    mountTopModeStrip(strip,workspace,(phase)=>{workspace.phase=phase;phaseState.setPhase(phase);app.dispatch("SET_PHASE",{phase},{preview:true});paintAll();});
     if(!strip.contains(more))strip.appendChild(more);
     outputRail.mount(outEl,workspace.output_mode,setOutputMode);
     mountViewStrip(viewsEl,workspace,(id)=>{viewState.setEditorView(id);viewState.setMainPane("EDITOR");workspace.editor_view=id;scene3d.setEditorView(id);paintAll();});
     mountContextHud(contextEl,workspace,proj,handlers());
-    inputModes.mount(modeEl,workspace.input_mode,(id)=>{workspace.input_mode=id;phaseState.setInput(id);app.dispatch("SET_INPUT_MODE",{mode:id},{preview:true});if(id==="NUMBERS")workspace.precision=true;if(id==="PLAN"){viewState.setEditorView("TOP");workspace.editor_view="TOP";scene3d.setEditorView("TOP");}if(id==="ELEVATION"){viewState.setEditorView("LEFT");workspace.editor_view="LEFT";scene3d.setEditorView("LEFT");}paintAll();});
+    inputModes.mount(modeEl,workspace.input_mode,(id)=>{workspace.input_mode=id;phaseState.setInput(id);app.dispatch("SET_INPUT_MODE",{mode:id},{preview:true});if(id==="NUMBERS")workspace.precision=true;if(id==="VIEWPORT")scene3d.setFrameScope(["joint","body","arm7","torso"].includes(workspace.selected?.kind)?"BODY":"APPARATUS");if(id==="PLAN"){scene3d.setFrameScope("APPARATUS");viewState.setEditorView("TOP");workspace.editor_view="TOP";scene3d.setEditorView("TOP");}if(id==="ELEVATION"){scene3d.setFrameScope("APPARATUS");viewState.setEditorView("LEFT");workspace.editor_view="LEFT";scene3d.setEditorView("LEFT");}if(id==="FEASIBLE")scene3d.setFrameScope("APPARATUS");paintAll();});
     if(workspace.input_mode==="FEASIBLE")feasiblePanel.mount(diagEl,proj.feasible,undefined,(b)=>{workspace.selected={kind:"constraint",id:b.id,label:b.label||b.id};workspace.inspect=true;paintHud();});
     else if(workspace.input_mode==="ELEVATION")elevationPanel.mount(diagEl,proj.aperture_band,(z)=>{app.dispatch("SET_MIRROR_HEIGHT",{z},{label:"Mount height"});paintAll();});
     else{diagEl.hidden=true;diagEl.replaceChildren();}
@@ -289,7 +289,7 @@ export async function bootUi(root, app) {
   swap.onclick=()=>{scene3d.swapInset();workspace.editor_view=scene3d.workspace.editor_view;paintAll();};
 
   new InsetInput().bind(outputPane,{
-    cameraEdit:()=>workspace.selected?.kind==="camera"||workspace.selected?.kind==="crop"||viewState.main_pane==="CAPTURE",
+    cameraEdit:()=>workspace.phase==="SOLVE"&&(workspace.selected?.kind==="camera"||workspace.selected?.kind==="crop"||viewState.main_pane==="CAPTURE"),
     getHfov:()=>app.getRequested().camera.hfov_request,
     setHfov(hfov){dispatch.startGesture("Changed FOV");dispatch.preview("SET_CAMERA_FOV",{hfov});paintScene();},onPinchStart(){dispatch.startGesture("Changed FOV");},
     onHit(){},onUp(){dispatch.endGesture();},onSwap(){scene3d.swapInset();workspace.editor_view=scene3d.workspace.editor_view;paintAll();},
@@ -297,19 +297,19 @@ export async function bootUi(root, app) {
 
   function beginDragFromHit(hit,req){
     if(workspace.phase==="STAGE"){drag={kind:"orbit",started:false};return;}
-    if(hit.kind==="joint"&&IK_JOINTS.includes(hit.id)&&workspace.phase==="DECLARE"){const world=(req.body.pose_targets.endpoint_targets[hit.id]||app.getEffective().skeleton.fk[hit.id]||hit.point).slice();drag={kind:"ik",end:hit.id,world,started:false};}
-    else if(hit.kind==="joint"&&workspace.phase==="DECLARE"){euler={...(req.body.pose_targets.btt_euler?.[hit.id]||{bend:0,tilt:0,twist:0})};drag={kind:"joint",joint:hit.id,started:false};}
-    else if(hit.kind==="phone"&&workspace.phase==="DECLARE")drag={kind:"phone",translation:req.phone.transform_request.translation.slice(),started:false};
+    if(hit.kind==="joint"&&IK_JOINTS.includes(hit.id)&&workspace.phase==="SOLVE"){const world=(req.body.pose_targets.endpoint_targets[hit.id]||app.getEffective().skeleton.fk[hit.id]||hit.point).slice();drag={kind:"ik",end:hit.id,world,started:false};}
+    else if(hit.kind==="joint"&&workspace.phase==="SOLVE"){euler={...(req.body.pose_targets.btt_euler?.[hit.id]||{bend:0,tilt:0,twist:0})};drag={kind:"joint",joint:hit.id,started:false};}
+    else if(hit.kind==="phone"&&workspace.phase==="SOLVE")drag={kind:"phone",translation:req.phone.transform_request.translation.slice(),started:false};
     else if(hit.kind==="mirror"&&workspace.phase==="SOLVE"){const id=workspace.selected?.id==="window"?"window":"d_M";workspace.selected={kind:"mirror",id,label:id==="window"?"Mirror window pan":"Mirror distance"};drag={kind:id,d_M:req.apparatus.mirror_distance_request_m,uv:req.apparatus.mirror_pan_uv_request_m.slice(),started:false};}
     else drag={kind:"orbit",started:false};
   }
 
   createEditorViewport(canvas,scene3d,machine,{
     onDown(ev,p){
-      if(viewState.main_pane==="CAPTURE"&&workspace.phase==="DECLARE"){
+      if(viewState.main_pane==="CAPTURE"&&workspace.phase==="SOLVE"){
         const box=overlay.getBoundingClientRect();if(box.width>0&&box.height>0){const uv=[(ev.clientX-box.left)/box.width,(ev.clientY-box.top)/box.height];const quad=projectForHud(app).portal?.P?.quad;const corner=hitScreenCorner(quad,uv);if(corner>=0){workspace.selected={kind:"phone",id:"screen_"+corner,label:"Screen corner "+(corner+1)};drag={kind:"screen_corner",index:corner,uv:quad[corner].slice(),started:false};machine.beginSelect(p.id,p);paintHud();return;}}
       }
-      const hit=hitFromEvent(scene3d,ev);if(hit){workspace.selected={kind:hit.kind,id:hit.id,label:labelForHit(hit),axis:workspace.axis};app.dispatch("SET_SELECTION",{selection:hit.id||hit.kind},{preview:true});beginDragFromHit(hit,app.getRequested());machine.beginSelect(p.id,p);paintHud();return;}
+      const hit=hitFromEvent(scene3d,ev);if(hit){workspace.selected={kind:hit.kind,id:hit.id,label:labelForHit(hit),axis:workspace.axis};app.dispatch("SET_SELECTION",{selection:hit.id||hit.kind},{preview:true});scene3d.setFrameScope(["joint","body"].includes(hit.kind)?"BODY":"APPARATUS");beginDragFromHit(hit,app.getRequested());machine.beginSelect(p.id,p);paintHud();return;}
       if(workspace.phase==="SOLVE"&&workspace.selected?.kind==="crop"){drag={kind:"crop",pan:app.getRequested().camera.crop_request.pan.slice(),started:false};machine.beginSelect(p.id,p);return;}
       if(workspace.output_mode==="RECURSION"&&workspace.selected?.kind==="q"){drag={kind:"q",offset:app.getRequested().content_q.offset.slice(),started:false};machine.beginSelect(p.id,p);return;}
       if(workspace.phase==="SOLVE"&&workspace.selected?.id==="apparatus"){drag={kind:"apparatus",pan:app.getRequested().apparatus.apparatus_pan_request_m.slice(),started:false};machine.beginSelect(p.id,p);return;}
