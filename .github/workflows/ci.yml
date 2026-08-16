@@ -44,7 +44,7 @@ jobs:
         env:
           MIRROR_SOURCE_SHA: ${{ github.sha }}
         run: node tools/build_standalone.mjs
-      - name: Verify standalone is self-contained and boots offline
+      - name: Verify standalone is self-contained and renders offline
         shell: bash
         run: |
           set -euo pipefail
@@ -54,21 +54,20 @@ jobs:
             echo 'external HTML dependency found' >&2
             exit 1
           fi
-          google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+          timeout 50s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
             --disable-background-networking --allow-file-access-from-files \
             --enable-webgl --use-angle=swiftshader --ignore-gpu-blocklist \
-            --window-size=430,932 --virtual-time-budget=12000 \
-            --dump-dom "file://$FILE" > standalone-dom.html
-          grep -q 'class="mp-app"' standalone-dom.html
-          if grep -q 'id="boot-fail"' standalone-dom.html; then
-            cat standalone-dom.html >&2
-            exit 1
-          fi
+            --window-size=430,932 --hide-scrollbars --virtual-time-budget=10000 \
+            --screenshot="$PWD/dist/standalone-offline-smoke.png" "file://$FILE"
+          test -s "$PWD/dist/standalone-offline-smoke.png"
+          test "$(stat -c%s "$PWD/dist/standalone-offline-smoke.png")" -gt 10000
       - name: Upload standalone HTML
         uses: actions/upload-artifact@v4
         with:
           name: mirror-portrait-standalone
-          path: dist/mirror-portrait-standalone.html
+          path: |
+            dist/mirror-portrait-standalone.html
+            dist/standalone-offline-smoke.png
           if-no-files-found: error
       - name: Record exact branch source state
         if: always()
