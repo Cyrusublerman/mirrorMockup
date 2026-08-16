@@ -11,15 +11,19 @@ export class StagingPrescription {
 
   build(requested,effective) {
     const widthStatus=requested.phone?.width_epistemic||"ASSUMED";
-    const scaleSolid=this.classify(widthStatus)==="solid";
-    const scaleDerivedStatus=scaleSolid?"DERIVED":"HYPOTHESIS";
+    const cameraStatus=requested.camera?.epistemic_status||"HYPOTHESIS";
+    const bodyStatus=requested.body?.definition?.epistemic_status||"PROVISIONAL";
+    const rootsSolid=[widthStatus,cameraStatus,bodyStatus].every((s)=>this.classify(s)==="solid");
+    const derivedStatus=rootsSolid?"DERIVED":"HYPOTHESIS";
     const faceZ=effective.skeleton?.fk?.head?.[2];
     const camZ=effective.camera?.world?.translation?.[2];
     const distances=[
-      {id:"stand_m",value:effective.feasible?.m??effective.apparatus?.d_M,status:scaleDerivedStatus},
-      {id:"phone_forward_m",value:effective.feasible?.u,status:scaleDerivedStatus},
-      {id:"phone_lateral_m",value:effective.feasible?.e,status:scaleDerivedStatus},
-      {id:"phone_above_eye_m",value:Number.isFinite(faceZ)&&Number.isFinite(camZ)?camZ-faceZ:null,status:scaleDerivedStatus},
+      {id:"stand_m",value:effective.feasible?.m??effective.apparatus?.d_M,status:derivedStatus},
+      {id:"phone_forward_m",value:effective.feasible?.u,status:derivedStatus},
+      {id:"phone_lateral_m",value:effective.feasible?.e,status:derivedStatus},
+      {id:"phone_above_eye_m",value:Number.isFinite(faceZ)&&Number.isFinite(camZ)?camZ-faceZ:null,status:derivedStatus},
+      {id:"camera_height_m",value:camZ,status:derivedStatus},
+      {id:"stature_m",value:requested.body?.definition?.stature,status:bodyStatus},
       {id:"phone_width_m",value:requested.phone?.body_dimensions_m?.width,status:widthStatus},
     ];
     const printed=distances.map((d)=>({...d,mark:this.classify(d.status)}));
@@ -42,7 +46,11 @@ export class StagingPrescription {
       card,
       topology:requested.camera?.topology_request||"FRONT_CAMERA_SELFIE",
       topology_epistemic:requested.camera?.topology_epistemic||"UNRESOLVED",
-      scale_root:{phone_width_m:requested.phone?.body_dimensions_m?.width,status:widthStatus},
+      scale_roots:{
+        phone_width_m:{value:requested.phone?.body_dimensions_m?.width,status:widthStatus},
+        camera:{id:requested.camera?.calibration_id,status:cameraStatus},
+        stature_m:{value:requested.body?.definition?.stature,status:bodyStatus},
+      },
       synthesis:true,
     };
   }
