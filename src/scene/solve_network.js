@@ -128,7 +128,7 @@ function solveOnce(req) {
   const visibility = evaluateVisibility(pose.fk, cam, mirror, occluders);
   const carrier_p = screenQuad.evaluate(phone, cam, mirror);
   const feasible = feasibleSet.evaluate({
-    face: pose.fk?.head,
+    face: pose.fk?.face_reference || pose.fk?.head,
     camera: cam.world?.translation,
     mirrorCentre: mirror.centre,
     mirrorNormal: mirror.basis?.n,
@@ -136,7 +136,7 @@ function solveOnce(req) {
     r: req.reference?.head_silhouette_radius_m || undefined,
   });
   if (req.reference?.head_silhouette_radius_m) feasible.r_epistemic = "DECLARED";
-  const aperture_band = apertureBand.evaluate({ camera: cam, face: pose.fk?.head, mirror, stature: req.body?.definition?.stature || 1.7 });
+  const aperture_band = apertureBand.evaluate({ camera: cam, face: pose.fk?.face_reference || pose.fk?.head, mirror, stature: req.body?.definition?.stature || 1.7 });
   const fractions = visibility.fractions || {};
   const occlusion_intent = new OcclusionIntent(req.composition.occlusion_intent).evaluate({
     reflected_head: { fraction: fractions.reflected_head || 0 },
@@ -256,7 +256,7 @@ function applyFeasibleProject(req, parts) {
     const row = cur.feasible;
     if (!row || row.inside) break;
     const n = cur.mirror?.basis?.n;
-    const face = cur.pose?.fk?.head;
+    const face = cur.pose?.fk?.face_reference || cur.pose?.fk?.head;
     const cam = cur.cam?.world?.translation;
     if (!n || !face || !cam) break;
     const out = feasibleSet.project(req.phone.transform_request.translation, req.apparatus.mirror_distance_request_m, face, cam, n, row);
@@ -269,8 +269,6 @@ function applyFeasibleProject(req, parts) {
     cur = solveOnce(cloneState(req));
   }
   req.apparatus.mirror_distance_auto_solve = savedAuto;
-  const area = Math.abs(cur.carrier_p?.area_capture ?? cur.carrier_p?.area ?? 0);
-  if (area > 1e-12) req.apparatus.preserved_reflected_phone_ratio = area;
   return cur;
 }
 
