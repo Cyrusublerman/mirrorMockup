@@ -17,6 +17,7 @@ async function loadRig(){
 }
 
 function worldOf(THREE,bone){const v=new THREE.Vector3();bone.updateWorldMatrix(true,false);bone.getWorldPosition(v);return[v.x,v.y,v.z];}
+function delta(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);}
 
 test("ACC-REG-02a · Three Matrix4 Householder matches point reflection",async()=>{
   const THREE=await import("three");
@@ -26,6 +27,24 @@ test("ACC-REG-02a · Three Matrix4 Householder matches point reflection",async()
   assert.ok(Math.hypot(v.x-want[0],v.y-want[1],v.z-want[2])<1e-9,JSON.stringify({got:[v.x,v.y,v.z],want,H}));
 });
 
+test("ACC-REG-02b · SkeletonUtils clone reproduces the posed source rig in model space",async()=>{
+  const THREE=await import("three");
+  const source=await loadRig();
+  const app=createApp(),skel=app.getEffective().skeleton,index=new BoneIndex(source,SEMANTIC);
+  const reflector=new MirrorReflector(THREE,new THREE.Scene());
+  reflector.attachBody(source);
+  index.applyLocals(skel.locals);
+  source.updateMatrixWorld(true);
+  reflector.syncBodyPose(source,reflector.body);
+  reflector.bodyCarrier.matrixAutoUpdate=true;
+  reflector.bodyCarrier.position.set(0,0,0);reflector.bodyCarrier.quaternion.identity();reflector.bodyCarrier.scale.set(1,1,1);reflector.bodyCarrier.updateMatrixWorld(true);
+  const reflectedIndex=new BoneIndex(reflector.body,SEMANTIC);
+  for(const id of Object.keys(SEMANTIC)){
+    const a=worldOf(THREE,index.get(id)),b=worldOf(THREE,reflectedIndex.get(id)),d=delta(a,b);
+    assert.ok(d<1e-8,`${id} model-space clone Δ=${d} ${JSON.stringify({source:a,clone:b})}`);
+  }
+});
+
 test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 5 mm",async()=>{
   const THREE=await import("three");
   const source=await loadRig();
@@ -33,8 +52,10 @@ test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 
   const host=new THREE.Scene(),reflector=new MirrorReflector(THREE,host);
   reflector.attachBody(source);
   index.applyLocals(skel.locals);
-  const root=new THREE.Group();const rw=skel.root_world;root.position.set(...rw.translation);root.quaternion.set(rw.rotation[0],rw.rotation[1],rw.rotation[2],rw.rotation[3]);root.scale.set(...(rw.scale||[1,1,1]));root.add(source);root.updateMatrixWorld(true);
+  source.updateMatrixWorld(true);
   reflector.syncBodyPose(source,reflector.body);
+  const modelLocal={};for(const id of Object.keys(SEMANTIC))modelLocal[id]=worldOf(THREE,index.get(id));
+  const root=new THREE.Group();const rw=skel.root_world;root.position.set(...rw.translation);root.quaternion.set(rw.rotation[0],rw.rotation[1],rw.rotation[2],rw.rotation[3]);root.scale.set(...(rw.scale||[1,1,1]));root.add(source);root.updateMatrixWorld(true);
   reflector.applyHouseholder(root,reflector.bodyCarrier,app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
   const original={};for(const id of Object.keys(SEMANTIC))original[id]=worldOf(THREE,index.get(id));
   const reflectedIndex=new BoneIndex(reflector.body,SEMANTIC);
@@ -43,8 +64,8 @@ test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 
   for(const id of Object.keys(SEMANTIC)){
     const got=worldOf(THREE,reflectedIndex.get(id));
     const want=reflectPoint(original[id],app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
-    const d=Math.hypot(got[0]-want[0],got[1]-want[1],got[2]-want[2]);
-    assert.ok(d<t("T-BONE-REG"),`${id} reflected Δ=${d} ${JSON.stringify({original:original[id],got,want,root:rw,mirror:app.getEffective().mirror.centre,n:app.getEffective().mirror.basis.n})}`);
+    const d=delta(got,want);
+    assert.ok(d<t("T-BONE-REG"),`${id} reflected Δ=${d} ${JSON.stringify({modelLocal:modelLocal[id],original:original[id],got,want,carrier:reflector.bodyCarrier.matrix.elements,bodyLocal:reflector.body.matrix.elements,root:rw,mirror:app.getEffective().mirror.centre,n:app.getEffective().mirror.basis.n})}`);
   }
 });
 
