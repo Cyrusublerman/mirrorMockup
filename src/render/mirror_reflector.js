@@ -5,6 +5,10 @@ function nodeKey(obj) {
   return obj?.userData?.name || obj?.name || "";
 }
 
+function isPoseTransform(obj) {
+  return !!obj && !obj.isMesh && !obj.isSkinnedMesh;
+}
+
 export class MirrorReflector {
   constructor(THREE, scene) {
     this.THREE = THREE;
@@ -56,15 +60,19 @@ export class MirrorReflector {
     if (!source || !dest) return;
     const src = new Map();
     source.traverse((obj) => {
-      if (obj.isBone) src.set(nodeKey(obj), obj);
+      if (!isPoseTransform(obj)) return;
+      const key = nodeKey(obj);
+      if (key) src.set(key, obj);
     });
     dest.traverse((obj) => {
-      if (!obj.isBone) return;
+      if (!isPoseTransform(obj)) return;
       const s = src.get(nodeKey(obj));
       if (!s) return;
       obj.position.copy(s.position);
       obj.quaternion.copy(s.quaternion);
       obj.scale.copy(s.scale);
+      obj.matrixAutoUpdate = s.matrixAutoUpdate;
+      if (!obj.matrixAutoUpdate) obj.matrix.copy(s.matrix);
     });
     dest.updateMatrixWorld(true);
     dest.traverse((obj) => {
