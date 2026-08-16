@@ -11,6 +11,12 @@ function residualValue(v) {
   return null;
 }
 
+function meaningfulCompensation(comp, tol = 1e-6) {
+  if (!comp) return null;
+  if (!Number.isFinite(comp.from) || !Number.isFinite(comp.to)) return comp;
+  return Math.abs(comp.to - comp.from) > tol ? comp : null;
+}
+
 export function projectForHud(app) {
   const r = app.getRequested();
   const e = app.getEffective();
@@ -93,7 +99,7 @@ export function projectForHud(app) {
       face_visibility: visOf(reports, "head"),
     },
     last_edit: e.last_edit,
-    compensation: e.compensation,
+    compensation: meaningfulCompensation(e.compensation),
     build: {
       APP: b.app,
       UI: b.ui,
