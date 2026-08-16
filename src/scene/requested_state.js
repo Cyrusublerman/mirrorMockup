@@ -59,7 +59,7 @@ export function defaultRequestedState() {
       support_request: { contacts: ["heel_L", "heel_R"], floor_z: 0 },
     },
     phone: {
-      transform_request: { translation: [0.085, -0.005, 1.6035], yaw: 0, pitch: 0, roll: 0 },
+      transform_request: { translation: [0.140, -0.005, 1.6035], yaw: 0, pitch: 0, roll: 0 },
       authority: "PHONE_DRIVES_HAND",
       grip_relation: {
         offset: [0, 0.105, -0.134459179],
@@ -89,7 +89,7 @@ export function defaultRequestedState() {
     apparatus: {
       mirror_rotation_relation: "PARALLEL_TO_PHONE",
       mirror_distance_request_m: 1.540,
-      mirror_pan_uv_request_m: [0, -0.265],
+      mirror_pan_uv_request_m: [-0.140, -0.265],
       apparatus_pan_request_m: [0, 0],
       mirror_distance_auto_solve: false,
       preserved_reflected_phone_ratio: 0.000375272871873153,
@@ -98,7 +98,7 @@ export function defaultRequestedState() {
     },
     mirror: {
       frame_authority: "WORLD",
-      world_pose: { translation: [0.085, 1.540, 1.400], rotation: [0, 0, 0, 1] },
+      world_pose: { translation: [0.000, 1.540, 1.400], rotation: [0, 0, 0, 1] },
       width_m: 0.62,
       height_m: 1.100,
       sill_m: 0.850,
