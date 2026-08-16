@@ -65,7 +65,7 @@ test("projectWorld IMAGE_NORM y=0 at top", () => {
   assert.ok(Math.abs(principal.image_norm[1] - 0.5) < 1e-9);
 });
 
-test("eyes and mouth are not measured from head FK", () => {
+test("eyes and mouth are not fabricated from head FK", () => {
   assert.equal(SUBJECT_MAP.direct_head.fk, "head");
   assert.equal(SUBJECT_MAP.direct_eye_L.fk, null);
   assert.equal(SUBJECT_MAP.direct_eye_R.fk, null);
@@ -83,43 +83,50 @@ test("eyes and mouth are not measured from head FK", () => {
   assert.equal(app.getEffective().composition_metrics.max_residual, Math.max(...measured));
 });
 
-test("transaction looks at composition residuals", () => {
+test("working physical station exposes unsolved composition residuals instead of pretending P0 fit", () => {
   const app = createApp();
   const e = app.getEffective();
   assert.equal(e.transaction, "PROJECTED");
   const head = e.constraints.find((c) => c.constraint_id === "target_direct_head");
-  assert.ok(head);
-  assert.ok(head.state === "PROJECTED" || head.state === "PASS");
   const phone = e.constraints.find((c) => c.constraint_id === "target_phone");
-  assert.equal(phone.state, "PASS");
+  assert.ok(head);
+  assert.ok(phone);
+  assert.equal(head.state, "PROJECTED");
+  assert.equal(phone.state, "PROJECTED");
   assert.equal(e.constraints.some((c) => c.constraint_id === "target_direct_eye_L"), false);
   const hud = projectForHud(app);
   assert.equal(hud.valid, false);
   assert.ok(hud.reasons.some((r) => String(r).includes("target_")));
 });
 
-test("layout fit reduces capture head-phone gap; optics stay locked", () => {
+test("v5 boot preserves the physical analysis station and does not run composition fitting", () => {
   const app = createApp();
   const e = app.getEffective();
-  const m = e.composition_metrics;
-  assert.ok(Number.isFinite(m.gap_residual));
-  assert.ok(m.gap_residual < 0.12, `gap_residual ${m.gap_residual}`);
-  assert.ok(m.layout_fit?.accepted);
-  assert.equal(m.layout_fit.optical_lock, true);
+  const r = app.getRequested();
+  assert.equal(r.composition.solve_mode, "MANUAL");
+  assert.equal(e.composition_metrics.layout_fit, undefined);
   assert.equal(e.camera.mount, "FRONT");
   assert.equal(e.camera.same_side_as_screen, true);
+  assert.ok(Math.abs(e.camera.world.translation[2] - 1.665) < 1e-9);
+  assert.ok(Math.abs(e.feasible.m - 1.200) < 0.002);
+  assert.ok(Math.abs(e.feasible.c - 1.540) < 0.002);
+  assert.ok(Math.abs(e.feasible.a - 0.368) < 0.002);
+  assert.equal(e.carrier_p.valid, true);
   const f = e.camera.basis.forward;
   const n = e.mirror.basis.n;
   const sn = e.phone.screen_normal;
   assert.ok(Math.abs(sn[0] * f[0] + sn[1] * f[1] + sn[2] * f[2] - 1) < 1e-6);
   assert.ok(Math.abs(n[0] * f[0] + n[1] * f[1] + n[2] * f[2] + 1) < 1e-6);
-  assert.equal(e.carrier_p.valid, true);
-  assert.ok(e.residuals.phone.residual < 1e-6);
-  assert.equal(app.getRequested().camera.crop_request.scale, 1);
-  const C = e.camera.world.translation;
-  const along = (X) => (X[0] - C[0]) * f[0] + (X[1] - C[1]) * f[1] + (X[2] - C[2]) * f[2];
-  assert.ok(along(e.phone.screen_corners_world[0]) < along(e.skeleton.fk.head));
-  assert.ok(along(e.skeleton.fk.head) < along(e.mirror.centre));
+});
+
+test("explicit P0_RECONSTRUCT is the only operation that may invoke layout fit", () => {
+  const app = createApp();
+  assert.equal(app.getEffective().composition_metrics.layout_fit, undefined);
+  app.dispatch("SET_DRIVER", { mode: "P0_RECONSTRUCT" });
+  const fit = app.getEffective().composition_metrics.layout_fit;
+  assert.ok(fit, "explicit reconstruction must expose its fit record");
+  assert.equal(typeof fit.accepted, "boolean");
+  assert.equal(fit.optical_lock, true);
 });
 
 test("MOVE_PHONE does not re-run layout fit", () => {
