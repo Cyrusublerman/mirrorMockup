@@ -29,3 +29,4 @@ jobs:
           git diff --cached --check
           git commit -m 'Apply exact v5 solver geometry patch'
           git push origin HEAD:agent/phase-4-toast
+# retry 2: corrected exact occurrence counts
