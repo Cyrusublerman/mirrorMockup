@@ -128,7 +128,7 @@ function solveOnce(req) {
   const visibility = evaluateVisibility(pose.fk, cam, mirror, occluders);
   const carrier_p = screenQuad.evaluate(phone, cam, mirror);
   const feasible = feasibleSet.evaluate({
-    face: pose.fk?.face_reference || pose.fk?.head,
+    face: pose.fk?.head,
     camera: cam.world?.translation,
     mirrorCentre: mirror.centre,
     mirrorNormal: mirror.basis?.n,
@@ -136,7 +136,7 @@ function solveOnce(req) {
     r: req.reference?.head_silhouette_radius_m || undefined,
   });
   if (req.reference?.head_silhouette_radius_m) feasible.r_epistemic = "DECLARED";
-  const aperture_band = apertureBand.evaluate({ camera: cam, face: pose.fk?.face_reference || pose.fk?.head, mirror, stature: req.body?.definition?.stature || 1.7 });
+  const aperture_band = apertureBand.evaluate({ camera: cam, face: pose.fk?.head, mirror, stature: req.body?.definition?.stature || 1.7 });
   const fractions = visibility.fractions || {};
   const occlusion_intent = new OcclusionIntent(req.composition.occlusion_intent).evaluate({
     reflected_head: { fraction: fractions.reflected_head || 0 },
@@ -184,4 +184,227 @@ function compositionResidualConstraints(req, residuals) {
   for (const tgt of req.composition?.targets || []) {
     const row = residuals?.[tgt.id];
     if (!row || row.reason === "NO_DISTINCT_FK" || row.reason === "UNMAPPED") continue;
-    const hard = (tgt.hard_or_soft ||
+    const hard = (tgt.hard_or_soft || row.hard_or_soft || "soft") === "hard";
+    const tol = row.tolerance ?? tgt.tolerance ?? 0;
+    if (row.residual == null) {
+      out.push(constraintResult({ state: hard ? "FAIL" : "PROJECTED", constraint_id: `target_${tgt.id}`, requested: row.requested ?? tgt.target, effective: null, residual: null, tolerance: tol, reason: row.reason || "NOT_VISIBLE" }));
+      continue;
+    }
+    const inTol = row.residual <= tol;
+    out.push(constraintResult({ state: inTol ? "PASS" : hard ? "FAIL" : "PROJECTED", constraint_id: `target_${tgt.id}`, requested: row.requested ?? tgt.target, effective: row.effective, residual: row.residual, tolerance: tol, reason: inTol ? "" : "OUT_OF_TOLERANCE" }));
+  }
+  return out;
+}
+
+function applyReflectedNudge(req, parts) {
+  const d = req.composition.reflected_content_delta;
+  if (!d || (d[0] === 0 && d[1] === 0) || !allows(req, "pose")) return parts;
+  const body = parts.composition.residuals?.reflected_body;
+  if (!body?.effective) return parts;
+  const want = [body.effective[0] + d[0], body.effective[1] + d[1]];
+  const root = req.body.pose_targets.root.translation;
+  const J = jacobian((x) => {
+    const r = cloneState(req);
+    r.body.pose_targets.root.translation = [x[0], root[1], x[1]];
+    r.composition.reflected_content_delta = [0, 0];
+    const p = solveOnce(r);
+    return p.composition.residuals.reflected_body?.effective || body.effective;
+  }, [root[0], root[2]], 2, FD_STEP);
+  const err = [want[0] - body.effective[0], want[1] - body.effective[1]];
+  const det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+  if (Math.abs(det) < 1e-12) return parts;
+  const dx = (J[1][1] * err[0] - J[0][1] * err[1]) / det;
+  const dz = (-J[1][0] * err[0] + J[0][0] * err[1]) / det;
+  req.body.pose_targets.root.translation = [root[0] + dx, root[1], root[2] + dz];
+  req.composition.reflected_content_delta = [0, 0];
+  return solveOnce(cloneState(req));
+}
+
+function slimLayoutEval(req) {
+  const r = cloneState(req);
+  r.apparatus.mirror_distance_auto_solve = false;
+  r.composition.active_preserve_set = (r.composition.active_preserve_set || []).filter((x) => x !== "R_P");
+  return solveOnce(r);
+}
+
+function applyPhoneScale(req, parts) {
+  if (req.composition?.phone_scale_policy !== "SOLVED") return parts;
+  const f = req.composition?.phone_scale_request;
+  if (f == null || !parts.feasible || !parts.cam) return parts;
+  const out = phoneScale.solve({ c: parts.feasible.c, f, width_m: req.phone.body_dimensions_m.width, hfov: parts.cam.hfov });
+  if (Math.abs(out.delta_c) < 1e-4) return parts;
+  const fwd = parts.cam.basis?.forward;
+  if (!fwd) return parts;
+  req.phone.transform_request.translation = add(req.phone.transform_request.translation, scale(fwd, -out.delta_c));
+  return solveOnce(cloneState(req));
+}
+
+function nearestMaskRow(metrics) {
+  const measured = { mirror: metrics?.mirror_occupancy ?? 0, direct_body: metrics?.direct_head_occupancy ?? 0, reflected_body: metrics?.reflected_body_occupancy ?? 0 };
+  let best = null, bestScore = -1;
+  for (const id of Object.keys(maskCompare.panels())) {
+    const row = maskCompare.occupancyResidual(id, measured);
+    if (row && row.weighted > bestScore) { best = row; bestScore = row.weighted; }
+  }
+  return best;
+}
+
+function applyFeasibleProject(req, parts) {
+  let cur = parts;
+  const savedAuto = req.apparatus.mirror_distance_auto_solve;
+  for (let i = 0; i < 6; i++) {
+    const row = cur.feasible;
+    if (!row || row.inside) break;
+    const n = cur.mirror?.basis?.n;
+    const face = cur.pose?.fk?.head;
+    const cam = cur.cam?.world?.translation;
+    if (!n || !face || !cam) break;
+    const out = feasibleSet.project(req.phone.transform_request.translation, req.apparatus.mirror_distance_request_m, face, cam, n, row);
+    req.phone.transform_request.translation = out.translation;
+    if (out.d_M !== req.apparatus.mirror_distance_request_m) {
+      req.apparatus.mirror_distance_request_m = out.d_M;
+      req.apparatus.apply_distance_request = true;
+    }
+    req.apparatus.mirror_distance_auto_solve = false;
+    cur = solveOnce(cloneState(req));
+  }
+  req.apparatus.mirror_distance_auto_solve = savedAuto;
+  const area = Math.abs(cur.carrier_p?.area_capture ?? cur.carrier_p?.area ?? 0);
+  if (area > 1e-12) req.apparatus.preserved_reflected_phone_ratio = area;
+  return cur;
+}
+
+function pinWorldMirror(req, parts) {
+  if (req.mirror.frame_authority !== "WORLD" || !parts.apparatus?.centre) return;
+  req.mirror.world_pose = { translation: parts.apparatus.centre.slice(), rotation: req.mirror.world_pose?.rotation || [0, 0, 0, 1] };
+}
+
+function phoneCentroidCapture(req) {
+  const phone = evaluatePhone(req);
+  const cam = evaluateCamera(phone.world, req);
+  const apparatus = evaluateApparatus(cam, req);
+  const mirror = evaluateMirror(apparatus, req);
+  const p = evaluateCarrierP(phone, cam, mirror);
+  const q = p.quad_capture || p.quad;
+  if (!q || q.some((c) => !c)) return [0.5, 0.5];
+  return [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
+}
+
+function sensitivityAt(req) {
+  const x0 = [req.apparatus.mirror_distance_request_m, req.camera.hfov_request, req.camera.crop_request.pan[0]];
+  const J = jacobian((x) => {
+    const r = cloneState(req);
+    r.apparatus.mirror_distance_auto_solve = false;
+    r.apparatus.mirror_distance_request_m = x[0];
+    r.camera.hfov_request = x[1];
+    r.camera.crop_request.pan = [x[2], r.camera.crop_request.pan[1]];
+    const phone = evaluatePhone(r), cam = evaluateCamera(phone.world, r), apparatus = evaluateApparatus(cam, r), mirror = evaluateMirror(apparatus, r), p = evaluateCarrierP(phone, cam, mirror), q = p.quad;
+    if (!q || q.some((c) => !c)) return [0.5, 0.5];
+    return [(q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4];
+  }, x0, 2, FD_STEP);
+  return [
+    { of: "phone_cx_final", wrt: "d_M", value: J[0][0] }, { of: "phone_cy_final", wrt: "d_M", value: J[1][0] },
+    { of: "phone_cx_final", wrt: "hfov", value: J[0][1] }, { of: "phone_cy_final", wrt: "hfov", value: J[1][1] },
+    { of: "phone_cx_final", wrt: "crop_pan_u", value: J[0][2] }, { of: "phone_cy_final", wrt: "crop_pan_u", value: J[1][2] },
+  ];
+}
+
+export function solve(requested) {
+  let req = cloneState(requested);
+  if (!req.composition.targets.length) req.composition.targets = p0Targets();
+  const policyMask = modeMask(req.composition.solve_mode);
+  req = applySolveMode(req, req.composition.solve_mode);
+  const partition = partitionX(req);
+
+  let parts = solveOnce(cloneState(req));
+  pinWorldMirror(req, parts);
+  let layout = null;
+  if (shouldLayoutFit(req)) {
+    layout = fitLayout(req, slimLayoutEval);
+    parts = solveOnce(cloneState(req));
+  }
+  parts = applyReflectedNudge(req, parts);
+  parts = applyPhoneScale(req, parts);
+
+  // §1: hard feasibility is upstream of composition. Every solve, including an
+  // ordinary edit, is projected into the feasible set before downstream output.
+  parts = applyFeasibleProject(req, parts);
+  const gapBeforeFeasible = parts.composition?.metrics?.gap_residual;
+
+  const mode = req.composition.solve_mode;
+  if (mode === "P0_RECONSTRUCT" || mode === "COMPOSITION_FIT") parts = placePhoneByCrop(req, parts);
+
+  // Crop placement must never bypass physical feasibility.
+  parts = applyFeasibleProject(req, parts);
+
+  const { phone, cam, apparatus, mirror, reflection, grip, pose, support, visibility, carrier_p, content_q, recursion, composition, view, compensation, feasible, aperture_band, occlusion_intent } = parts;
+
+  let proposal = req.workspace.proposal || null;
+  if (req.workspace.pending_mirror_fit) {
+    const uvs = [];
+    for (const r of Object.values(visibility.reports || {})) if (r.reflected?.aperture?.uv) uvs.push(r.reflected.aperture.uv);
+    const fit = uvs.length ? fitAperture(uvs, req.mirror.fit_margin_m) : { width: req.mirror.width_m, height: req.mirror.height_m };
+    proposal = createProposal({ id: "mirror_fit", kind: "MIRROR_FIT", description: "fit aperture to reflected content", patch: { mirror: { width_m: fit.width, height_m: fit.height } }, parent_id: req.workspace.last_edit?.action || null });
+  }
+  if (req.phone.authority === "RELAX_GRIP") proposal = createProposal({ id: "relax_grip", kind: "RELAX_GRIP", description: "solver may adjust grip; not applied until accepted", patch: {}, parent_id: req.workspace.last_edit?.action || null });
+
+  const nLevels = Math.abs(req.recursion.n) || 1;
+  const needPx = minCarrierPx(nLevels);
+  const widthPx = req.camera.crop_request.width_px || 1080;
+  const carrierPx = Math.sqrt(Math.abs(carrier_p.area || 0)) * widthPx;
+  const carrierConflict = carrierPx < needPx;
+  if (carrierConflict && recursion.certificate && recursion.loop_state === "EXACT") {
+    recursion.loop_state = "DEGRADED";
+    recursion.degrade_reason = "min_carrier_px";
+    recursion.named_conflict = { needPx, carrierPx, profile: "P0" };
+  }
+
+  const constraints = [
+    ...(pose.constraints || []).map((c) => constraintResult({ state: c.state, constraint_id: c.id, requested: null, effective: null, residual: c.residual, moved_variables: pose.coupled?.moved || [] })),
+    ...support.reports.map((r) => constraintResult({ state: r.state, constraint_id: `support_${r.contact}`, requested: support.floor_z, effective: r.z, residual: r.penetration })),
+    constraintResult({ state: apparatus.parallel_residual < 1e-6 ? "PASS" : "PROJECTED", constraint_id: "apparatus_parallel", requested: -1, effective: -1 + apparatus.parallel_residual, residual: apparatus.parallel_residual }),
+    constraintResult({ state: carrier_p.valid ? "PASS" : "FAIL", constraint_id: "carrier_p", requested: true, effective: carrier_p.valid, residual: carrier_p.valid ? 0 : 1, reason: (carrier_p.reasons || []).join(",") }),
+    constraintResult({ state: feasible?.inside ? "PASS" : "FAIL", constraint_id: "feasible_set", requested: true, effective: !!feasible?.inside, residual: feasible?.distance_to_boundary ?? 0, reason: (feasible?.reasons || []).join(",") }),
+    constraintResult({ state: occlusion_intent?.ok ? "PASS" : "PROJECTED", constraint_id: "occlusion_intent", requested: true, effective: !!occlusion_intent?.ok, residual: occlusion_intent?.ok ? 0 : 1, reason: (occlusion_intent?.violations || []).join(",") }),
+    ...compositionResidualConstraints(req, composition.residuals),
+  ];
+  if (composition.metrics?.gap_residual != null) {
+    const g = composition.metrics.gap_residual, inTol = g <= t("T-LANDMARK");
+    constraints.push(constraintResult({ state: inTol ? "PASS" : "PROJECTED", constraint_id: "target_gap", requested: composition.metrics.gap_p0, effective: composition.metrics.gap_capture, residual: g, tolerance: t("T-LANDMARK"), reason: inTol ? "" : "OUT_OF_TOLERANCE" }));
+  }
+  if (layout) composition.metrics.layout_fit = { iterations: layout.iterations, cost0: layout.cost0, cost: layout.cost, accepted: layout.accepted, optical_lock: opticalLockHolds(parts), gap_residual: gapBeforeFeasible };
+  if (carrierConflict) constraints.push(constraintResult({ state: "PROJECTED", constraint_id: "min_carrier_px", requested: needPx, effective: carrierPx, residual: needPx - carrierPx, reason: "P0 carrier vs recursion depth" }));
+  if (compensation) constraints.push(constraintResult({ state: compensation.depth_order, constraint_id: "autosolve_d_M", requested: compensation.from, effective: compensation.to, residual: compensation.to - compensation.from, reason: compensation.reason, moved_variables: [compensation.variable] }));
+
+  const top = constraints.some((c) => c.state === "FAIL") ? "FAIL" : constraints.some((c) => c.state === "PROJECTED") ? "PROJECTED" : "PASS";
+  let sensitivity = [];
+  try { sensitivity = sensitivityAt(req); } catch { sensitivity = []; }
+
+  if (!req.workspace.last_edit) req.workspace.last_edit = { action: "BOOT", driver: req.composition.driver || req.composition.solve_mode, preserve: (req.composition.active_preserve_set || []).slice(), allowed_to_move: (req.composition.solve_freedoms || []).slice() };
+  const last_edit = req.workspace.last_edit;
+  const solver = { solver_id: SOLVER_ID, solver_version: SOLVER_VERSION, seed: 0, iterations: layout?.iterations ?? 12, converged: top !== "FAIL", fd_step: FD_STEP, tolerance_set_hash: toleranceSetHash() };
+
+  if (apparatus.centre) req.mirror.world_pose = { translation: apparatus.centre.slice(), rotation: req.mirror.world_pose?.rotation || [0, 0, 0, 1] };
+
+  const volume = volumes.update(pose.fk);
+  const contour = contours.update(volume);
+  const mask_labels = maskRender.render(contour, cam, mirror, carrier_p, composition.metrics?.mirror_quad, 64, 64);
+  const mask = maskCompare.compareDeclared(mask_labels, 64, 64);
+  const mask_panel = nearestMaskRow(composition.metrics);
+
+  const effective = {
+    ...emptyEffective(),
+    skeleton: pose, phone, camera: cam, apparatus, mirror, virtual_camera: reflection.virtual_camera,
+    visibility, composition_metrics: composition.metrics, carrier_p, content_q, recursion,
+    view: { ...view, fillFraction: fillFraction(carrier_p) }, constraints, residuals: composition.residuals,
+    support, grip, transaction: top, sensitivity, proposal, compensation, feasible, aperture_band, occlusion_intent,
+    volume, contour, arm_seven: armSeven.read(pose.fk, "R"), mask, mask_panel, mask_labels,
+    phone_scale: phoneScale.fractionForDistance(feasible?.c || 1, req.phone.body_dimensions_m.width, cam.hfov),
+    last_edit, driver: last_edit?.driver || policyMask.driver, preserve: req.composition.active_preserve_set,
+    allowed_to_move: req.composition.solve_freedoms, x_decision: partition.x_decision, x_dependent: partition.x_dependent,
+    x_locked: partition.x_locked, solver,
+  };
+  return { requested: req, effective, transaction: top };
+}
+
+export { phoneCentroidCapture };
