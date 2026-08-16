@@ -5,7 +5,7 @@ import { createApp } from "../src/app/facade.js";
 import { BoneIndex } from "../src/render/bone_index.js";
 import { MirrorReflector } from "../src/render/mirror_reflector.js";
 import { SEMANTIC } from "../src/domains/body/skeleton.js";
-import { reflectPoint } from "../src/domains/reflection/reflect.js";
+import { householderAffine, reflectPoint } from "../src/domains/reflection/reflect.js";
 import { add, scale, sub } from "../src/shared_math/vector.js";
 import { t } from "../fixtures/tolerances.js";
 
@@ -18,13 +18,19 @@ async function loadRig(){
 
 function worldOf(THREE,bone){const v=new THREE.Vector3();bone.updateWorldMatrix(true,false);bone.getWorldPosition(v);return[v.x,v.y,v.z];}
 
+test("ACC-REG-02a · Three Matrix4 Householder matches point reflection",async()=>{
+  const THREE=await import("three");
+  const e=createApp().getEffective(),H=householderAffine(e.mirror.centre,e.mirror.basis.n),m=new THREE.Matrix4();
+  m.set(...H);
+  const X=[.12,.34,1.1],v=new THREE.Vector3(...X).applyMatrix4(m),want=reflectPoint(X,e.mirror.centre,e.mirror.basis.n);
+  assert.ok(Math.hypot(v.x-want[0],v.y-want[1],v.z-want[2])<1e-9,JSON.stringify({got:[v.x,v.y,v.z],want,H}));
+});
+
 test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 5 mm",async()=>{
   const THREE=await import("three");
   const source=await loadRig();
   const app=createApp(),skel=app.getEffective().skeleton,index=new BoneIndex(source,SEMANTIC);
   const host=new THREE.Scene(),reflector=new MirrorReflector(THREE,host);
-  // Attach while source is still in its loaded rest pose. The test then changes the
-  // live source rig so it only passes if the reflected SkeletonUtils clone is resynchronised.
   reflector.attachBody(source);
   index.applyLocals(skel.locals);
   const root=new THREE.Group();const rw=skel.root_world;root.position.set(...rw.translation);root.quaternion.set(rw.rotation[0],rw.rotation[1],rw.rotation[2],rw.rotation[3]);root.scale.set(...(rw.scale||[1,1,1]));root.add(source);root.updateMatrixWorld(true);
@@ -38,7 +44,7 @@ test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 
     const got=worldOf(THREE,reflectedIndex.get(id));
     const want=reflectPoint(original[id],app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
     const d=Math.hypot(got[0]-want[0],got[1]-want[1],got[2]-want[2]);
-    assert.ok(d<t("T-BONE-REG"),`${id} reflected Δ=${d}`);
+    assert.ok(d<t("T-BONE-REG"),`${id} reflected Δ=${d} ${JSON.stringify({original:original[id],got,want,root:rw,mirror:app.getEffective().mirror.centre,n:app.getEffective().mirror.basis.n})}`);
   }
 });
 
