@@ -93,14 +93,16 @@ function solveOnce(req) {
       req.apparatus.mirror_distance_request_m = solved.d_M;
     }
     apparatus = evaluateApparatus(cam, req);
-    compensation = {
-      variable: "mirror_distance_request_m",
-      from,
-      to: apparatus.d_M,
-      reason: "preserved_reflected_phone_ratio",
-      inspectable: true,
-      depth_order: solved.projected ? "PROJECTED" : "PASS",
-    };
+    if (Math.abs(apparatus.d_M - from) > 1e-3) {
+      compensation = {
+        variable: "mirror_distance_request_m",
+        from,
+        to: apparatus.d_M,
+        reason: "preserved_reflected_phone_ratio",
+        inspectable: true,
+        depth_order: solved.projected ? "PROJECTED" : "PASS",
+      };
+    }
   }
 
   const mirror = evaluateMirror(apparatus, req);
@@ -157,7 +159,9 @@ function placePhoneByCrop(req, parts) {
   const want = landmarks.features.phone.bbox_centre;
   req.camera.crop_request.pan = panToPlace([cx, cy], want, req.camera.crop_request.scale ?? 1);
   req.camera.crop_request.aspect = 3 / 4;
-  return solveOnce(cloneState(req));
+  const next = solveOnce(cloneState(req));
+  if (!next.compensation && parts.compensation) next.compensation = parts.compensation;
+  return next;
 }
 
 function compositionResidualConstraints(req, residuals) {
@@ -298,7 +302,9 @@ export function solve(requested) {
   let layout = null;
   if (shouldLayoutFit(req)) {
     layout = fitLayout(req, slimLayoutEval);
-    parts = solveOnce(cloneState(req));
+    const resolved = solveOnce(cloneState(req));
+    if (!resolved.compensation && parts.compensation) resolved.compensation = parts.compensation;
+    parts = resolved;
   }
   const mode = req.composition.solve_mode;
   if (mode === "P0_RECONSTRUCT" || mode === "COMPOSITION_FIT") {

@@ -57,10 +57,10 @@ export function applySolveMode(requested, mode) {
   next.composition.driver = row.driver;
   const preserve = row.preserve.slice();
   if (requested.phone?.authority === "LOCK_GRIP" && !preserve.includes("grip")) preserve.push("grip");
-  if (requested.composition?.locks?.R_P && !preserve.includes("R_P")) preserve.push("R_P");
+  if (requested.composition?.locks?.PHONE_AREA && !preserve.includes("R_P")) preserve.push("R_P");
   next.composition.active_preserve_set = preserve;
   next.composition.solve_freedoms = row.allowed_to_move.slice();
-  if (mode === "MIRROR_RATIO_FIRST" || (preserve.includes("R_P") && row.allowed_to_move.includes("mirror_distance"))) {
+  if (mode === "MIRROR_RATIO_FIRST" || requested.composition?.locks?.PHONE_AREA) {
     next.apparatus.mirror_distance_auto_solve = true;
   }
   return next;

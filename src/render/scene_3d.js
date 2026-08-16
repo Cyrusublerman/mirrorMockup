@@ -1,7 +1,7 @@
 import { BONE_PARENT, SEMANTIC } from "../domains/body/skeleton.js";
 import { renderField } from "../domains/export/image.js";
 import { activeOverlays } from "./overlays.js";
-import { BoneIndex, PICK_JOINTS } from "./bone_index.js";
+import { BoneIndex, PICK_JOINTS, PICK_BASE_RADIUS, pickRadiusForJoint } from "./bone_index.js";
 import { MirrorReflector } from "./mirror_reflector.js";
 import { CaptureCamera, EDITOR_LAYER, letterboxRect } from "./capture_camera.js";
 
@@ -158,12 +158,12 @@ export async function createScene3D(canvas, app, opts = {}) {
   setEditorLayer(pickGroup);
   scene.add(pickGroup);
   const pickMats = {
-    idle: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.0, depthTest: false }),
-    hot: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.4, depthTest: false }),
+    idle: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.0, depthTest: true }),
+    hot: new THREE.MeshBasicMaterial({ color: 0xd82d84, transparent: true, opacity: 0.4, depthTest: true }),
   };
   const pickSpheres = {};
   for (const id of PICK_JOINTS) {
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), pickMats.idle);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(PICK_BASE_RADIUS, 12, 8), pickMats.idle);
     s.userData.pick = { kind: "joint", id };
     s.renderOrder = 20;
     setEditorLayer(s);
@@ -216,15 +216,19 @@ export async function createScene3D(canvas, app, opts = {}) {
 
   function applyEditor(cam3, skel) {
     const t = workspace.orbit.target;
-    const pelvis = skel?.fk?.pelvis;
-    if (pelvis) {
-      t[0] = pelvis[0];
-      t[1] = pelvis[1];
-      t[2] = pelvis[2];
-    }
     const view = workspace.editor_view;
+    if (view !== "ISO" && view !== "CAMERA") {
+      const pelvis = skel?.fk?.pelvis;
+      if (pelvis) {
+        t[0] = pelvis[0];
+        t[1] = pelvis[1];
+        t[2] = pelvis[2];
+      }
+    }
     if (view === "FRONT") cam3.position.set(t[0], t[1] - 2.4, t[2] + 0.2);
-    else if (view === "SIDE") cam3.position.set(t[0] + 2.4, t[1], t[2] + 0.2);
+    else if (view === "BACK") cam3.position.set(t[0], t[1] + 2.4, t[2] + 0.2);
+    else if (view === "SIDE" || view === "RIGHT") cam3.position.set(t[0] + 2.4, t[1], t[2] + 0.2);
+    else if (view === "LEFT") cam3.position.set(t[0] - 2.4, t[1], t[2] + 0.2);
     else if (view === "TOP") cam3.position.set(t[0], t[1], t[2] + 2.6);
     else {
       const o = workspace.orbit;
@@ -315,6 +319,8 @@ export async function createScene3D(canvas, app, opts = {}) {
       const sph = pickSpheres[id];
       if (!p || !sph) continue;
       sph.position.set(...p);
+      const r = pickRadiusForJoint(id, skel.fk);
+      sph.scale.setScalar(r / PICK_BASE_RADIUS);
       sph.material = sel === id || sel === `joint:${id}` ? pickMats.hot : pickMats.idle;
       sph.visible = true;
     }
@@ -395,8 +401,9 @@ export async function createScene3D(canvas, app, opts = {}) {
       renderLetterboxed(capture.cam, w, h, capture.cam.aspect, 0x111111);
     } else {
       applyEditor(camera, eff.skeleton);
+      const [w, h] = sizeOf(canvas, camera, renderer);
       renderer.setClearColor(0xf7f5ef, 1);
-      renderer.setViewport(0, 0, canvas.width || 1, canvas.height || 1);
+      renderer.setViewport(0, 0, w, h);
       renderer.render(scene, camera);
     }
   }
@@ -436,6 +443,20 @@ export async function createScene3D(canvas, app, opts = {}) {
 
   function dolly(factor) {
     workspace.orbit.radius = Math.min(8, Math.max(0.6, workspace.orbit.radius * factor));
+  }
+
+  function fitOrbitToBody(skel) {
+    const fk = skel?.fk;
+    if (!fk) return;
+    const pts = ["head", "pelvis", "ankle_L", "ankle_R", "wrist_R"].map((k) => fk[k]).filter(Boolean);
+    if (!pts.length) return;
+    let cx = 0, cy = 0, cz = 0;
+    for (const p of pts) { cx += p[0]; cy += p[1]; cz += p[2]; }
+    cx /= pts.length; cy /= pts.length; cz /= pts.length;
+    workspace.orbit.target = [cx, cy, cz];
+    let maxR = 0;
+    for (const p of pts) maxR = Math.max(maxR, Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz));
+    workspace.orbit.radius = Math.min(8, Math.max(1.2, maxR * 2.8));
   }
 
   function setEditorView(name) {
@@ -479,6 +500,7 @@ export async function createScene3D(canvas, app, opts = {}) {
     orbit,
     dolly,
     setEditorView,
+    fitOrbitToBody,
     swapInset,
     dragDeltaWorld,
     setBodyMode,

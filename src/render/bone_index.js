@@ -1,3 +1,5 @@
+import { BONE_PARENT, SEMANTIC } from "../domains/body/skeleton.js";
+
 export const PICK_JOINTS = Object.freeze([
   "pelvis",
   "spine_lower",
@@ -26,6 +28,34 @@ export const PICK_JOINTS = Object.freeze([
 ]);
 
 export const IK_JOINTS = Object.freeze(["wrist_R", "wrist_L", "ankle_L", "ankle_R"]);
+
+export const PICK_BASE_RADIUS = 0.07;
+
+const PICK_SET = new Set(PICK_JOINTS);
+
+const GLB_TO_SEM = Object.fromEntries(Object.entries(SEMANTIC).map(([k, v]) => [v, k]));
+
+function semanticParent(id) {
+  const glb = SEMANTIC[id];
+  if (!glb) return null;
+  const pGlb = BONE_PARENT[glb];
+  return pGlb ? GLB_TO_SEM[pGlb] || null : null;
+}
+
+export function pickRadiusForJoint(id, fk) {
+  const p = fk?.[id];
+  if (!p) return PICK_BASE_RADIUS;
+  let nearest = null;
+  for (const child of PICK_JOINTS) {
+    if (semanticParent(child) !== id) continue;
+    const c = fk[child];
+    if (!c) continue;
+    const d = Math.hypot(c[0] - p[0], c[1] - p[1], c[2] - p[2]);
+    if (nearest === null || d < nearest) nearest = d;
+  }
+  if (nearest === null) return PICK_BASE_RADIUS;
+  return Math.min(0.09, Math.max(0.04, nearest * 0.35));
+}
 
 function originalName(obj) {
   return obj.userData?.name || obj.name;

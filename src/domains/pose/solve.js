@@ -3,6 +3,12 @@ import { evaluateGrip } from "../hand_grip/grip.js";
 import { evaluateSupport } from "../support/contact.js";
 import { add, distance, scale, sub } from "../../shared_math/vector.js";
 
+function ikPole(requested, chainId) {
+  const sw = requested.body.ik_swivel?.[chainId];
+  if (sw == null) return undefined;
+  return [Math.cos(sw), Math.sin(sw), 0];
+}
+
 function ikArm(skel, chain, target, branch, id, pole) {
   const applied = applyArmIk(skel.locals, skel.world, skel.root_world, chain, target, branch, pole);
   const next = {
@@ -85,6 +91,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
         target,
         requested.body.ik_branches.arm_R,
         "arm_R_reach",
+        ikPole(requested, "arm_R"),
       );
       skel = right.skel;
       if (right.constraint.residual > 0.03) {
@@ -97,6 +104,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
           target,
           requested.body.ik_branches.arm_R,
           "arm_R_reach",
+          ikPole(requested, "arm_R"),
         );
         skel = again.skel;
         again.constraint.id = "arm_R_reach";
@@ -113,6 +121,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
       target,
       requested.body.ik_branches.arm_R,
       "arm_R_reach",
+      ikPole(requested, "arm_R"),
     );
     skel = right.skel;
     if (right.constraint.residual > 0.03) {
@@ -125,6 +134,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
         target,
         requested.body.ik_branches.arm_R,
         "arm_R_reach",
+        ikPole(requested, "arm_R"),
       );
       skel = right.skel;
     }
@@ -159,6 +169,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
       ends.wrist_L,
       requested.body.ik_branches.arm_L,
       "arm_L_reach",
+      ikPole(requested, "arm_L"),
     );
     skel = left.skel;
     constraints.push(left.constraint);

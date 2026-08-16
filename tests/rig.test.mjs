@@ -92,6 +92,24 @@ test("ACC-RIG-01d · no pick target names a joint the solver cannot produce", ()
   assert.equal(PICK_JOINTS.includes("root"), false);
 });
 
+test("ACC-RIG-01e · pick spheres use depthTest and variable radii", async () => {
+  const sceneSrc = readFileSync(resolve(root, "src/render/scene_3d.js"), "utf8");
+  const boneSrc = readFileSync(resolve(root, "src/render/bone_index.js"), "utf8");
+  assert.match(sceneSrc, /depthTest:\s*true/);
+  assert.match(boneSrc, /pickRadiusForJoint/);
+  const { pickRadiusForJoint } = await import("../src/render/bone_index.js");
+  const app = createApp();
+  const fk = app.getEffective().skeleton.fk;
+  const r = pickRadiusForJoint("elbow_R", fk);
+  const seg = Math.hypot(
+    fk.wrist_R[0] - fk.elbow_R[0],
+    fk.wrist_R[1] - fk.elbow_R[1],
+    fk.wrist_R[2] - fk.elbow_R[2],
+  );
+  assert.ok(r < seg * 0.5, `pick radius ${r} should be less than half segment ${seg}`);
+  assert.ok(r <= 0.09 && r >= 0.04);
+});
+
 test("BoneIndex resolves every SEMANTIC bone via userData.name", async () => {
   const { scene } = await loadSceneBoneNames();
   const index = new BoneIndex(scene, SEMANTIC);

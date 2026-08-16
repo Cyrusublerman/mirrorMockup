@@ -95,7 +95,7 @@ export class MirrorReflector {
     }
     const keepN = n.clone();
     const toCam = new THREE.Vector3().subVectors(C, M);
-    if (keepN.dot(toCam) > 0) keepN.negate();
+    if (keepN.dot(toCam) < 0) keepN.negate();
     planes.push(new THREE.Plane().setFromNormalAndCoplanarPoint(keepN, M));
     this.clipPlanes.length = 0;
     this.clipPlanes.push(...planes);

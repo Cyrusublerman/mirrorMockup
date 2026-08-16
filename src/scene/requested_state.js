@@ -45,6 +45,7 @@ export function defaultRequestedState() {
         endpoint_targets: {},
       },
       ik_branches: { arm_R: 1, arm_L: 1, leg_R: 1, leg_L: 1 },
+      ik_swivel: { arm_R: 0, arm_L: 0, leg_R: 0, leg_L: 0 },
       support_request: { contacts: ["heel_L", "heel_R"], floor_z: 0 },
     },
     phone: {
@@ -77,7 +78,7 @@ export function defaultRequestedState() {
       mirror_distance_request_m: 1.55,
       mirror_pan_uv_request_m: [0.18, 0.12],
       apparatus_pan_request_m: [0, 0],
-      mirror_distance_auto_solve: true,
+      mirror_distance_auto_solve: false,
       preserved_reflected_phone_ratio: 0.0045,
     },
     mirror: {

@@ -1,4 +1,4 @@
-export const EDITOR_VIEWS = ["CAMERA", "FRONT", "SIDE", "TOP", "ISO"];
+export const EDITOR_VIEWS = ["CAMERA", "FRONT", "BACK", "LEFT", "RIGHT", "TOP", "ISO"];
 
 export function mountViewStrip(el, workspace, onChange) {
   if (!el.dataset.ready) {

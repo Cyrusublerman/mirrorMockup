@@ -59,10 +59,9 @@ test("Bend Tilt Twist is a semantic action and joint limits project", () => {
 
 test("autosolve compensation is inspectable; last_edit names driver/preserve/allowed", () => {
   const app = createApp();
-  app.dispatch("MOVE_PHONE", { translation: [0.14, 0.52, 1.42] });
+  app.dispatch("SET_LOCK_CHIP", { id: "PHONE_AREA", on: true });
   const last = app.getEffective().last_edit;
-  assert.equal(last.action, "MOVE_PHONE");
-  assert.equal(last.driver, "phone");
+  assert.equal(last.action, "SET_LOCK_CHIP");
   assert.ok(Array.isArray(last.preserve));
   assert.ok(Array.isArray(last.allowed_to_move));
   const c = app.getEffective().compensation;
@@ -70,6 +69,7 @@ test("autosolve compensation is inspectable; last_edit names driver/preserve/all
   assert.equal(c.variable, "mirror_distance_request_m");
   assert.equal(c.inspectable, true);
   assert.ok("from" in c && "to" in c);
+  assert.ok(Math.abs(c.from - c.to) > 0.001);
 });
 
 test("FOV is a sensitivity variable", () => {

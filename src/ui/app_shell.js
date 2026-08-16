@@ -219,6 +219,7 @@ export async function bootUi(root, app) {
     mountViewStrip(viewsEl, workspace, (id) => {
       workspace.editor_view = id;
       scene3d.setEditorView(id);
+      if (id === "ISO") scene3d.fitOrbitToBody(app.getEffective().skeleton);
       insetLab.textContent = id === "CAMERA" ? "EDITOR" : "CAPTURE";
       paintHud();
       paintScene();
@@ -284,9 +285,12 @@ export async function bootUi(root, app) {
       },
     });
     mountValidityStrip(validEl, proj);
-    if (proj.compensation) {
-      toast.textContent = humanCompensation(proj.compensation);
+    const c = proj.compensation;
+    if (c && Math.abs(c.from - c.to) > 0.001) {
+      toast.textContent = humanCompensation(c);
       toast.classList.add("is-on");
+    } else {
+      toast.classList.remove("is-on");
     }
     mountInspectDrawer(inspectEl, workspace.inspect, proj, workspace, {
       close() { workspace.inspect = false; paintHud(); },
@@ -388,13 +392,23 @@ export async function bootUi(root, app) {
     paintHud();
     paintScene();
   });
+  let pinchGesture = false;
   insetPinchHfov(
     insetWrap,
     () => app.getRequested().camera.hfov_request,
     (hfov) => {
-      dispatch.startGesture("Changed FOV");
+      if (!pinchGesture) {
+        dispatch.startGesture("Changed FOV");
+        pinchGesture = true;
+      }
       dispatch.preview("SET_CAMERA_FOV", { hfov });
       paintScene();
+    },
+    (hfov) => {
+      if (pinchGesture) {
+        dispatch.commit("SET_CAMERA_FOV", { hfov }, "Changed FOV");
+        pinchGesture = false;
+      }
     },
   );
 
@@ -417,6 +431,8 @@ export async function bootUi(root, app) {
           const id = workspace.selected?.id === "window" ? "window" : "d_M";
           workspace.selected = { kind: "mirror", id, label: id === "window" ? "Mirror window pan" : "Mirror distance" };
           drag = { kind: id, d_M: req.apparatus.mirror_distance_request_m, uv: req.apparatus.mirror_pan_uv_request_m.slice(), started: false };
+        } else if (hit.kind === "body") {
+          drag = { kind: "body", started: true };
         } else drag = { kind: "orbit", started: false };
         machine.beginSelect(p.id, p);
         paintHud();
@@ -454,6 +470,7 @@ export async function bootUi(root, app) {
       const step = machine.move(p.id, p);
       if (!step || !drag) return;
       if (!drag.started && Math.hypot(step.dx, step.dy) < 2) return;
+      if (drag.kind === "body") return;
       if (!drag.started) {
         const labels = {
           ik: "Moved " + drag.end,
@@ -572,6 +589,8 @@ export async function bootUi(root, app) {
   else window.addEventListener("resize", paintScene);
 
   paintHud();
+  paintScene();
+  scene3d.fitOrbitToBody(app.getEffective().skeleton);
   paintScene();
   return app;
 }

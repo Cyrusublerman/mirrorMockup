@@ -92,11 +92,15 @@ html, body, #app {
   gap: 4px;
 }
 .mp-views .mp-chip {
-  min-height: 36px;
-  min-width: 36px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 8px;
   font-size: 10px;
   background: rgba(255,255,255,0.88);
+}
+.mp-views .mp-chip.is-on {
+  background: var(--mp-ink);
+  color: #fff;
 }
 .mp-inset {
   position: absolute;
@@ -124,8 +128,9 @@ html, body, #app {
 }
 .mp-toast {
   position: absolute;
-  left: 8px; right: 8px; top: 8px;
-  z-index: 4;
+  left: 8px; right: 8px; top: 56px;
+  z-index: 2;
+  pointer-events: none;
   background: rgba(255,255,255,0.92);
   border-radius: 12px;
   padding: 8px 12px;
