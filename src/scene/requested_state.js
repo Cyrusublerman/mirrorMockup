@@ -112,7 +112,7 @@ export function defaultRequestedState() {
       phase: "DECLARE",
       input_mode: "VIEWPORT",
       output_mode: "FINAL_CAMERA",
-      selection: "body",
+      selection: null,
       last_edit: null,
       overlays: { REFERENCE: false, SKELETON: false, PHONE: true, MIRROR: true, P: false },
     },
