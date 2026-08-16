@@ -45,7 +45,8 @@ def main() -> int:
         return 1
 
     extras = [p.name for p in ROOT.iterdir() if p.is_dir() and p.name not in {
-        "src", "fixtures", "tests", "tools", ".git", ".cursor", "node_modules", "dist"
+        "src", "fixtures", "tests", "tools", ".git", ".github", ".cursor",
+        "node_modules", "dist", "Handover"
     }]
     for e in extras:
         errors.append(f"unexpected top-level product tree: {e}")
