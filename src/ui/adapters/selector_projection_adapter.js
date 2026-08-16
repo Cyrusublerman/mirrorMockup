@@ -28,20 +28,11 @@ export function projectForHud(app) {
   if (Array.isArray(quad) && quad.every((c) => c && Number.isFinite(c[0]))) {
     const us = quad.map((c) => c[0]);
     const vs = quad.map((c) => c[1]);
-    P = {
-      u0: Math.min(...us),
-      v0: Math.min(...vs),
-      u1: Math.max(...us),
-      v1: Math.max(...vs),
-      quad,
-      valid: !!p.valid,
-    };
+    P = { u0: Math.min(...us), v0: Math.min(...vs), u1: Math.max(...us), v1: Math.max(...vs), quad, valid: !!p.valid };
   }
   const residualNums = {};
   for (const [k, v] of Object.entries(e.residuals || {})) residualNums[k] = residualValue(v);
-  for (const c of e.constraints || []) {
-    if (c.constraint_id) residualNums[c.constraint_id] = residualValue(c);
-  }
+  for (const c of e.constraints || []) if (c.constraint_id) residualNums[c.constraint_id] = residualValue(c);
   const targets = (r.composition?.targets || []).map((t) => {
     const row = e.residuals?.[t.id] || {};
     return {
@@ -66,10 +57,10 @@ export function projectForHud(app) {
   if (e.transaction === "FAIL") reasons.push("transaction FAIL");
   if (e.transaction === "PROJECTED") {
     const list = e.constraints || [];
-    const c = list.find((x) => x.state === "PROJECTED" && String(x.constraint_id).startsWith("target_"))
-      || list.find((x) => x.state === "PROJECTED");
+    const c = list.find((x) => x.state === "PROJECTED" && String(x.constraint_id).startsWith("target_")) || list.find((x) => x.state === "PROJECTED");
     if (c) reasons.push(`${c.constraint_id} ${c.reason || "PROJECTED"}`.trim());
   }
+  const transactionCompensation = meaningfulCompensation(e.compensation);
   return {
     pose: e.skeleton,
     phone: e.phone,
@@ -99,13 +90,38 @@ export function projectForHud(app) {
       face_visibility: visOf(reports, "head"),
     },
     last_edit: e.last_edit,
-    compensation: meaningfulCompensation(e.compensation),
-    build: {
-      APP: b.app,
-      UI: b.ui,
-      CORE: b.core,
-      commit: b.commit,
+    // Compensation is represented by the transaction card, never by the legacy toast.
+    compensation: null,
+    transaction_compensation: transactionCompensation,
+    feasible: e.feasible,
+    aperture_band: e.aperture_band,
+    occlusion_intent: e.occlusion_intent,
+    screen_gates: e.carrier_p?.gates,
+    arm_seven: e.arm_seven,
+    mask: e.mask,
+    phone_scale: e.phone_scale,
+    volume: e.volume,
+    contour: e.contour,
+    epistemic: {
+      camera: r.camera?.epistemic_status || "HYPOTHESIS",
+      body: r.body?.definition?.epistemic_status || "PROVISIONAL",
+      phone: r.phone?.width_epistemic || "ASSUMED",
     },
+    transaction_actions: {
+      keep() {
+        const c = transactionCompensation;
+        if (!c || !Number.isFinite(c.to)) return;
+        app.dispatch("SET_MIRROR_DISTANCE_AUTOSOLVE", { on: false }, { label: "Keep compensation" });
+        app.dispatch("SET_MIRROR_DISTANCE", { d_M: c.to }, { label: "Keep compensation" });
+      },
+      release() {
+        app.dispatch("SET_MIRROR_DISTANCE_AUTOSOLVE", { on: false }, { label: "Release compensation lock" });
+      },
+      revert() {
+        app.dispatch("UNDO");
+      },
+    },
+    build: { APP: b.app, UI: b.ui, CORE: b.core, commit: b.commit },
     requested: r,
     effective: e,
   };
