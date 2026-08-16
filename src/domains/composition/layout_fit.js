@@ -1,6 +1,7 @@
 import landmarks from "../../../fixtures/P0/landmarks.js";
 import { anatomicalQuat } from "../body/skeleton.js";
 import { projectWorld } from "../visibility/report.js";
+import { FeasibleSet } from "../apparatus/feasible_set.js";
 import { clamp } from "../../shared_math/numerical.js";
 import { SUBJECT_MAP } from "./targets.js";
 
@@ -17,6 +18,7 @@ export const W_FEA = 40;
 const FD_H = 1e-3;
 const MAX_ITERS = 5;
 const IK_MAX = 0.05;
+const feasibleSet = new FeasibleSet();
 
 const P0_HEAD = landmarks.features.direct_head.bbox_centre;
 const P0_PHONE = landmarks.features.phone.bbox_centre;
@@ -166,6 +168,35 @@ function feasibilityResidual(parts) {
   return Math.max(0, -d);
 }
 
+function evaluateAfterFeasibleProjection(req, parts, evaluate) {
+  let cur = parts;
+  let r = structuredClone(req);
+  r.apparatus.mirror_distance_auto_solve = false;
+  for (let i = 0; i < 2; i++) {
+    const row = cur.feasible;
+    if (!row || row.inside) break;
+    const n = cur.mirror?.basis?.n;
+    const face = cur.pose?.fk?.head;
+    const cam = cur.cam?.world?.translation;
+    if (!n || !face || !cam) break;
+    const out = feasibleSet.project(
+      r.phone.transform_request.translation,
+      r.apparatus.mirror_distance_request_m,
+      face,
+      cam,
+      n,
+      row,
+    );
+    r.phone.transform_request.translation = out.translation;
+    if (out.d_M !== r.apparatus.mirror_distance_request_m) {
+      r.apparatus.mirror_distance_request_m = out.d_M;
+      r.apparatus.apply_distance_request = true;
+    }
+    cur = evaluate(r);
+  }
+  return cur;
+}
+
 export function layoutResiduals(parts) {
   const head = captureLandmark("direct_head", parts);
   const phone = captureLandmark("phone", parts);
@@ -235,11 +266,11 @@ function solveLinear(A, b) {
 
 function evalAt(req, x, evaluate) {
   applyX(req, x);
-  const parts = evaluate(req);
+  let parts = evaluate(req);
+  parts = evaluateAfterFeasibleProjection(req, parts, evaluate);
   const lock = opticalLockHolds(parts);
   const { r, gap } = layoutResiduals(parts);
-  const feasible = parts.feasible?.inside === true;
-  return { parts, r, gap, valid: lock && feasible && r.length > 0 };
+  return { parts, r, gap, valid: lock && r.length > 0 };
 }
 
 export function fitLayout(req, evaluate) {
