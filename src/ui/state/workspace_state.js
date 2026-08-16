@@ -1,8 +1,7 @@
-export const EDITOR_VIEWS = ["CAMERA", "FRONT", "SIDE", "TOP", "ISO"];
-
 export function createWorkspaceState() {
   return {
     room: "POSE",
+    output_mode: "FINAL_CAMERA",
     editor_view: "ISO",
     selected: null,
     precision: false,
@@ -26,5 +25,8 @@ export function createWorkspaceState() {
     n: 1,
     axis: "BEND",
     body_mode: "RIGGED",
+    input_mode: "VIEWPORT",
+    crop_mode: "FINAL_CROP",
+    family: "direct-dominant",
   };
 }
