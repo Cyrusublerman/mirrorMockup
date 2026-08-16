@@ -6,8 +6,7 @@ import { PHASES, INPUT_MODES, OUTPUT_MODES } from "../src/ui/state/phase_state.j
 import { REPRESENTATION_LAYERS, NUMERIC_FRAMES } from "../src/ui/state/workspace_state.js";
 import { OPEN_DISAGREEMENTS } from "../fixtures/decisions.js";
 import { SCREEN_GATES } from "../src/domains/carrier_p/screen_quad.js";
-import { MaskCompare } from "../src/domains/composition/mask_compare.js";
-import { declaredReferenceMask, DECLARED_MASK_VERSION, MASK_CODE } from "../fixtures/reference/declared_masks.js";
+import { DECLARED_MASK_VERSION, MASK_CODE } from "../fixtures/reference/declared_masks.js";
 import { t } from "../fixtures/tolerances.js";
 
 test("v5 §13 · phases replace object-category rooms", () => {
@@ -80,12 +79,13 @@ test("v5 §10 · a four-corner drag solves a rigid phone transform, not a scalar
   assert.ok([out.yaw,out.pitch,out.roll].every(Number.isFinite));
 });
 
-test("ACC-MSK-01 · per-part IoU is against a versioned declared reference",()=>{
-  assert.ok(DECLARED_MASK_VERSION);
-  const ref=declaredReferenceMask(180,240);
-  const cmp=new MaskCompare().compareDeclared(ref.labels,180,240);
-  assert.equal(cmp.reference_version,DECLARED_MASK_VERSION);
-  for(const [name,code] of Object.entries(MASK_CODE)){if(code===0)continue;assert.ok(cmp.parts[name]>=t("T-MSK-IOU"),`${name} ${cmp.parts[name]}`);}
+test("ACC-MSK-01 · production Contour mask passes per-part IoU against the versioned declared reference",()=>{
+  const mask=createApp().getEffective().mask;
+  assert.equal(mask.reference_version,DECLARED_MASK_VERSION);
+  for(const [name,code] of Object.entries(MASK_CODE)){
+    if(code===0)continue;
+    assert.ok(mask.parts[name]>=t("T-MSK-IOU"),`${name} IoU ${mask.parts[name]} < ${t("T-MSK-IOU")}`);
+  }
 });
 
 test("ACC-EPI-01 · staging export is blocked until the printed scale root is measured",()=>{
