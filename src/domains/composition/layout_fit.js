@@ -11,7 +11,7 @@ export const OPTICAL_LOCK = Object.freeze({
   P: "reflected_screen",
 });
 
-export const W_GAP = 8;
+export const W_GAP = 10;
 export const W_REL = 0.8;
 export const W_FEA = 40;
 const FD_H = 1e-3;
@@ -185,7 +185,6 @@ export function layoutResiduals(parts) {
       r.push(W_REL * (p[1] - phone[1] - (p0[1] - P0_PHONE[1])));
     }
   }
-  // Keep this residual present for every evaluation so the Jacobian row count is stable.
   r.push(W_FEA * feasibilityResidual(parts));
   return { r, gap, head, phone };
 }
