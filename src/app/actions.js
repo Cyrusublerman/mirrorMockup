@@ -2,6 +2,7 @@ import { cloneState } from "../scene/requested_state.js";
 import { applySolveMode } from "../scene/solve_policy.js";
 import { createProposal, acceptProposal, rejectProposal, applyPatch } from "../scene/proposals.js";
 import { anatomicalQuat } from "../domains/body/skeleton.js";
+import { familyIntent } from "../domains/composition/family.js";
 
 export const ACTION_NAMES = [
   "LOAD_P0_PROFILE",
@@ -38,6 +39,16 @@ export const ACTION_NAMES = [
   "SET_TARGET_TOLERANCE",
   "SET_TARGET_WEIGHT",
   "SET_LOCK_CHIP",
+  "SET_OCCLUSION_INTENT",
+  "SET_PHONE_SCALE",
+  "SET_COMPOSITION_FAMILY",
+  "SET_PHASE",
+  "SET_OUTPUT_MODE",
+  "SET_INPUT_MODE",
+  "SET_MIRROR_HEIGHT",
+  "SET_POSE_SEED",
+  "SET_ARM_SWIVEL",
+  "EXPORT_MASK",
   "SET_MIRROR_FRAME_AUTHORITY",
   "SET_CONTENT_Q",
   "SET_PRINT_GALLERY_MODE",
@@ -252,6 +263,52 @@ export function applyAction(requested, name, payload = {}) {
           t.weight_origin = payload.origin || "ARTIST";
         }
       }
+      break;
+    case "SET_PHONE_SCALE":
+      next.composition.phone_scale_request = payload.f;
+      break;
+    case "SET_COMPOSITION_FAMILY":
+      next.composition.family = payload.family;
+      next.composition.occlusion_intent = familyIntent(payload.family);
+      break;
+    case "SET_PHASE":
+      next.workspace.mode = payload.phase || payload.mode;
+      break;
+    case "SET_OUTPUT_MODE":
+      next.workspace.output_mode = payload.mode;
+      if (payload.mode === "RECURSION") next.recursion.mode = next.recursion.mode === "OFF" ? "AUTO" : next.recursion.mode;
+      if (payload.mode === "FINAL_CAMERA") next.recursion.mode = "OFF";
+      break;
+    case "SET_INPUT_MODE":
+      next.workspace.input_mode = payload.mode;
+      break;
+    case "SET_MIRROR_HEIGHT":
+      if (next.mirror.world_pose?.translation) next.mirror.world_pose.translation[2] = payload.z;
+      else next.apparatus.mirror_pan_uv_request_m = [next.apparatus.mirror_pan_uv_request_m[0], payload.z];
+      break;
+    case "SET_POSE_SEED": {
+      const seeds = {
+        STAND: { translation: [0, 0.85, 0.02], yaw: Math.PI },
+        TWIST: { translation: [0, 0.85, 0.02], yaw: Math.PI + 0.45 },
+        KNEEL: { translation: [0, 0.72, 0.02], yaw: Math.PI },
+      };
+      const seed = seeds[payload.id];
+      if (seed) next.body.pose_targets.root = { ...next.body.pose_targets.root, ...seed };
+      if (payload.id === "KNEEL") next.body.support_request.contacts = ["knee_L", "knee_R"];
+      if (payload.id === "STAND") next.body.support_request.contacts = ["heel_L", "heel_R"];
+      break;
+    }
+    case "SET_ARM_SWIVEL":
+      next.body.pose_targets.swivel = next.body.pose_targets.swivel || {};
+      next.body.pose_targets.swivel[payload.chain || "arm_R"] = payload.swivel;
+      break;
+    case "SET_OCCLUSION_INTENT":
+      next.composition.occlusion_intent = next.composition.occlusion_intent || {};
+      next.composition.occlusion_intent[payload.id] = {
+        state: payload.state,
+        min: payload.min,
+        max: payload.max,
+      };
       break;
     case "SET_LOCK_CHIP":
       next.composition.locks[payload.id] = !!payload.on;

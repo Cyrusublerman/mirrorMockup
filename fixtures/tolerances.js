@@ -20,6 +20,21 @@ export const T = Object.freeze({
   "T-PHONE": { value: [0.727, 0.1115], unit: "IMAGE_NORM", source: "P0 phone bbox_centre" },
   "T-MIR": { value: [0.6725, 0.3], unit: "IMAGE_NORM", source: "P0 mirror bbox_centre" },
   "T-DM-BOUNDS": { value: [0.25, 8], unit: "m", source: "CODE_PRESENT existing clamp" },
+  "T-BONE-REG": { value: 0.005, unit: "m", source: "Phase 1 rendered vs FK" },
+  "T-CLIP": { value: 1e-4, unit: "m", source: "aperture clip vs finiteApertureTest" },
+  "T-CAPTURE-PX": { value: 2, unit: "px", source: "preview vs export projection" },
+  "T-FEA-E": { value: 0.13, unit: "m", source: "v5 G05 e floor" },
+  "T-PQ-ANGLE": { value: 75, unit: "deg", source: "v5 D17 front-facing limit" },
+  "T-PQ-PX": { value: 16, unit: "px2", source: "v5 D17 footprint" },
+  "T-PQ-BEZEL": { value: 0.002, unit: "IMAGE_NORM", source: "v5 D17 bezel" },
+  "T-MSK-IOU": { value: 0.5, unit: "1", source: "v5 ACC-MSK-01 floor" },
+  "T-HEAD-R": { value: 0.115, unit: "m", source: "v5 DEC-R hair-included" },
+  "T-LEVER": { value: 0.22, unit: "m", source: "v5 g3 wrist→optical" },
+  "T-CROSS-BODY": { value: 0.07, unit: "m", source: "v5 G06" },
+  "T-REACH": { value: 0.63, unit: "m", source: "v5 same-side reach" },
+  "T-STATION-M": { value: 1.2, unit: "m", source: "v5 DEC-OP" },
+  "T-STATION-A": { value: 0.368, unit: "m", source: "v5 DEC-OP" },
+  "T-STATION-E": { value: 0.14, unit: "m", source: "v5 DEC-OP" },
 });
 
 export function t(id) {

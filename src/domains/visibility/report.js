@@ -1,9 +1,12 @@
 import { sub, length } from "../../shared_math/vector.js";
 import { finiteApertureTest, reflectPoint } from "../reflection/reflect.js";
+import { ReflectionRay } from "./reflection_ray.js";
 import { pinholeProject, imageNormFromPx } from "../../shared_math/projection.js";
 import { captureToFinal } from "../camera/crop.js";
 import { segmentTriangle } from "../../shared_math/intersection.js";
 import { transformPoint } from "../../shared_math/transform.js";
+
+const ray = new ReflectionRay();
 
 export function projectWorld(X, cam) {
   const p = pinholeProject(
@@ -84,20 +87,16 @@ export function evaluateVisibility(fk, cam, mirror, occluders = []) {
   for (const [name, p] of Object.entries(fk)) {
     const X = fkTranslation(p);
     if (!X) continue;
+    const traced = ray.trace(X, C, mirror, occluders, occludesSegment);
     const reflected = reflectedVisibility(X, cam, mirror);
-    let occluded = false;
-    const hitPt = reflected.world_reflected;
-    for (const occ of occluders) {
-      if (!occ?.mesh || !occ?.world) continue;
-      if (occludesSegment(C, hitPt, occ.mesh, occ.world)) {
-        occluded = true;
-        break;
-      }
-    }
-    const vis = reflected.visible && !occluded;
     reports[name] = {
       direct: projectWorld(X, cam),
-      reflected: { ...reflected, occluded, visible: vis },
+      reflected: {
+        ...reflected,
+        ...traced,
+        occluded: traced.state === "OCCLUDED_CAMERA_TO_MIRROR" || traced.state === "OCCLUDED_MIRROR_TO_TARGET",
+        visible: traced.visible,
+      },
     };
   }
   const armFlags = ["shoulder_R", "elbow_R", "wrist_R"].map((n) => !!reports[n]?.reflected?.visible);

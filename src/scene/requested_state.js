@@ -1,5 +1,7 @@
 import landmarks from "../../fixtures/P0/landmarks.js";
 import { p0Targets } from "../domains/composition/targets.js";
+import { familyIntent } from "../domains/composition/family.js";
+import { t } from "../../fixtures/tolerances.js";
 
 export const RELATION = Object.freeze({
   FREE: "FREE",
@@ -41,8 +43,10 @@ export function defaultRequestedState() {
         family: "P0",
         root: { translation: [0, 0.85, 0.02], yaw: Math.PI },
         bend_tilt_twist: {},
-        btt_euler: { pelvis: { bend: 0, tilt: 0, twist: 0 }, ribcage: { bend: 0, tilt: 0, twist: 0 }, head: { bend: 0, tilt: 0, twist: 0 }, shoulder_R: { bend: 0, tilt: 0, twist: 0 } },
+        btt_euler: { head: { bend: 0, tilt: 0, twist: 0 }, shoulder_R: { bend: 0, tilt: 0, twist: 0 } },
         endpoint_targets: {},
+        gaze: "MIRROR",
+        swivel: { arm_R: 0, arm_L: 0 },
       },
       ik_branches: { arm_R: 1, arm_L: 1, leg_R: 1, leg_L: 1 },
       support_request: { contacts: ["heel_L", "heel_R"], floor_z: 0 },
@@ -69,7 +73,7 @@ export function defaultRequestedState() {
       },
       hfov_request: (70 * Math.PI) / 180,
       crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560, pan: [0, 0], scale: 1, authored: false },
-      optical_offset_local: [0, 0.055, 0.004],
+      optical_offset_local: [0, t("T-LEVER"), 0],
       epistemic_status: "HYPOTHESIS",
     },
     apparatus: {
@@ -95,7 +99,10 @@ export function defaultRequestedState() {
       solve_freedoms: ["pose", "mirror_distance", "phone"],
       solve_mode: SOLVE_MODE.P0_RECONSTRUCT,
       driver: "P0_RECONSTRUCT",
+      family: "direct-dominant",
+      phone_scale_request: null,
       locks: { PHONE_AREA: false, REFLECTED_BODY_SCALE: false, MIRROR_OCCUPANCY: false, SUPPORT: true, GRIP: false, P_VALID: false },
+      occlusion_intent: familyIntent("direct-dominant"),
       reflected_content_delta: [0, 0],
     },
     content_q: {
@@ -122,7 +129,7 @@ export function defaultRequestedState() {
       warp_visible: false,
     },
     workspace: {
-      mode: "POSE",
+      mode: "DECLARE",
       selection: "body",
       last_edit: null,
       overlays: { REFERENCE: false, SKELETON: false, PHONE: true, MIRROR: true, P: false },
