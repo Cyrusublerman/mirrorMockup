@@ -50,6 +50,19 @@ export function modeMask(mode) {
   return MODE_TABLE[mode] || MODE_TABLE.MANUAL;
 }
 
+function protectSolveConstant(object, key) {
+  if (!object || !Object.prototype.hasOwnProperty.call(object, key)) return;
+  const value = object[key];
+  Object.defineProperty(object, key, {
+    enumerable: true,
+    configurable: true,
+    get() { return value; },
+    // A preserve target is an input to a solve. Solvers may move dependent variables,
+    // but may never redefine the target to match their own output.
+    set() {},
+  });
+}
+
 export function applySolveMode(requested, mode) {
   const next = structuredClone(requested);
   const row = modeMask(mode);
@@ -63,6 +76,7 @@ export function applySolveMode(requested, mode) {
   if (mode === "MIRROR_RATIO_FIRST" || (preserve.includes("R_P") && row.allowed_to_move.includes("mirror_distance"))) {
     next.apparatus.mirror_distance_auto_solve = true;
   }
+  protectSolveConstant(next.apparatus, "preserved_reflected_phone_ratio");
   return next;
 }
 
