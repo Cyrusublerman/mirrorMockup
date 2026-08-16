@@ -90,8 +90,7 @@ export function projectForHud(app) {
       face_visibility: visOf(reports, "head"),
     },
     last_edit: e.last_edit,
-    // Compensation is represented by the transaction card, never by the legacy toast.
-    compensation: null,
+    compensation: transactionCompensation,
     transaction_compensation: transactionCompensation,
     feasible: e.feasible,
     aperture_band: e.aperture_band,
