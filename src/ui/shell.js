@@ -62,7 +62,7 @@ html, body, #app {
 }
 .mp-room.is-on, .mp-chip.is-on { background: var(--mp-ink); color: #fff; }
 .mp-room:focus-visible, .mp-chip:focus-visible, .mp-more:focus-visible {
-  outline: 2px solid var(--mp-action);
+  outline: 2px solid var(--mp-ink);
   outline-offset: 2px;
 }
 .mp-more { flex: 0 0 44px; padding: 0; }
@@ -86,7 +86,7 @@ html, body, #app {
   position: absolute;
   left: 8px;
   top: 8px;
-  z-index: 3;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -98,6 +98,16 @@ html, body, #app {
   font-size: 10px;
   background: rgba(255,255,255,0.88);
 }
+.mp-view-lab {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 3;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--mp-muted);
+  pointer-events: none;
+}
 .mp-inset {
   position: absolute;
   right: 8px;
@@ -106,14 +116,14 @@ html, body, #app {
   min-width: 88px;
   max-width: 140px;
   aspect-ratio: 3 / 4;
-  border: 2px solid var(--mp-action);
+  border: 2px solid #1A1A1A;
   border-radius: 10px;
   overflow: hidden;
-  background: #111;
+  background: transparent;
   z-index: 3;
   touch-action: none;
 }
-.mp-inset canvas { width: 100%; height: 100%; display: block; }
+.mp-inset canvas { width: 100%; height: 100%; display: block; opacity: 0; }
 .mp-inset-lab {
   position: absolute;
   left: 4px; right: 4px; bottom: 4px;
@@ -124,16 +134,70 @@ html, body, #app {
 }
 .mp-toast {
   position: absolute;
-  left: 60px; right: 8px; top: 8px;
-  z-index: 4;
+  left: 8px; right: 8px; top: 56px;
+  z-index: 3;
   background: rgba(255,255,255,0.92);
   border-radius: 12px;
   padding: 8px 12px;
   font-size: 13px;
   color: var(--mp-warn);
   display: none;
+}
+.mp-comp {
+  position: absolute;
+  left: 64px; right: 36%;
+  top: 8px;
+  bottom: auto;
+  z-index: 3;
+  background: rgba(255,255,255,0.94);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.mp-comp .mp-row { flex-wrap: wrap; }
+.mp-comp[hidden] { display: none; }
+.mp-txn .mp-kv span:first-child { letter-spacing: 0.08em; font-size: 10px; color: var(--mp-muted); }
+.mp-diag {
+  position: absolute;
+  left: 8px; right: 36%;
+  bottom: 8px;
+  z-index: 3;
+  background: rgba(255,255,255,0.94);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  max-height: 42%;
+  overflow: auto;
+}
+.mp-diag[hidden] { display: none; }
+.mp-fea-map {
+  position: relative;
+  height: 88px;
+  margin-top: 8px;
+  background: #F1EDE5;
+  border-radius: 8px;
+}
+.mp-fea-dot {
+  position: absolute;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: #395BD6;
+}
+.mp-fea-dot.is-here { background: #D82D84; width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+.mp-fea-band {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 28%;
+  background: rgba(181, 58, 58, 0.12);
+  border-top: 1px dashed #B53A3A;
   pointer-events: none;
 }
+@media (min-width: 760px) {
+  .mp-input-modes { display: flex; }
+  .mp-sheet { max-height: 80dvh; }
+}
+.mp-input-modes { margin-top: 6px; }
 .mp-toast.is-on { display: block; }
 .mp-hud {
   flex: 0 0 auto;
@@ -185,7 +249,6 @@ html, body, #app {
   .mp-inspect { position: relative; grid-column: 3; grid-row: 2 / 4; display: block; max-height: none; border-top: 0; border-left: 1px solid var(--mp-line); border-radius: 0; }
   .mp-inspect:not(.is-open) { display: none; }
   .mp-views { flex-direction: row; }
-  .mp-toast { left: 8px; top: 60px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
