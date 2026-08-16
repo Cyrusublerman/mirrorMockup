@@ -1,6 +1,9 @@
+export const REPRESENTATION_LAYERS = Object.freeze(["GESTURE", "VOLUME", "CONTOUR"]);
+export const NUMERIC_FRAMES = Object.freeze(["PARENT", "ANATOMICAL", "HEAD", "MIRROR", "IMAGE", "WORLD"]);
+
 export function createWorkspaceState() {
   return {
-    room: "POSE",
+    phase: "DECLARE",
     output_mode: "FINAL_CAMERA",
     editor_view: "ISO",
     selected: null,
@@ -24,9 +27,10 @@ export function createWorkspaceState() {
     q: 1,
     n: 1,
     axis: "BEND",
-    body_mode: "RIGGED",
+    body_mode: "GESTURE",
     input_mode: "VIEWPORT",
     crop_mode: "FINAL_CROP",
     family: "direct-dominant",
+    numeric_frame: "PARENT",
   };
 }

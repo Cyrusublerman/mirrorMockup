@@ -1,33 +1,17 @@
 import { INTENT } from "../visibility/occlusion_intent.js";
 
+const base = (headMin, legsMin) => ({
+  reflected_head: { state: INTENT.REQUIRED, min: headMin, allowed_occluders: ["direct_hair", "direct_arm"] },
+  reflected_torso: { state: INTENT.PERMITTED, allowed_occluders: ["direct_hair", "direct_face", "direct_arm"] },
+  reflected_legs: { state: INTENT.REQUIRED, min: legsMin, allowed_occluders: ["direct_body"] },
+  reflected_phone: { state: INTENT.REQUIRED, min: 0.01, allowed_occluders: ["direct_hair", "direct_arm"] },
+  direct_face: { state: INTENT.PROHIBITED, max: 0 },
+});
+
 export const FAMILIES = Object.freeze({
-  "direct-dominant": {
-    occlusion_intent: {
-      reflected_head: { state: INTENT.REQUIRED, min: 0.5 },
-      reflected_torso: { state: INTENT.PERMITTED },
-      reflected_legs: { state: INTENT.REQUIRED, min: 0.2 },
-      reflected_phone: { state: INTENT.REQUIRED, min: 0.01 },
-      direct_face: { state: INTENT.PERMITTED },
-    },
-  },
-  "mirror-dominant": {
-    occlusion_intent: {
-      reflected_head: { state: INTENT.REQUIRED, min: 0.5 },
-      reflected_torso: { state: INTENT.PERMITTED },
-      reflected_legs: { state: INTENT.REQUIRED, min: 0.3 },
-      reflected_phone: { state: INTENT.REQUIRED, min: 0.01 },
-      direct_face: { state: INTENT.IGNORE },
-    },
-  },
-  balanced: {
-    occlusion_intent: {
-      reflected_head: { state: INTENT.REQUIRED, min: 0.4 },
-      reflected_torso: { state: INTENT.PERMITTED },
-      reflected_legs: { state: INTENT.REQUIRED, min: 0.3 },
-      reflected_phone: { state: INTENT.REQUIRED, min: 0.01 },
-      direct_face: { state: INTENT.PERMITTED },
-    },
-  },
+  "direct-dominant": { occlusion_intent: base(0.5, 0.2) },
+  "mirror-dominant": { occlusion_intent: base(0.5, 0.3) },
+  balanced: { occlusion_intent: base(0.4, 0.3) },
 });
 
 export function familyIntent(name) {
@@ -35,7 +19,7 @@ export function familyIntent(name) {
 }
 
 export function familyOfPanel(id) {
-  if ("BEFG".includes(id) && id !== "G") return "mirror-dominant";
+  if (["B", "E", "F"].includes(id)) return "mirror-dominant";
   if (id === "D") return "balanced";
   return "direct-dominant";
 }

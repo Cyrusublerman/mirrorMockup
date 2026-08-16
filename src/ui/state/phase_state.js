@@ -8,33 +8,25 @@ export const OUTPUT_MODES = Object.freeze([
   "FULL_SENSOR",
 ]);
 export const INPUT_MODES = Object.freeze(["VIEWPORT", "NUMBERS", "PLAN", "ELEVATION", "FEASIBLE"]);
-export const PRODUCTION_ROOMS = Object.freeze(["POSE", "SCENE", "RECURSION"]);
 
+// Renderer context only. These are not user-facing rooms; v5 explicitly replaces
+// object-category rooms with DECLARE / SOLVE / STAGE.
 export const PHASE_TO_ROOM = Object.freeze({
   DECLARE: "POSE",
   SOLVE: "SCENE",
   STAGE: "SCENE",
-  POSE: "POSE",
-  SCENE: "SCENE",
-  RECURSION: "RECURSION",
 });
 
 export class PhaseState {
   constructor() {
     this.phase = "DECLARE";
-    this.room_id = "POSE";
     this.output = "FINAL_CAMERA";
     this.input = "VIEWPORT";
   }
 
   setPhase(name) {
-    if (PRODUCTION_ROOMS.includes(name)) {
-      this.room_id = name;
-      return;
-    }
     if (!PHASES.includes(name)) throw new Error(`unknown phase ${name}`);
     this.phase = name;
-    this.room_id = PHASE_TO_ROOM[name];
   }
 
   setOutput(name) {
@@ -48,6 +40,6 @@ export class PhaseState {
   }
 
   room() {
-    return this.room_id || PHASE_TO_ROOM[this.phase];
+    return PHASE_TO_ROOM[this.phase];
   }
 }

@@ -1,24 +1,23 @@
 import { PANELS_AI, PART_WEIGHTS } from "../../../fixtures/reference/panels_ai.js";
+import { declaredReferenceMask, DECLARED_MASK_VERSION, MASK_CODE } from "../../../fixtures/reference/declared_masks.js";
 
 export class MaskCompare {
-  iou(pred, ref) {
+  iou(pred, ref, label = null) {
     let inter = 0;
     let union = 0;
     const n = Math.min(pred.length, ref.length);
     for (let i = 0; i < n; i++) {
-      if (pred[i] === ref[i] && pred[i] !== 0) inter++;
-      if (pred[i] !== 0 || ref[i] !== 0) union++;
+      const p = label == null ? pred[i] !== 0 : pred[i] === label;
+      const r = label == null ? ref[i] !== 0 : ref[i] === label;
+      if (p && r) inter++;
+      if (p || r) union++;
     }
     return union === 0 ? 1 : inter / union;
   }
 
   perPart(pred, ref, labels) {
     const out = {};
-    for (const lab of labels) {
-      const p = pred.map((v) => (v === lab ? lab : 0));
-      const r = ref.map((v) => (v === lab ? lab : 0));
-      out[lab] = this.iou(p, r);
-    }
+    for (const lab of labels) out[lab] = this.iou(pred, ref, lab);
     return out;
   }
 
@@ -31,6 +30,22 @@ export class MaskCompare {
       den += w;
     }
     return den === 0 ? 0 : num / den;
+  }
+
+  compareDeclared(pred, width, height) {
+    const ref = declaredReferenceMask(width, height);
+    const byName = {};
+    const byLabel = this.perPart(pred, ref.labels, Object.values(MASK_CODE).filter((v) => v !== 0));
+    for (const [name, code] of Object.entries(MASK_CODE)) {
+      if (code === 0) continue;
+      byName[name] = byLabel[code];
+    }
+    return {
+      reference_id: ref.id,
+      reference_version: DECLARED_MASK_VERSION,
+      parts: byName,
+      weighted: this.weighted(byName),
+    };
   }
 
   occupancyResidual(panelId, measured) {

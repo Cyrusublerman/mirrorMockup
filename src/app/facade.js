@@ -5,6 +5,7 @@ import { createHistory, pushHistory, undo as histUndo, redo as histRedo, lastLab
 import * as selectors from "./selectors.js";
 import { packProject, unpackProject } from "./project_io.js";
 import { exportImage } from "../domains/export/image.js";
+import { solveScreenCornerTransform } from "../domains/carrier_p/inverse_drag.js";
 import { BUILD } from "./build_identity.js";
 
 function cloneMerge(base, patch) {
@@ -26,40 +27,31 @@ const NO_HISTORY = new Set([
 export function createApp() {
   let requested = defaultRequestedState();
   let last = solve(requested);
-  requested = last.requested;
   let previewRequested = null;
   const history = createHistory();
   const snapshots = {};
 
-  function activeRequested() {
-    return previewRequested || requested;
-  }
+  function activeRequested() { return previewRequested || requested; }
+  function resolve(req) { last = solve(req); return last; }
 
   function dispatch(name, payload = {}, opts = {}) {
     if (name === "UNDO") {
       previewRequested = null;
       requested = histUndo(history, requested);
-      last = solve(requested);
-      requested = last.requested;
-      return last;
+      return resolve(requested);
     }
     if (name === "REDO") {
       previewRequested = null;
       requested = histRedo(history, requested);
-      last = solve(requested);
-      requested = last.requested;
-      return last;
+      return resolve(requested);
     }
     if (name === "SAVE_SNAPSHOT") {
       snapshots[payload.id] = { kind: payload.kind || "SCENE", state: structuredClone(activeRequested()) };
       if (payload.kind === "POSE") snapshots[payload.id].state = { body: structuredClone(activeRequested().body) };
-      if (payload.kind === "WORKSPACE") {
-        snapshots[payload.id].state = {
-          workspace: structuredClone(activeRequested().workspace),
-          view: structuredClone(activeRequested().view),
-          reference: { registration: structuredClone(activeRequested().reference.registration) },
-        };
-      }
+      if (payload.kind === "WORKSPACE") snapshots[payload.id].state = {
+        workspace: structuredClone(activeRequested().workspace), view: structuredClone(activeRequested().view),
+        reference: { registration: structuredClone(activeRequested().reference.registration) },
+      };
       return last;
     }
     if (name === "LOAD_SNAPSHOT") {
@@ -70,33 +62,33 @@ export function createApp() {
       if (snap.kind === "POSE") requested = cloneMerge(requested, { body: snap.state.body });
       else if (snap.kind === "WORKSPACE") requested = cloneMerge(requested, snap.state);
       else requested = structuredClone(snap.state);
-      last = solve(requested);
-      requested = last.requested;
-      return last;
+      return resolve(requested);
     }
     if (["EXPORT_IMAGE", "EXPORT_FINAL_CAMERA", "EXPORT_STAGING_PRESCRIPTION", "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER", "EXPORT_MASK"].includes(name)) {
-      last.export = exportImage(activeRequested(), last.effective, { ...payload, product: name });
+      const req = activeRequested();
+      resolve(req);
+      last.export = exportImage(req, last.effective, { ...payload, product: name });
       last.export.sidecar = { ...last.export.sidecar, build: BUILD, solver: last.effective.solver };
       if (name === "EXPORT_STAGING_PRESCRIPTION" && last.export.staging?.refused) last.error = "staging refused: hollow distances";
       return last;
     }
-    if (!opts.preview && !NO_HISTORY.has(name)) pushHistory(history, requested, opts.label || name);
+
     const base = opts.preview ? (previewRequested || requested) : requested;
     const result = applyAction(base, name, payload);
     if (result.error) return { ...last, error: result.error };
     if (opts.preview) {
       previewRequested = result.requested;
-      last = solve(previewRequested);
-      previewRequested = last.requested;
-      return last;
+      return resolve(previewRequested);
     }
+
+    if (!NO_HISTORY.has(name)) pushHistory(history, requested, opts.label || name);
     previewRequested = null;
     requested = result.requested;
-    last = solve(requested);
-    requested = last.requested;
+    resolve(requested);
     if (requested.workspace.pending_mirror_fit && last.effective.proposal) {
-      requested.workspace.proposal = last.effective.proposal;
+      requested.workspace.proposal = structuredClone(last.effective.proposal);
       requested.workspace.pending_mirror_fit = false;
+      resolve(requested);
     }
     return last;
   }
@@ -108,27 +100,21 @@ export function createApp() {
       if (!previewRequested) return last;
       requested = previewRequested;
       previewRequested = null;
-      return last;
+      return resolve(requested);
     },
-    discardPreview: () => {
-      previewRequested = null;
-      last = solve(requested);
-      requested = last.requested;
-      return last;
-    },
+    discardPreview: () => { previewRequested = null; return resolve(requested); },
     getRequested: () => activeRequested(),
     getEffective: () => last.effective,
     getLast: () => last,
     selectors,
     lastHistoryLabel: () => lastLabel(history),
     build: BUILD,
+    solveScreenCorner: (index, targetUv) => solveScreenCornerTransform(activeRequested(), index, targetUv),
     pack: () => packProject(activeRequested(), last.effective),
     load: (data) => {
       previewRequested = null;
       requested = unpackProject(data);
-      last = solve(requested);
-      requested = last.requested;
-      return last;
+      return resolve(requested);
     },
   };
 }

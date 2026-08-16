@@ -31,6 +31,8 @@ export function defaultRequestedState() {
       registration: { opacity: 0.35, offset: [0, 0], scale: 1 },
       active_profile: "P0",
       landmarks,
+      p0_occupancy_convention: "UNRESOLVED",
+      head_silhouette_radius_m: null,
     },
     body: {
       definition: {
@@ -56,6 +58,7 @@ export function defaultRequestedState() {
       authority: "PHONE_DRIVES_HAND",
       grip_relation: { offset: [0, 0, 0], rotation: [0, 0, 0, 1] },
       body_dimensions_m: { width: 0.071, height: 0.147, depth: 0.008 },
+      width_epistemic: "ASSUMED",
       screen_inset_m: { left: 0.003, right: 0.003, top: 0.004, bottom: 0.008 },
     },
     camera: {
@@ -65,6 +68,8 @@ export function defaultRequestedState() {
       crop_request: { aspect: 3 / 4, width_px: 1170, height_px: 1560, pan: [0, 0], scale: 1, authored: false },
       optical_offset_local: [0, t("T-LEVER"), 0],
       epistemic_status: "HYPOTHESIS",
+      topology_request: "FRONT_CAMERA_SELFIE",
+      topology_epistemic: "UNRESOLVED",
     },
     apparatus: {
       mirror_rotation_relation: "PARALLEL_TO_PHONE",
@@ -73,6 +78,7 @@ export function defaultRequestedState() {
       apparatus_pan_request_m: [0, 0],
       mirror_distance_auto_solve: true,
       preserved_reflected_phone_ratio: 0.0045,
+      operating_point_epistemic: "UNRESOLVED",
     },
     mirror: {
       frame_authority: "WORLD",
@@ -91,6 +97,7 @@ export function defaultRequestedState() {
       driver: "P0_RECONSTRUCT",
       family: "direct-dominant",
       phone_scale_request: null,
+      phone_scale_policy: "UNRESOLVED",
       locks: { PHONE_AREA: false, REFLECTED_BODY_SCALE: false, MIRROR_OCCUPANCY: false, SUPPORT: true, GRIP: false, P_VALID: false },
       occlusion_intent: familyIntent("direct-dominant"),
       reflected_content_delta: [0, 0],
@@ -99,7 +106,10 @@ export function defaultRequestedState() {
     recursion: { mode: "OFF", q: 1, n: 1, source_period: 256, source_rotation: 0, phase: [0, 0], singularity_policy: "disk", pole_policy: "portal_fixed_point", output_repeat: null },
     view: { tau: 0, warp_visible: false },
     workspace: {
-      mode: "POSE",
+      mode: "DECLARE",
+      phase: "DECLARE",
+      input_mode: "VIEWPORT",
+      output_mode: "FINAL_CAMERA",
       selection: "body",
       last_edit: null,
       overlays: { REFERENCE: false, SKELETON: false, PHONE: true, MIRROR: true, P: false },

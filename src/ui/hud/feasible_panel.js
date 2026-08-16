@@ -1,23 +1,24 @@
 import { PANELS_AI } from "../../../fixtures/reference/panels_ai.js";
+import {
+  A_ELBOW_IN_M,
+  A_CROSS_BODY_M,
+  A_SAME_SIDE_LIMIT_M,
+  E_ABDUCTION_CEILING_M,
+} from "../../domains/apparatus/feasible_set.js";
 
 export class FeasiblePanel {
   dots() {
-    return Object.entries(PANELS_AI).map(([id, row]) => ({
-      id,
-      a: row.a_m,
-      e: row.e_m,
-      regime: row.regime,
-    }));
+    return Object.entries(PANELS_AI).map(([id, row]) => ({ id, a: row.a_m, e: row.e_m, regime: row.regime }));
   }
 
-  mount(el, fea, dots = this.dots()) {
+  mount(el, fea, dots = this.dots(), onBoundary = null) {
     el.replaceChildren();
     if (!fea) {
       el.hidden = true;
       return;
     }
     el.hidden = false;
-    el.className = "mp-diag";
+    el.className = "mp-diag mp-feasible";
     const h = document.createElement("strong");
     h.textContent = "FEASIBLE";
     el.appendChild(h);
@@ -25,43 +26,97 @@ export class FeasiblePanel {
       kv("a", m(fea.a)),
       kv("e", m(fea.e)),
       kv("R", fea.R == null ? "—" : Number(fea.R).toFixed(2)),
-      kv("clearance", fea.clearance == null ? "—" : ((fea.clearance * 180) / Math.PI).toFixed(2) + "°"),
+      kv("clearance", fea.clearance == null ? "—" : ((fea.clearance * 180) / Math.PI).toFixed(2) + "° · " + (fea.r_epistemic || "")),
       kv("inside", fea.inside ? "yes" : "no"),
-      kv("boundary", fea.distance_to_boundary == null ? "—" : Number(fea.distance_to_boundary).toFixed(3) + " m"),
-      kv("binds", fea.binding || "—"),
+      kv("nearest boundary", fea.binding || "—"),
+      kv("distance", fea.distance_to_boundary == null ? "—" : Number(fea.distance_to_boundary).toFixed(3) + " m"),
     );
-    const map = document.createElement("div");
-    map.className = "mp-fea-map";
-    map.setAttribute("aria-label", "A–I on a–e plane");
-    const band = document.createElement("span");
-    band.className = "mp-fea-band";
-    band.title = "eclipse / e-floor";
-    map.appendChild(band);
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 500 320");
+    svg.classList.add("mp-fea-svg");
+    const X = (a) => 44 + ((a - 0.2) / 0.5) * 420;
+    const Y = (e) => 282 - (e / 0.32) * 246;
+    const path = (d, cls) => {
+      const p = document.createElementNS(svg.namespaceURI, "path");
+      p.setAttribute("d", d);
+      p.setAttribute("class", cls);
+      svg.appendChild(p);
+      return p;
+    };
+    const line = (x1, y1, x2, y2, cls, id, label) => {
+      const n = document.createElementNS(svg.namespaceURI, "line");
+      for (const [k, v] of Object.entries({ x1, y1, x2, y2 })) n.setAttribute(k, String(v));
+      n.setAttribute("class", cls);
+      if (id) {
+        n.dataset.boundary = id;
+        n.setAttribute("tabindex", "0");
+        n.setAttribute("role", "button");
+        n.setAttribute("aria-label", label || id);
+        const hit = () => onBoundary?.({ id, label: label || id });
+        n.addEventListener("click", hit);
+        n.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") hit(); });
+      }
+      svg.appendChild(n);
+      return n;
+    };
+
+    // Spec §7 plot: feasible intersection at m=1.20, with elbow-in, cross-body,
+    // same-side/reach, abduction ceiling, and the eclipse/e-floor curve.
+    const samples = [];
+    for (let a = 0.2; a <= 0.7001; a += 0.025) {
+      const eMin = Math.max(fea.r ? (1 + a / Math.max(2 * (fea.m || 1.2), 1e-9)) * fea.r : 0.13, 0.13);
+      samples.push([X(a), Y(eMin)]);
+    }
+    path(samples.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" "), "mp-fea-eclipse");
+    line(X(A_ELBOW_IN_M), Y(0), X(A_ELBOW_IN_M), Y(0.32), "mp-fea-boundary", "elbow_in", "elbow in · move a");
+    line(X(A_CROSS_BODY_M), Y(0), X(A_CROSS_BODY_M), Y(0.32), "mp-fea-boundary", "cross_body", "cross-body limit · change handedness or a");
+    line(X(A_SAME_SIDE_LIMIT_M), Y(0), X(A_SAME_SIDE_LIMIT_M), Y(0.32), "mp-fea-boundary is-hard", "reach", "same-side reach limit · move a");
+    line(X(0.2), Y(E_ABDUCTION_CEILING_M), X(0.7), Y(E_ABDUCTION_CEILING_M), "mp-fea-boundary", "shoulder_abduction", "shoulder abduction ceiling · move e");
+
+    for (const R of [9, 7, 5.8]) {
+      const a = (2 * (fea.m || 1.2)) / (R - 1);
+      if (a >= 0.2 && a <= 0.7) line(X(a), Y(0), X(a), Y(0.32), "mp-fea-iso");
+    }
+
     for (const d of dots) {
-      const dot = document.createElement("span");
-      dot.className = "mp-fea-dot";
-      dot.dataset.panel = d.id;
-      dot.style.left = `${clamp01((d.a - 0.2) / 0.5) * 100}%`;
-      dot.style.bottom = `${clamp01((d.e - 0.05) / 0.3) * 100}%`;
-      dot.title = `${d.id} ${d.regime}`;
-      map.appendChild(dot);
+      const c = document.createElementNS(svg.namespaceURI, "circle");
+      c.setAttribute("cx", String(X(d.a)));
+      c.setAttribute("cy", String(Y(d.e)));
+      c.setAttribute("r", "4");
+      c.setAttribute("class", "mp-fea-ref");
+      const title = document.createElementNS(svg.namespaceURI, "title");
+      title.textContent = `${d.id} · ${d.regime}`;
+      c.appendChild(title);
+      svg.appendChild(c);
     }
     if (fea.a != null && fea.e != null) {
-      const here = document.createElement("span");
-      here.className = "mp-fea-dot is-here";
-      here.style.left = `${clamp01((fea.a - 0.2) / 0.5) * 100}%`;
-      here.style.bottom = `${clamp01((fea.e - 0.05) / 0.3) * 100}%`;
-      here.title = "you are here";
-      map.appendChild(here);
+      const here = document.createElementNS(svg.namespaceURI, "circle");
+      here.setAttribute("cx", String(X(fea.a)));
+      here.setAttribute("cy", String(Y(fea.e)));
+      here.setAttribute("r", "6");
+      here.setAttribute("class", "mp-fea-here");
+      svg.appendChild(here);
     }
-    el.appendChild(map);
+    el.appendChild(svg);
+
+    const boundaries = document.createElement("div");
+    boundaries.className = "mp-row mp-boundary-row";
+    for (const b of fea.boundaries || []) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mp-chip" + (b.id === fea.binding ? " is-on" : "");
+      btn.textContent = b.label;
+      btn.addEventListener("click", () => onBoundary?.(b));
+      boundaries.appendChild(btn);
+    }
+    el.appendChild(boundaries);
   }
 }
 
 function m(v) {
   return v == null ? "—" : Number(v).toFixed(3) + " m";
 }
-
 function kv(k, v) {
   const d = document.createElement("div");
   d.className = "mp-kv";
@@ -71,8 +126,4 @@ function kv(k, v) {
   b.textContent = v;
   d.append(a, b);
   return d;
-}
-
-function clamp01(x) {
-  return Math.max(0, Math.min(1, x));
 }

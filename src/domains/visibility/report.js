@@ -63,9 +63,7 @@ export function sameAnatomyScale(sizeR, sizeD) {
 }
 
 function fkTranslation(p) {
-  if (Array.isArray(p) && p.length === 3 && typeof p[0] === "number" && typeof p[1] === "number" && typeof p[2] === "number") {
-    return p;
-  }
+  if (Array.isArray(p) && p.length === 3 && typeof p[0] === "number" && typeof p[1] === "number" && typeof p[2] === "number") return p;
   return null;
 }
 
@@ -79,6 +77,24 @@ export function occludesSegment(origin, target, mesh, worldXf) {
     if (hit && hit.t > 1e-3 && hit.t < 0.999) return true;
   }
   return false;
+}
+
+function inFrame(uv) {
+  return !!(uv && uv[0] >= 0 && uv[0] <= 1 && uv[1] >= 0 && uv[1] <= 1);
+}
+
+function regionFraction(reports, names, space) {
+  let visible = 0;
+  let n = 0;
+  for (const name of names) {
+    const row = reports[name];
+    if (!row) continue;
+    n++;
+    if (space === "reflected") {
+      if (row.reflected?.visible && inFrame(row.reflected?.projection?.image_norm)) visible++;
+    } else if (row.direct?.valid && inFrame(row.direct?.image_norm)) visible++;
+  }
+  return n ? visible / n : 0;
 }
 
 export function evaluateVisibility(fk, cam, mirror, occluders = []) {
@@ -100,8 +116,15 @@ export function evaluateVisibility(fk, cam, mirror, occluders = []) {
     };
   }
   const armFlags = ["shoulder_R", "elbow_R", "wrist_R"].map((n) => !!reports[n]?.reflected?.visible);
+  const fractions = {
+    reflected_head: regionFraction(reports, ["head", "neck"], "reflected"),
+    reflected_torso: regionFraction(reports, ["ribcage", "pelvis", "shoulder_L", "shoulder_R", "hip_L", "hip_R"], "reflected"),
+    reflected_legs: regionFraction(reports, ["hip_L", "knee_L", "ankle_L", "hip_R", "knee_R", "ankle_R"], "reflected"),
+    direct_face: regionFraction(reports, ["head", "neck"], "direct"),
+  };
   return {
     reports,
+    fractions,
     occlusion: { hand_phone_body: occluders.length > 0 },
     disjoint: { arm_R: disjointIntervals(armFlags) },
   };

@@ -19,13 +19,15 @@ export class ScreenQuad {
       bezel: this.bezelGate(base, phone),
     };
     const gate_reasons = GATES.filter((k) => !gates[k].ok);
+    const gates_ok = gate_reasons.length === 0;
+    const reasons = [...(base.reasons || []), ...gate_reasons.map((r) => `gate_${r}`)];
     return {
       ...base,
       gates,
-      gates_ok: gate_reasons.length === 0,
+      gates_ok,
       gate_reasons,
-      valid: base.valid,
-      reasons: base.reasons,
+      valid: !!base.valid && gates_ok,
+      reasons,
       quad: base.quad,
     };
   }
@@ -45,21 +47,22 @@ export class ScreenQuad {
     const c0 = quad.reduce((s, p) => add(s, p), [0, 0, 0]);
     const centroid = scale(c0, 0.25);
     const view = normalize(sub(C, centroid));
-    const cos = dot(normalize(n), view);
-    const limit = Math.cos((optsAngle() * Math.PI) / 180);
-    return { ok: cos >= limit, value: cos };
+    const cos = Math.abs(dot(normalize(n), view));
+    const limit = Math.cos((t("T-PQ-ANGLE") * Math.PI) / 180);
+    return { ok: cos >= limit, value: cos, limit };
   }
 
   footprintGate(base, widthPx, heightPx) {
     const a = Math.abs(base.area_capture ?? 0);
     const px = a * widthPx * heightPx;
     const minPx = t("T-PQ-PX");
-    return { ok: px >= minPx, value: px };
+    return { ok: px >= minPx, value: px, limit: minPx };
   }
 
   conditioningGate(base) {
     const cond = base.condition ?? Infinity;
-    return { ok: Number.isFinite(cond) && cond <= t("T-HOMO") && !(base.reasons || []).includes("ill_conditioned"), value: cond };
+    const limit = t("T-HOMO");
+    return { ok: Number.isFinite(cond) && cond <= limit && !(base.reasons || []).includes("ill_conditioned"), value: cond, limit };
   }
 
   occlusionGate(base, occluded) {
@@ -69,44 +72,14 @@ export class ScreenQuad {
 
   bezelGate(base, phone) {
     const inset = phone?.screen_inset || {};
-    const minIn = Math.min(inset.left ?? 0.003, inset.right ?? 0.003, inset.top ?? 0.004, inset.bottom ?? 0.008);
-    const quad = base.quad;
-    if (!quad || quad.some((p) => !p)) return { ok: false, value: null };
-    const margin = t("T-PQ-BEZEL");
-    const inside = quad.every((p) => p[0] >= margin && p[0] <= 1 - margin && p[1] >= margin && p[1] <= 1 - margin);
-    return { ok: inside && minIn >= 1e-4, value: minIn };
+    const vals = [inset.left, inset.right, inset.top, inset.bottom].filter(Number.isFinite);
+    const minInset = vals.length ? Math.min(...vals) : 0;
+    // S_i are already the physical screen corners inset from the phone body. The
+    // bezel gate therefore tests that the physical inset exists; framing belongs
+    // to the footprint/crop system, not to bezel validity.
+    const ok = !!base.quad && base.quad.every((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1])) && minInset > 1e-4;
+    return { ok, value: minInset, limit: 1e-4 };
   }
-
-  inverseCorner(translation, cam, duv) {
-    const depth = 0.4;
-    const r = cam?.basis?.right || [1, 0, 0];
-    const u = cam?.basis?.up || [0, 0, 1];
-    return [
-      translation[0] + r[0] * duv[0] * depth + u[0] * (-duv[1]) * depth,
-      translation[1] + r[1] * duv[0] * depth + u[1] * (-duv[1]) * depth,
-      translation[2] + r[2] * duv[0] * depth + u[2] * (-duv[1]) * depth,
-    ];
-  }
-}
-
-function optsAngle() {
-  return t("T-PQ-ANGLE");
-}
-
-export function hitScreenCorner(quad, uv, radius = 0.06) {
-  if (!quad) return -1;
-  let best = -1;
-  let bestD = radius;
-  for (let i = 0; i < 4; i++) {
-    const p = quad[i];
-    if (!p) continue;
-    const d = Math.hypot(p[0] - uv[0], p[1] - uv[1]);
-    if (d < bestD) {
-      bestD = d;
-      best = i;
-    }
-  }
-  return best;
 }
 
 export { GATES as SCREEN_GATES };

@@ -1,15 +1,17 @@
-export const PRODUCTION_ROOMS = ["POSE", "SCENE", "RECURSION"];
+import { PHASES } from "../state/phase_state.js";
+
+export const PRODUCTION_PHASES = PHASES;
 
 export function mountTopModeStrip(el, workspace, onChange) {
   if (!el.dataset.ready) {
     el.replaceChildren();
     el.className = "mp-strip";
     el.dataset.ready = "1";
-    for (const id of PRODUCTION_ROOMS) {
+    for (const id of PHASES) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "mp-room";
-      b.dataset.room = id;
+      b.dataset.phase = id;
       b.textContent = id;
       b.setAttribute("aria-label", id);
       b.addEventListener("click", () => onChange(id));
@@ -17,7 +19,7 @@ export function mountTopModeStrip(el, workspace, onChange) {
     }
   }
   for (const b of el.querySelectorAll(".mp-room")) {
-    const on = b.dataset.room === workspace.room;
+    const on = b.dataset.phase === workspace.phase;
     b.classList.toggle("is-on", on);
     b.setAttribute("aria-pressed", on ? "true" : "false");
   }
