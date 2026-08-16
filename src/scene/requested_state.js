@@ -92,7 +92,7 @@ export function defaultRequestedState() {
       mirror_pan_uv_request_m: [0, -0.265],
       apparatus_pan_request_m: [0, 0],
       mirror_distance_auto_solve: false,
-      preserved_reflected_phone_ratio: 0.0045,
+      preserved_reflected_phone_ratio: 0.000375272871873153,
       operating_point_epistemic: "UNRESOLVED",
       working_station: { m_m: 1.200, u_m: 0.340, c_m: 1.540, e_m: 0.140, a_m: 0.368, z_camera_m: 1.665, status: "HYPOTHESIS" },
     },
