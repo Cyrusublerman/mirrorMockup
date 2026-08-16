@@ -4,11 +4,11 @@ export function applyScreenCorner(dispatch,transform,preview){
   const phone={translation:transform.translation.slice(),yaw:transform.yaw,pitch:transform.pitch,roll:transform.roll};
   if(preview){
     dispatch.preview("ROTATE_PHONE",phone);
-    if(transform.mirror_pan_uv)dispatch.preview("PAN_MIRROR_WINDOW",{uv:transform.mirror_pan_uv.slice()});
-    // Re-tag the transaction with the user-facing P/phone driver after the dependent mirror compensation.
+    if(transform.crop_pan)dispatch.preview("PAN_OUTER_FRAME",{pan:transform.crop_pan.slice()});
+    // Dependent framing compensation must not become the user-facing transaction driver.
     dispatch.preview("ROTATE_PHONE",phone);
   }else{
     dispatch.commit("ROTATE_PHONE",phone,"Drag screen corner");
-    if(transform.mirror_pan_uv)dispatch.commit("PAN_MIRROR_WINDOW",{uv:transform.mirror_pan_uv.slice()},"Screen-corner compensation");
+    if(transform.crop_pan)dispatch.commit("PAN_OUTER_FRAME",{pan:transform.crop_pan.slice()},"Screen-corner framing compensation");
   }
 }
