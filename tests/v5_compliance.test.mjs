@@ -7,8 +7,7 @@ import { REPRESENTATION_LAYERS, NUMERIC_FRAMES } from "../src/ui/state/workspace
 import { OPEN_DISAGREEMENTS } from "../fixtures/decisions.js";
 import { SCREEN_GATES } from "../src/domains/carrier_p/screen_quad.js";
 import { MASK_CODE } from "../fixtures/reference/declared_masks.js";
-import { maskAcceptanceFixture, MASK_ACCEPTANCE_VERSION } from "../fixtures/reference/mask_acceptance.js";
-import { MaskRender } from "../src/domains/reference/mask_extract.js";
+import { MASK_ACCEPTANCE_VERSION } from "../fixtures/reference/mask_acceptance.js";
 import { MaskCompare } from "../src/domains/composition/mask_compare.js";
 import { t } from "../fixtures/tolerances.js";
 
@@ -83,10 +82,9 @@ test("v5 §10 · a four-corner drag solves a rigid phone transform, not a scalar
 });
 
 test("ACC-MSK-01 · production MaskRender passes an independent versioned per-part IoU fixture",()=>{
-  const fx=maskAcceptanceFixture();
-  assert.equal(fx.version,MASK_ACCEPTANCE_VERSION);
-  const actual=new MaskRender().render(fx.contour,fx.camera,fx.mirror,fx.carrier_p,fx.mirror_quad,fx.width,fx.height);
-  const cmp=new MaskCompare().compare(actual,fx.reference_labels);
+  const cmp=new MaskCompare().certifyRenderer();
+  assert.equal(cmp.reference_version,MASK_ACCEPTANCE_VERSION);
+  assert.equal(cmp.production_renderer,true);
   for(const [name,code] of Object.entries(MASK_CODE)){
     if(code===0)continue;
     assert.ok(cmp.parts[name]>=t("T-MSK-IOU"),`${name} IoU ${cmp.parts[name]} < ${t("T-MSK-IOU")}`);
