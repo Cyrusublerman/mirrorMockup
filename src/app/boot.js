@@ -11,6 +11,7 @@ function injectSafetyCss(doc) {
   el.textContent = `
 .mp-toast { pointer-events: none; left: 64px; right: 8px; top: 8px; }
 .mp-views .mp-chip { min-height: 44px; min-width: 44px; }
+.mp-stage > .mp-comp { display: none !important; }
 @media (min-width: 1100px) { .mp-toast { left: 8px; top: 60px; } }
 `;
 }
