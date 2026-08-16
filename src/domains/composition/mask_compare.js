@@ -1,5 +1,7 @@
 import { PANELS_AI, PART_WEIGHTS } from "../../../fixtures/reference/panels_ai.js";
 import { declaredReferenceMask, DECLARED_MASK_VERSION, MASK_CODE } from "../../../fixtures/reference/declared_masks.js";
+import { maskAcceptanceFixture, MASK_ACCEPTANCE_VERSION } from "../../../fixtures/reference/mask_acceptance.js";
+import { MaskRender } from "../reference/mask_extract.js";
 
 export class MaskCompare {
   iou(pred, ref, label = null) {
@@ -45,6 +47,25 @@ export class MaskCompare {
       reference_version: DECLARED_MASK_VERSION,
       parts: byName,
       weighted: this.weighted(byName),
+    };
+  }
+
+  certifyRenderer() {
+    const f = maskAcceptanceFixture();
+    const renderer = new MaskRender();
+    const pred = renderer.render(f.contour, f.camera, f.mirror, f.carrier_p, f.mirror_quad, f.width, f.height);
+    const byName = {};
+    const byLabel = this.perPart(pred, f.reference_labels, Object.values(MASK_CODE).filter((v) => v !== 0));
+    for (const [name, code] of Object.entries(MASK_CODE)) {
+      if (code === 0) continue;
+      byName[name] = byLabel[code];
+    }
+    return {
+      reference_id: f.id,
+      reference_version: MASK_ACCEPTANCE_VERSION,
+      parts: byName,
+      weighted: this.weighted(byName),
+      production_renderer: true,
     };
   }
 
