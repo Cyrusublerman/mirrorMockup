@@ -44,8 +44,9 @@ test("Phase 4 · meaningful compensation remains inspectable", () => {
 });
 
 test("Phase 4 · toast cannot intercept view controls", () => {
-  const css = readFileSync(new URL("../src/ui/shell.js", import.meta.url), "utf8");
-  assert.match(css, /\.mp-toast\s*\{[^}]*pointer-events:\s*none;/s);
-  assert.match(css, /\.mp-views \.mp-chip\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(css, /\.mp-views \.mp-chip\s*\{[^}]*min-width:\s*44px/s);
+  const shell = readFileSync(new URL("../src/ui/shell.js", import.meta.url), "utf8");
+  const boot = readFileSync(new URL("../src/app/boot.js", import.meta.url), "utf8");
+  assert.match(boot, /\.mp-toast\s*\{[^}]*pointer-events:\s*none;/s);
+  assert.match(shell + boot, /\.mp-views \.mp-chip\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(shell + boot, /\.mp-views \.mp-chip\s*\{[^}]*min-width:\s*44px/s);
 });
