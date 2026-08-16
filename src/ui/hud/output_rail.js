@@ -4,7 +4,7 @@ export class OutputRail {
   mount(el, current, onChange) {
     if (!el.dataset.ready) {
       el.replaceChildren();
-      el.className = "mp-row mp-output-rail";
+      el.className = "mp-output-controls mp-row mp-output-rail";
       el.dataset.ready = "1";
       for (const id of OUTPUT_MODES) {
         const b = document.createElement("button");
