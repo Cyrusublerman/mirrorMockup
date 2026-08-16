@@ -4,7 +4,7 @@ export class InputModeStrip {
   mount(el, current, onChange) {
     if (!el.dataset.ready) {
       el.replaceChildren();
-      el.className = "mp-row mp-input-modes";
+      el.className = "mp-input-wrap mp-row mp-input-modes";
       el.dataset.ready = "1";
       for (const id of INPUT_MODES) {
         const b = document.createElement("button");
