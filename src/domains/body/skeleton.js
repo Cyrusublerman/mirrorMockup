@@ -215,7 +215,7 @@ export function anatomicalQuat(bend = 0, tilt = 0, twist = 0) {
   return quat.bendTiltTwist(bend, tilt, twist);
 }
 
-function attachSurfaceReferences(fk, requested) {
+export function attachSurfaceReferences(fk, requested) {
   const ratio = requested.body?.definition?.model_adapter?.face_head_extension_ratio ?? 0.645;
   if (fk.head && fk.neck) {
     fk.face_reference = [
