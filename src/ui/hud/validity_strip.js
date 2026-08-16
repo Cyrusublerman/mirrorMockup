@@ -1,5 +1,5 @@
 export function mountValidityStrip(el, proj) {
-  el.className = "mp-status";
+  el.className = "mp-valid-wrap mp-status";
   el.replaceChildren();
   const tx = proj.effective?.transaction || (proj.valid ? "PASS" : "FAIL");
   const t = document.createElement("strong");
