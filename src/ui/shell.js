@@ -92,8 +92,8 @@ html, body, #app {
   gap: 4px;
 }
 .mp-views .mp-chip {
-  min-height: 36px;
-  min-width: 36px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 8px;
   font-size: 10px;
   background: rgba(255,255,255,0.88);
@@ -124,7 +124,7 @@ html, body, #app {
 }
 .mp-toast {
   position: absolute;
-  left: 8px; right: 8px; top: 8px;
+  left: 60px; right: 8px; top: 8px;
   z-index: 4;
   background: rgba(255,255,255,0.92);
   border-radius: 12px;
@@ -132,6 +132,7 @@ html, body, #app {
   font-size: 13px;
   color: var(--mp-warn);
   display: none;
+  pointer-events: none;
 }
 .mp-toast.is-on { display: block; }
 .mp-hud {
@@ -184,6 +185,7 @@ html, body, #app {
   .mp-inspect { position: relative; grid-column: 3; grid-row: 2 / 4; display: block; max-height: none; border-top: 0; border-left: 1px solid var(--mp-line); border-radius: 0; }
   .mp-inspect:not(.is-open) { display: none; }
   .mp-views { flex-direction: row; }
+  .mp-toast { left: 8px; top: 60px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
