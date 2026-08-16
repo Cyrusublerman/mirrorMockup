@@ -18,13 +18,28 @@ async function loadRig(){
 
 function worldOf(THREE,bone){const v=new THREE.Vector3();bone.updateWorldMatrix(true,false);bone.getWorldPosition(v);return[v.x,v.y,v.z];}
 
-test("ACC-REG-02 · reflected presentations match reflected solver FK within 5 mm",async()=>{
-  const THREE=await import("three");const source=await loadRig();const app=createApp(),skel=app.getEffective().skeleton,index=new BoneIndex(source,SEMANTIC);index.applyLocals(skel.locals);
+test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 5 mm",async()=>{
+  const THREE=await import("three");
+  const source=await loadRig();
+  const app=createApp(),skel=app.getEffective().skeleton,index=new BoneIndex(source,SEMANTIC);
+  const host=new THREE.Scene(),reflector=new MirrorReflector(THREE,host);
+  // Attach while source is still in its loaded rest pose. The test then changes the
+  // live source rig so it only passes if the reflected SkeletonUtils clone is resynchronised.
+  reflector.attachBody(source);
+  index.applyLocals(skel.locals);
   const root=new THREE.Group();const rw=skel.root_world;root.position.set(...rw.translation);root.quaternion.set(rw.rotation[0],rw.rotation[1],rw.rotation[2],rw.rotation[3]);root.scale.set(...(rw.scale||[1,1,1]));root.add(source);root.updateMatrixWorld(true);
+  reflector.syncBodyPose(source,reflector.body);
+  reflector.applyHouseholder(root,reflector.body,app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
   const original={};for(const id of Object.keys(SEMANTIC))original[id]=worldOf(THREE,index.get(id));
-  const host=new THREE.Scene(),reflector=new MirrorReflector(THREE,host);reflector.attachBody(source);reflector.applyHouseholder(root,reflector.body,app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
   const reflectedIndex=new BoneIndex(reflector.body,SEMANTIC);
-  for(const id of Object.keys(SEMANTIC)){const got=worldOf(THREE,reflectedIndex.get(id)),want=reflectPoint(original[id],app.getEffective().mirror.centre,app.getEffective().mirror.basis.n),d=Math.hypot(got[0]-want[0],got[1]-want[1],got[2]-want[2]);assert.ok(d<t("T-BONE-REG"),`${id} reflected Δ=${d}`);}
+  assert.notEqual(reflectedIndex.get("wrist_R"),index.get("wrist_R"),"reflection must own a detached skeleton");
+  let skinned=0;reflector.body.traverse((o)=>{if(o.isSkinnedMesh){skinned++;assert.equal(o.bindMode,"detached");}});assert.ok(skinned>0);
+  for(const id of Object.keys(SEMANTIC)){
+    const got=worldOf(THREE,reflectedIndex.get(id));
+    const want=reflectPoint(original[id],app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
+    const d=Math.hypot(got[0]-want[0],got[1]-want[1],got[2]-want[2]);
+    assert.ok(d<t("T-BONE-REG"),`${id} reflected Δ=${d}`);
+  }
 });
 
 test("ACC-REF-02 · renderer clipping boundary agrees with finite aperture within T-CLIP",async()=>{
