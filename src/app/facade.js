@@ -19,7 +19,7 @@ function cloneMerge(base, patch) {
 const NO_HISTORY = new Set([
   "UNDO", "REDO",
   "EXPORT_IMAGE", "EXPORT_FINAL_CAMERA", "EXPORT_STAGING_PRESCRIPTION",
-  "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER",
+  "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER", "EXPORT_MASK",
   "SAVE_SNAPSHOT",
 ]);
 
@@ -27,32 +27,37 @@ export function createApp() {
   let requested = defaultRequestedState();
   let last = solve(requested);
   requested = last.requested;
+  let previewRequested = null;
   const history = createHistory();
   const snapshots = {};
 
+  function activeRequested() {
+    return previewRequested || requested;
+  }
+
   function dispatch(name, payload = {}, opts = {}) {
     if (name === "UNDO") {
+      previewRequested = null;
       requested = histUndo(history, requested);
       last = solve(requested);
       requested = last.requested;
       return last;
     }
     if (name === "REDO") {
+      previewRequested = null;
       requested = histRedo(history, requested);
       last = solve(requested);
       requested = last.requested;
       return last;
     }
     if (name === "SAVE_SNAPSHOT") {
-      snapshots[payload.id] = { kind: payload.kind || "SCENE", state: structuredClone(requested) };
-      if (payload.kind === "POSE") {
-        snapshots[payload.id].state = { body: structuredClone(requested.body) };
-      }
+      snapshots[payload.id] = { kind: payload.kind || "SCENE", state: structuredClone(activeRequested()) };
+      if (payload.kind === "POSE") snapshots[payload.id].state = { body: structuredClone(activeRequested().body) };
       if (payload.kind === "WORKSPACE") {
         snapshots[payload.id].state = {
-          workspace: structuredClone(requested.workspace),
-          view: structuredClone(requested.view),
-          reference: { registration: structuredClone(requested.reference.registration) },
+          workspace: structuredClone(activeRequested().workspace),
+          view: structuredClone(activeRequested().view),
+          reference: { registration: structuredClone(activeRequested().reference.registration) },
         };
       }
       return last;
@@ -60,28 +65,32 @@ export function createApp() {
     if (name === "LOAD_SNAPSHOT") {
       if (!snapshots[payload.id]) return { ...last, error: "no snapshot" };
       pushHistory(history, requested, payload.label || "Load snapshot");
+      previewRequested = null;
       const snap = snapshots[payload.id];
-      if (snap.kind === "POSE") {
-        requested = cloneMerge(requested, { body: snap.state.body });
-      } else if (snap.kind === "WORKSPACE") {
-        requested = cloneMerge(requested, snap.state);
-      } else {
-        requested = structuredClone(snap.state);
-      }
+      if (snap.kind === "POSE") requested = cloneMerge(requested, { body: snap.state.body });
+      else if (snap.kind === "WORKSPACE") requested = cloneMerge(requested, snap.state);
+      else requested = structuredClone(snap.state);
       last = solve(requested);
       requested = last.requested;
       return last;
     }
-    if (name === "EXPORT_IMAGE" || name === "EXPORT_FINAL_CAMERA" || name === "EXPORT_STAGING_PRESCRIPTION" || name === "EXPORT_COMPOSITION_OVERLAY" || name === "EXPORT_REFERENCE_RENDER") {
-      last.export = exportImage(requested, last.effective, { ...payload, product: name });
+    if (["EXPORT_IMAGE", "EXPORT_FINAL_CAMERA", "EXPORT_STAGING_PRESCRIPTION", "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER", "EXPORT_MASK"].includes(name)) {
+      last.export = exportImage(activeRequested(), last.effective, { ...payload, product: name });
       last.export.sidecar = { ...last.export.sidecar, build: BUILD, solver: last.effective.solver };
+      if (name === "EXPORT_STAGING_PRESCRIPTION" && last.export.staging?.refused) last.error = "staging refused: hollow distances";
       return last;
     }
-    if (!opts.preview && !NO_HISTORY.has(name)) {
-      pushHistory(history, requested, opts.label || name);
-    }
-    const result = applyAction(requested, name, payload);
+    if (!opts.preview && !NO_HISTORY.has(name)) pushHistory(history, requested, opts.label || name);
+    const base = opts.preview ? (previewRequested || requested) : requested;
+    const result = applyAction(base, name, payload);
     if (result.error) return { ...last, error: result.error };
+    if (opts.preview) {
+      previewRequested = result.requested;
+      last = solve(previewRequested);
+      previewRequested = last.requested;
+      return last;
+    }
+    previewRequested = null;
     requested = result.requested;
     last = solve(requested);
     requested = last.requested;
@@ -94,17 +103,28 @@ export function createApp() {
 
   return {
     dispatch,
-    beginUndoGroup: (label = "") => {
-      pushHistory(history, requested, label);
+    beginUndoGroup: (label = "") => pushHistory(history, requested, label),
+    commitPreview: () => {
+      if (!previewRequested) return last;
+      requested = previewRequested;
+      previewRequested = null;
+      return last;
     },
-    getRequested: () => requested,
+    discardPreview: () => {
+      previewRequested = null;
+      last = solve(requested);
+      requested = last.requested;
+      return last;
+    },
+    getRequested: () => activeRequested(),
     getEffective: () => last.effective,
     getLast: () => last,
     selectors,
     lastHistoryLabel: () => lastLabel(history),
     build: BUILD,
-    pack: () => packProject(requested, last.effective),
+    pack: () => packProject(activeRequested(), last.effective),
     load: (data) => {
+      previewRequested = null;
       requested = unpackProject(data);
       last = solve(requested);
       requested = last.requested;
