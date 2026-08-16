@@ -35,7 +35,7 @@ test("ACC-REG-02 · live skinned mirror clone tracks reflected solver FK within 
   index.applyLocals(skel.locals);
   const root=new THREE.Group();const rw=skel.root_world;root.position.set(...rw.translation);root.quaternion.set(rw.rotation[0],rw.rotation[1],rw.rotation[2],rw.rotation[3]);root.scale.set(...(rw.scale||[1,1,1]));root.add(source);root.updateMatrixWorld(true);
   reflector.syncBodyPose(source,reflector.body);
-  reflector.applyHouseholder(root,reflector.body,app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
+  reflector.applyHouseholder(root,reflector.bodyCarrier,app.getEffective().mirror.centre,app.getEffective().mirror.basis.n);
   const original={};for(const id of Object.keys(SEMANTIC))original[id]=worldOf(THREE,index.get(id));
   const reflectedIndex=new BoneIndex(reflector.body,SEMANTIC);
   assert.notEqual(reflectedIndex.get("wrist_R"),index.get("wrist_R"),"reflection must own a detached skeleton");
