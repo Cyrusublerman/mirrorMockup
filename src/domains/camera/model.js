@@ -1,6 +1,6 @@
 import * as quat from "../../shared_math/quaternion.js";
 import { add, scale } from "../../shared_math/vector.js";
-import { fxFromHfov } from "../../shared_math/projection.js";
+import { fxFromHfov, vfovFromHfov } from "../../shared_math/projection.js";
 import * as xform from "../../shared_math/transform.js";
 import { PHONE_LOCAL } from "../phone/prism.js";
 
@@ -41,6 +41,7 @@ export function intrinsics(requested) {
     width_px: W,
     height_px: H,
     hfov,
+    vfov: vfovFromHfov(hfov, W, H),
     crop_pan: pan.slice(),
   };
 }

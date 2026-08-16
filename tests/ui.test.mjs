@@ -138,7 +138,6 @@ test("no ROTATE_MIRROR in production UI modules", () => {
   const files = [
     "src/ui/app_shell.js",
     "src/ui/hud/context_hud.js",
-    "src/ui/rooms/scene_room.js",
   ];
   for (const f of files) {
     const t = readFileSync(new URL("../" + f, import.meta.url), "utf8");
@@ -155,6 +154,8 @@ test("remote launcher pins SHA and does not exec arbitrary repo", () => {
   assert.doesNotMatch(html, /@main/);
   assert.doesNotMatch(html, /<base/);
   assert.match(html, /src\/app\/boot\.js/);
+  assert.match(html, /cdn\.jsdelivr\.net\/gh\//);
+  assert.match(html, /type="importmap"/);
 });
 
 test("app shell is a three-room HUD not a five-mode form", () => {

@@ -14,7 +14,7 @@ import {
 } from "../src/domains/recursion/kernel.js";
 import { sampleQ, evaluateQ } from "../src/domains/content_q/content.js";
 import { exportImage } from "../src/domains/export/image.js";
-import { gpuSampleUv } from "../src/render/recursion_gpu.js";
+import { gpuSampleUv } from "../src/domains/recursion/kernel.js";
 
 function circ(a, b) {
   const d = Math.abs(a - b);

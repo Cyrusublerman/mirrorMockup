@@ -22,8 +22,9 @@ import { applyMirrorDistance, applyMirrorWindow } from "./manipulators/mirror_ap
 import { applyCropPan } from "./manipulators/crop.js";
 import { applyQOffset } from "./manipulators/q_portal.js";
 import { createScene3D } from "../render/scene_3d.js";
+import { IK_JOINTS as IK_JOINT_LIST } from "../render/bone_index.js";
 
-const IK_JOINTS = new Set(["wrist_R", "wrist_L", "head", "ankle_L", "ankle_R"]);
+const IK_JOINTS = new Set(IK_JOINT_LIST);
 
 function bytesToPngUrl(png) {
   let s = "";

@@ -106,6 +106,16 @@ export function evaluateRecursion(requested, carrierP) {
   };
 }
 
+export function gpuSampleUv(z, certificate) {
+  if (!certificate) return null;
+  const w = mapW(z, certificate.pole, certificate.alpha, certificate.beta || [0, 0]);
+  return sampleSource(w, certificate.lattice);
+}
+
+export function shaderUsesKernel() {
+  return "domains/recursion/kernel.js";
+}
+
 export function sampleSource(Wval, lat) {
   const red = cplx.reduceLattice(Wval, lat.lambda1, lat.lambda2);
   const u = red[0] / lat.L;

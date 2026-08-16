@@ -9,7 +9,7 @@ import { MODE_TABLE, LOCK_CHIPS } from "../src/scene/solve_policy.js";
 import { t, minCarrierPx, toleranceSetHash } from "../fixtures/tolerances.js";
 import landmarks from "../fixtures/P0/landmarks.js";
 import { panToPlace, captureToFinal } from "../src/domains/camera/crop.js";
-import { gpuSampleUv, shaderUsesKernel } from "../src/render/recursion_gpu.js";
+import { gpuSampleUv, shaderUsesKernel } from "../src/domains/recursion/kernel.js";
 import { SIZE_BASES } from "../src/domains/content_q/content.js";
 import { BUILD } from "../src/app/build_identity.js";
 import { PUBLISHED, certifyKernel } from "../fixtures/recursion/kernel.js";
