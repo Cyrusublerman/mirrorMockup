@@ -1,3 +1,7 @@
+import { TransactionCard } from "./transaction_card.js";
+
+const transactionCard = new TransactionCard();
+
 function chip(label, on, fn, name) {
   const b = document.createElement("button");
   b.type = "button";
@@ -24,13 +28,12 @@ export function mountContextHud(el, workspace, proj, handlers) {
     row.appendChild(chip("PHONE DRIVES", workspace.drive_mode === "PHONE_DRIVES_HAND", () => handlers.setDrive("PHONE_DRIVES_HAND"), "Phone drives hand"));
     row.appendChild(chip("HAND DRIVES", workspace.drive_mode === "HAND_DRIVES_PHONE", () => handlers.setDrive("HAND_DRIVES_PHONE"), "Hand drives phone"));
     row.appendChild(chip("LOCK GRIP", workspace.drive_mode === "LOCK_GRIP", () => handlers.setDrive("LOCK_GRIP"), "Lock grip"));
-    row.appendChild(chip("RELAX GRIP", false, () => handlers.relaxGrip(), "Propose relax grip"));
+    row.appendChild(chip("RELAX GRIP", false, () => handlers.relaxGrip ? handlers.relaxGrip() : handlers.setDrive("RELAX_GRIP"), "Propose relax grip"));
     if (sel?.kind === "joint" && !["wrist_R", "wrist_L", "head", "ankle_L", "ankle_R"].includes(sel.id)) {
-      for (const a of ["BEND", "TILT", "ROTATE"]) {
-        row.appendChild(chip(a, workspace.axis === a, () => handlers.setAxis(a), a));
-      }
+      for (const a of ["BEND", "TILT", "ROTATE"]) row.appendChild(chip(a, workspace.axis === a, () => handlers.setAxis(a), a));
     }
   }
+
   const locks = document.createElement("div");
   locks.className = "mp-row";
   const lockIds = [
@@ -42,12 +45,9 @@ export function mountContextHud(el, workspace, proj, handlers) {
     ["P_VALID", "P VALID"],
   ];
   const onLocks = proj.requested?.composition?.locks || {};
-  for (const [id, label] of lockIds) {
-    locks.appendChild(chip(label, !!onLocks[id], () => handlers.toggleLock(id), label));
-  }
-  if (workspace.room === "POSE" || workspace.room === "SCENE") {
-    row.appendChild(chip("OPACITY", false, () => handlers.cycleOpacity(), "Reference opacity"));
-  }
+  for (const [id, label] of lockIds) locks.appendChild(chip(label, !!onLocks[id], () => handlers.toggleLock(id), label));
+
+  if (workspace.room === "POSE" || workspace.room === "SCENE") row.appendChild(chip("OPACITY", false, () => handlers.cycleOpacity(), "Reference opacity"));
   if (workspace.room === "SCENE") {
     row.appendChild(chip("d_M", sel?.id === "d_M", () => handlers.select({ kind: "mirror", id: "d_M", label: "Mirror distance" }), "Mirror distance"));
     row.appendChild(chip("WINDOW", sel?.id === "window", () => handlers.select({ kind: "mirror", id: "window", label: "Mirror window pan" }), "Pan mirror window"));
@@ -66,4 +66,8 @@ export function mountContextHud(el, workspace, proj, handlers) {
   }
   el.appendChild(row);
   if (locks.childNodes.length) el.appendChild(locks);
+
+  const txn = document.createElement("div");
+  transactionCard.mount(txn, proj);
+  el.appendChild(txn);
 }
