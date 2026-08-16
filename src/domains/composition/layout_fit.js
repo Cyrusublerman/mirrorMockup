@@ -13,6 +13,7 @@ export const OPTICAL_LOCK = Object.freeze({
 
 export const W_GAP = 8;
 export const W_REL = 0.8;
+export const W_FEA = 40;
 const FD_H = 1e-3;
 const MAX_ITERS = 5;
 const IK_MAX = 0.05;
@@ -157,6 +158,14 @@ export function opticalLockHolds(parts) {
   return true;
 }
 
+function feasibilityResidual(parts) {
+  const feasible = parts?.feasible;
+  if (!feasible) return 1;
+  const d = Number(feasible.distance_to_boundary);
+  if (!Number.isFinite(d)) return 1;
+  return Math.max(0, -d);
+}
+
 export function layoutResiduals(parts) {
   const head = captureLandmark("direct_head", parts);
   const phone = captureLandmark("phone", parts);
@@ -176,6 +185,8 @@ export function layoutResiduals(parts) {
       r.push(W_REL * (p[1] - phone[1] - (p0[1] - P0_PHONE[1])));
     }
   }
+  // Keep this residual present for every evaluation so the Jacobian row count is stable.
+  r.push(W_FEA * feasibilityResidual(parts));
   return { r, gap, head, phone };
 }
 
