@@ -12,6 +12,7 @@ export class MirrorReflector {
     this.group = new THREE.Group();
     scene.add(this.group);
     this.body = null;
+    this.bodyCarrier = null;
     this.bodySource = null;
     this.phone = null;
     this.phoneScreenSrc = null;
@@ -24,9 +25,12 @@ export class MirrorReflector {
   }
 
   attachBody(gltfScene, skeletonClone = cloneSkeleton) {
-    if (this.body) this.group.remove(this.body);
+    if (this.bodyCarrier) this.group.remove(this.bodyCarrier);
     this.bodySource = gltfScene;
     this.body = skeletonClone(gltfScene);
+    this.bodyCarrier = new this.THREE.Group();
+    this.bodyCarrier.name = "mirror_reflected_body_carrier";
+    this.bodyCarrier.add(this.body);
     this.body.traverse((obj) => {
       if (obj.isSkinnedMesh) {
         obj.bindMode = "detached";
@@ -44,7 +48,7 @@ export class MirrorReflector {
         obj.material.clipShadows = true;
       }
     });
-    this.group.add(this.body);
+    this.group.add(this.bodyCarrier);
     this.syncBodyPose();
   }
 
@@ -121,7 +125,8 @@ export class MirrorReflector {
 
   setRepresentation(kind) {
     this.representation = kind;
-    if (this.body) this.body.visible = kind === "VOLUME";
+    if (this.bodyCarrier) this.bodyCarrier.visible = kind === "VOLUME";
+    if (this.body) this.body.visible = true;
     if (this.stick) this.stick.visible = kind === "GESTURE";
     if (this.simple) this.simple.visible = false;
     if (this.contour) this.contour.visible = kind === "CONTOUR";
@@ -170,7 +175,7 @@ export class MirrorReflector {
     return vis.visible === this.insideClip(worldPoint);
   }
 
-  applyHouseholder(src, dst, centre, n) {
+  applyHouseholder(src, dstCarrier, centre, n) {
     src.updateMatrixWorld(true);
     const H = householderAffine(centre, n);
     this._house.set(
@@ -179,10 +184,10 @@ export class MirrorReflector {
       H[8], H[9], H[10], H[11],
       H[12], H[13], H[14], H[15],
     );
-    dst.matrixAutoUpdate = false;
-    dst.matrix.copy(this._house).multiply(src.matrixWorld);
-    dst.updateMatrixWorld(true);
-    dst.visible = src.visible;
+    dstCarrier.matrixAutoUpdate = false;
+    dstCarrier.matrix.copy(this._house).multiply(src.matrixWorld);
+    dstCarrier.updateMatrixWorld(true);
+    dstCarrier.visible = src.visible;
   }
 
   syncCloneGeometry(src, dst) {
@@ -214,9 +219,9 @@ export class MirrorReflector {
     const n = effective.mirror?.basis?.n;
     if (!M || !n) return;
 
-    if (this.body && sources.bodyRoot) {
+    if (this.body && this.bodyCarrier && sources.bodyRoot) {
       this.syncBodyPose(sources.bodyGltf || this.bodySource, this.body);
-      this.applyHouseholder(sources.bodyRoot, this.body, M, n);
+      this.applyHouseholder(sources.bodyRoot, this.bodyCarrier, M, n);
       this.body.traverse((obj) => {
         if (obj.isSkinnedMesh) obj.skeleton?.update?.();
       });
