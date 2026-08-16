@@ -25,8 +25,8 @@ function normaliseMeasured(value) {
 }
 
 export class OcclusionIntent {
-  constructor(spec = DEFAULT_OCCLUSION_INTENT) {
-    this.spec = structuredClone({ ...DEFAULT_OCCLUSION_INTENT, ...spec });
+  constructor(spec = null) {
+    this.spec = structuredClone(spec || DEFAULT_OCCLUSION_INTENT);
   }
 
   evaluate(measured = {}) {
@@ -38,38 +38,13 @@ export class OcclusionIntent {
       const state = rule.state;
       let ok = true;
       let reason = "";
-      if (state === INTENT.REQUIRED && frac < (rule.min ?? 0.5)) {
-        ok = false;
-        reason = "REQUIRED under";
-      }
-      if (state === INTENT.PROHIBITED && frac > (rule.max ?? 0)) {
-        ok = false;
-        reason = "PROHIBITED present";
-      }
-      if (state === INTENT.TARGET && rule.min != null && frac < rule.min) {
-        ok = false;
-        reason = "TARGET under";
-      }
-      if (state === INTENT.TARGET && rule.max != null && frac > rule.max) {
-        ok = false;
-        reason = "TARGET over";
-      }
+      if (state === INTENT.REQUIRED && frac < (rule.min ?? 0.5)) { ok = false; reason = "REQUIRED under"; }
+      if (state === INTENT.PROHIBITED && frac > (rule.max ?? 0)) { ok = false; reason = "PROHIBITED present"; }
+      if (state === INTENT.TARGET && rule.min != null && frac < rule.min) { ok = false; reason = "TARGET under"; }
+      if (state === INTENT.TARGET && rule.max != null && frac > rule.max) { ok = false; reason = "TARGET over"; }
       const disallowed = m.occluders.filter((name) => rule.allowed_occluders?.length && !rule.allowed_occluders.includes(name));
-      if (disallowed.length && state !== INTENT.IGNORE) {
-        ok = false;
-        reason = `occluded by ${disallowed.join(",")}`;
-      }
-      parts[id] = {
-        state,
-        measured: frac,
-        visible_fraction: frac,
-        min: rule.min,
-        max: rule.max,
-        allowed_occluders: rule.allowed_occluders || [],
-        occluders: m.occluders,
-        ok,
-        reason,
-      };
+      if (disallowed.length && state !== INTENT.IGNORE) { ok = false; reason = `occluded by ${disallowed.join(",")}`; }
+      parts[id] = { state, measured: frac, visible_fraction: frac, min: rule.min, max: rule.max, allowed_occluders: rule.allowed_occluders || [], occluders: m.occluders, ok, reason };
       if (!ok) violations.push(id);
     }
     return { parts, violations, ok: violations.length === 0 };

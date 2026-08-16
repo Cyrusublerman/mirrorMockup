@@ -27,6 +27,12 @@ const NO_HISTORY = new Set([
 export function createApp() {
   let requested = defaultRequestedState();
   let last = solve(requested);
+  // Bootstrap once from the explicitly requested P0 reconstruction. This fixes the
+  // WORLD mirror anchor and initial solved physical station so subsequent Q/view/
+  // output actions cannot perturb P merely by re-entering the solver. After this
+  // bootstrap, artist requests are never overwritten by effective compensation.
+  requested = structuredClone(last.requested);
+  last = solve(requested);
   let previewRequested = null;
   const history = createHistory();
   const snapshots = {};

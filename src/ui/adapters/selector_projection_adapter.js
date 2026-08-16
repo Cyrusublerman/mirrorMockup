@@ -13,7 +13,7 @@ export function projectForHud(app){
   return {
     pose:e.skeleton,phone:e.phone,camera:e.camera,mirror:e.mirror,portal:{P,Q:e.content_q,valid:!!p.valid},
     rec:{...rec,S:cert?.S,alpha:cert?.alpha,detJ:cert?.detJ_probe,no_fold:cert?.no_fold,pole:cert?.pole,p_log:rec.p_log||cert?.p_log,p_fix:rec.p_fix||cert?.p_fix,output_repeat:rec.output_repeat||cert?.output_repeat||cert?.gamma_abs,loop_state:rec.loop_state,certificate_kind:rec.certificate_kind},
-    residuals:residualNums,targets,valid:e.transaction!=="FAIL",reasons,
+    residuals:residualNums,targets,valid:e.transaction==="PASS",reasons,
     occlusion:{...(vis.occlusion||{}),fractions:vis.fractions||{},hand_visibility:visOf(reports,"wrist_R"),face_visibility:visOf(reports,"head")},
     last_edit:e.last_edit,compensation:transactionCompensation,transaction_compensation:transactionCompensation,feasible:e.feasible,aperture_band:e.aperture_band,occlusion_intent:e.occlusion_intent,
     screen_gates:e.carrier_p?.gates,arm_seven:e.arm_seven,mask:e.mask,mask_panel:e.mask_panel,phone_scale:e.phone_scale,volume:e.volume,contour:e.contour,
