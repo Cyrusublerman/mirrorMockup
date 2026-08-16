@@ -1,0 +1,34 @@
+diff --git a/src/render/scene_3d.js b/src/render/scene_3d.js
+index 4efc60a..786e2c9 100644
+--- a/src/render/scene_3d.js
++++ b/src/render/scene_3d.js
+@@ -142,6 +142,9 @@ export async function createScene3D(canvas, app, opts = {}) {
+     });
+     bodyRoot.add(gltfScene);
+     gltfRefl = gltfScene.clone(true);
++    gltfRefl.traverse((o) => {
++      if (o.isSkinnedMesh) { o.bindMode = "detached"; o.bindMatrixInverse.copy(o.bindMatrix).invert(); }
++    });
+     gltfRefl.traverse((obj) => {
+       if (obj.isMesh) {
+         obj.frustumCulled = false;
+@@ -219,7 +222,9 @@ export async function createScene3D(canvas, app, opts = {}) {
+     cam3.position.set(...xf.translation);
+     cam3.quaternion.set(xf.rotation[0], xf.rotation[1], xf.rotation[2], xf.rotation[3]);
+     if (camE.basis?.up) cam3.up.set(...camE.basis.up);
+-    cam3.fov = ((camE.hfov || Math.PI / 3) * 180) / Math.PI / Math.max(cam3.aspect, 0.2);
++    const _h = camE.hfov || Math.PI / 3;
++    const _ar = 1170 / 1560;
++    cam3.fov = (2 * Math.atan(Math.tan(_h / 2) / _ar) * 180) / Math.PI;
+     cam3.updateProjectionMatrix();
+   }
+ 
+@@ -308,7 +313,7 @@ export async function createScene3D(canvas, app, opts = {}) {
+     }
+     if (gltfScene && skel?.locals) {
+       gltfScene.traverse((obj) => {
+-        const local = skel.locals[obj.name];
++        const local = skel.locals[(obj.userData && obj.userData.name) || obj.name];
+         if (!local || obj.isMesh || obj.isSkinnedMesh) return;
+         obj.position.set(...local.translation);
+         obj.quaternion.set(local.rotation[0], local.rotation[1], local.rotation[2], local.rotation[3]);
