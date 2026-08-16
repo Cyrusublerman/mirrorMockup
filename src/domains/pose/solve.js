@@ -45,7 +45,12 @@ function plantRoot(requested, skel) {
   return { skel: next, planted: evaluateSupport(next.fk, requested), shifted: true };
 }
 
+function rootMayCompensate(requested) {
+  return (requested.composition?.solve_freedoms || []).includes("root");
+}
+
 function coupleTowardTarget(requested, skel, target) {
+  if (!rootMayCompensate(requested)) return { skel, coupled: null };
   const wrist = skel.fk.wrist_R;
   if (!wrist || !target) return { skel, coupled: null };
   const delta = sub(target, wrist);
@@ -93,7 +98,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
         poleOf(requested, "arm_R"),
       );
       skel = right.skel;
-      if (right.constraint.residual > 0.03) {
+      if (right.constraint.residual > 0.03 && rootMayCompensate(requested)) {
         const c = coupleTowardTarget(requested, skel, target);
         skel = c.skel;
         coupled = c.coupled;
@@ -103,6 +108,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
           target,
           requested.body.ik_branches.arm_R,
           "arm_R_reach",
+          poleOf(requested, "arm_R"),
         );
         skel = again.skel;
         again.constraint.id = "arm_R_reach";
@@ -122,7 +128,7 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
       poleOf(requested, "arm_R"),
     );
     skel = right.skel;
-    if (right.constraint.residual > 0.03) {
+    if (right.constraint.residual > 0.03 && rootMayCompensate(requested)) {
       const c = coupleTowardTarget(requested, skel, target);
       skel = c.skel;
       coupled = c.coupled;
