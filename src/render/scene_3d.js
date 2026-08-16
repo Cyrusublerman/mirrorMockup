@@ -47,7 +47,7 @@ export async function createScene3D(canvas,app,opts={}){
   const phoneMesh=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({color:0x1a1a1a,metalness:.35,roughness:.45,side:THREE.DoubleSide}));phoneMesh.userData.pick={kind:"phone"};
   const screenMesh=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x8eb4ff,side:THREE.DoubleSide}));
   const fieldTex=new THREE.DataTexture(new Uint8Array(64*64*4),64,64,THREE.RGBAFormat);fieldTex.needsUpdate=true;fieldTex.flipY=true;screenMesh.material.map=fieldTex;screenMesh.material.needsUpdate=true;phoneMesh.add(screenMesh);scene.add(phoneMesh);
-  const mirrorMesh3=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshStandardMaterial({color:0xcbd6dc,metalness:.9,roughness:.08,transparent:true,opacity:.42,side:THREE.DoubleSide}));mirrorMesh3.userData.pick={kind:"mirror"};scene.add(mirrorMesh3);
+  const mirrorMesh3=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xcbd6dc,transparent:true,opacity:.10,depthWrite:false,side:THREE.DoubleSide}));mirrorMesh3.userData.pick={kind:"mirror"};scene.add(mirrorMesh3);
 
   const bodyRoot=new THREE.Group();scene.add(bodyRoot);const reflector=new MirrorReflector(THREE,scene);const loader=new GLTFLoader();
   const glbRel=app.getRequested()?.body?.definition?.glb||"fixtures/P0/base_female_rigged.glb";
@@ -72,7 +72,7 @@ export async function createScene3D(canvas,app,opts={}){
   for(const id of PICK_JOINTS){const r=pickRadius(id,app.getEffective()?.skeleton?.fk);const s=new THREE.Mesh(new THREE.SphereGeometry(r,12,8),pickMats.idle);s.userData.pick={kind:"joint",id};s.layers.set(EDITOR_LAYER);s.renderOrder=20;pickGroup.add(s);pickSpheres[id]=s;const ring=new THREE.Mesh(new THREE.TorusGeometry(r*1.15,r*.08,8,24),ringMat);ring.visible=false;ring.layers.set(EDITOR_LAYER);pickGroup.add(ring);pickRings[id]=ring;}
   const ghostMat=new THREE.MeshBasicMaterial({color:0xc41e63,wireframe:true,transparent:true,opacity:.85});const ghostSphere=new THREE.Mesh(new THREE.SphereGeometry(.055,10,8),ghostMat);ghostSphere.visible=false;ghostSphere.layers.set(EDITOR_LAYER);scene.add(ghostSphere);
 
-  const bodyMode={kind:"GESTURE"};const orbit={theta:.7,phi:1.15};const room={id:"POSE"};const frame={target:[0,.9,.9],radius:2.4,userScale:1};const raycaster=new THREE.Raycaster();raycaster.layers.enable(EDITOR_LAYER);const ndc=new THREE.Vector2();let paneW=800,paneH=600;
+  const bodyMode={kind:"VOLUME"};const orbit={theta:.7,phi:1.15};const room={id:"POSE"};const frame={target:[0,.9,.9],radius:2.4,userScale:1};const raycaster=new THREE.Raycaster();raycaster.layers.enable(EDITOR_LAYER);const ndc=new THREE.Vector2();let paneW=800,paneH=600;
 
   function applyEditor(cam3,eff){const fitted=room.id==="SCENE"?framing.fitApparatus(eff):framing.fitBody(eff.skeleton?.fk);frame.target=fitted.target;frame.radius=fitted.radius;const t=frame.target,r=frame.radius*frame.userScale,view=viewState.editor_view;viewLabel.text=view;if(view==="FRONT")cam3.position.set(t[0],t[1]-r,t[2]);else if(view==="BACK")cam3.position.set(t[0],t[1]+r,t[2]);else if(view==="LEFT")cam3.position.set(t[0]-r,t[1],t[2]);else if(view==="RIGHT")cam3.position.set(t[0]+r,t[1],t[2]);else if(view==="TOP")cam3.position.set(t[0],t[1],t[2]+r);else cam3.position.set(t[0]+r*Math.sin(orbit.phi)*Math.sin(orbit.theta),t[1]-r*Math.sin(orbit.phi)*Math.cos(orbit.theta),t[2]+r*Math.cos(orbit.phi));cam3.up.set(0,0,1);cam3.lookAt(...t);const half=r*.55,aspect=paneW/Math.max(paneH,1);cam3.left=-half*aspect;cam3.right=half*aspect;cam3.top=half;cam3.bottom=-half;cam3.updateProjectionMatrix();gnomon.position.set(...t);}
 
@@ -88,8 +88,8 @@ export async function createScene3D(canvas,app,opts={}){
 
     if(skel?.world){const pts=[];for(const[name,xf]of Object.entries(skel.world)){const parent=BONE_PARENT[name],px=parent&&skel.world[parent];if(px)pts.push(...px.translation,...xf.translation);}boneGeo.setAttribute("position",new THREE.Float32BufferAttribute(pts,3));}
     syncVolumeGroup(THREE,volumeGroup,eff.volume,volumeMat);syncContourGroup(THREE,contourGroup,eff.contour,contourMat);
-    boneLine.visible=bodyMode.kind==="GESTURE";volumeGroup.visible=bodyMode.kind==="VOLUME";contourGroup.visible=bodyMode.kind==="CONTOUR";
-    gltfScene.visible=false;
+    boneLine.visible=bodyMode.kind==="GESTURE";volumeGroup.visible=false;contourGroup.visible=bodyMode.kind==="CONTOUR";
+    gltfScene.visible=bodyMode.kind==="VOLUME";
     reflector.update(eff,{bodyRoot,phoneMesh,stick:boneLine,simple:volumeGroup,contour:contourGroup});reflector.setRepresentation(bodyMode.kind);
 
     const sel=req.workspace.selection;for(const id of PICK_JOINTS){const p=skel?.fk?.[id],sph=pickSpheres[id],ring=pickRings[id];if(!p||!sph)continue;sph.position.set(...p);const on=sel===id||sel===`joint:${id}`;sph.material=on?pickMats.hot:pickMats.idle;sph.visible=true;if(ring){ring.visible=on;ring.position.set(...p);}}
