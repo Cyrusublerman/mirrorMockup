@@ -27,7 +27,7 @@ export function createWorkspaceState() {
     q: 1,
     n: 1,
     axis: "BEND",
-    body_mode: "GESTURE",
+    body_mode: "VOLUME",
     input_mode: "VIEWPORT",
     crop_mode: "FINAL_CROP",
     family: "direct-dominant",
