@@ -1,4 +1,4 @@
-import { applyArmIk, aimBone, aimWrist, evaluateSkeleton, forwardKinematics, SEMANTIC, BONE_PARENT } from "../body/skeleton.js";
+import { applyArmIk, aimBone, aimWrist, attachSurfaceReferences, evaluateSkeleton, forwardKinematics, SEMANTIC, BONE_PARENT } from "../body/skeleton.js";
 import { evaluateGrip } from "../hand_grip/grip.js";
 import { evaluateSupport } from "../support/contact.js";
 import { add, distance, scale, sub } from "../../shared_math/vector.js";
@@ -178,6 +178,9 @@ export function evaluatePose(requested, phoneGripWorld, gripEval) {
     skel = left.skel;
     constraints.push(left.constraint);
   }
+
+  // Arm IK recomputes FK; restore model-surface references after every final pose solve.
+  skel.fk = attachSurfaceReferences(skel.fk, requested);
 
   const rest = evaluateSkeleton({
     ...requested,
