@@ -238,7 +238,8 @@ function evalAt(req, x, evaluate) {
   const parts = evaluate(req);
   const lock = opticalLockHolds(parts);
   const { r, gap } = layoutResiduals(parts);
-  return { parts, r, gap, valid: lock && r.length > 0 };
+  const feasible = parts.feasible?.inside === true;
+  return { parts, r, gap, valid: lock && feasible && r.length > 0 };
 }
 
 export function fitLayout(req, evaluate) {
