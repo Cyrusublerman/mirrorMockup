@@ -25,7 +25,7 @@ export const ACTION_NAMES = [
   "DOLLY_APPARATUS_DEPTH", "ZOOM_TO_PORTAL", "EXPORT_IMAGE", "EXPORT_FINAL_CAMERA",
   "EXPORT_STAGING_PRESCRIPTION", "EXPORT_COMPOSITION_OVERLAY", "EXPORT_REFERENCE_RENDER",
   "CREATE_PROPOSAL", "ACCEPT_PROPOSAL", "REJECT_PROPOSAL", "SAVE_SNAPSHOT", "LOAD_SNAPSHOT",
-  "UNDO", "REDO", "SET_WORKSPACE_MODE", "SET_SELECTION",
+  "UNDO", "REDO", "SET_SELECTION",
 ];
 
 function setPath(obj, path, value) {
@@ -132,7 +132,6 @@ export function applyAction(requested, name, payload = {}) {
     case "SET_CONTENT_Q": Object.assign(next.content_q, payload); break;
     case "SET_RECURSION_PARAMETER": Object.assign(next.recursion, payload); break;
     case "SET_OVERLAY_STATE": next.workspace.overlays[payload.id] = payload.on; break;
-    case "SET_WORKSPACE_MODE": next.workspace.mode = payload.mode; break;
     case "SET_SELECTION": next.workspace.selection = payload.selection; break;
     case "SET_DRIVER":
       if (payload.mode) next.composition = applySolveMode(next, payload.mode).composition;
@@ -193,7 +192,6 @@ export function applyAction(requested, name, payload = {}) {
       const phase = payload.phase || payload.mode;
       if (!PHASES.includes(phase)) return { requested, error: `unknown phase ${phase}` };
       next.workspace.phase = phase;
-      next.workspace.mode = phase;
       break;
     }
     case "SET_OUTPUT_MODE":

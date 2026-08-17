@@ -179,7 +179,7 @@ export async function bootUi(root, app) {
       mk("EXPORT OVERLAY",()=>download("EXPORT_COMPOSITION_OVERLAY","overlay.png")), mk("EXPORT RECURSION",()=>download("EXPORT_REFERENCE_RENDER","recursion.png")), mk("EXPORT MASK",()=>download("EXPORT_MASK","mask.png"))
     );
     const snaps=el("div","mp-row");
-    for(const id of ["A","B","C","D","E"]){snaps.append(mk("SAVE "+id,()=>{app.dispatch("SAVE_SNAPSHOT",{id,kind:workspace.phase==="DECLARE"?"POSE":"SCENE"});workspace.menu=false;paintHud();}),mk("LOAD "+id,()=>{const last=app.dispatch("LOAD_SNAPSHOT",{id,label:"Load "+id});workspace.menu=false;if(!last.error){paintHud();paintScene();}}));}
+    for(const id of ["A","B","C","D","E"]){snaps.append(mk("SAVE "+id,()=>{app.dispatch("SAVE_SNAPSHOT",{id,kind:"REQUESTED_STATE"});workspace.menu=false;paintHud();}),mk("LOAD "+id,()=>{const last=app.dispatch("LOAD_SNAPSHOT",{id,label:"Load "+id});workspace.menu=false;if(!last.error){paintHud();paintScene();}}));}
     menuEl.append(head,row,snaps);
   }
 

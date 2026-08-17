@@ -108,10 +108,10 @@ test("production workflow phase state is DECLARE / SOLVE / STAGE", () => {
   assert.equal(app.getRequested().workspace.phase, "DECLARE");
   app.dispatch("SET_PHASE", { phase: "SOLVE" });
   assert.equal(app.getRequested().workspace.phase, "SOLVE");
-  assert.equal(app.getRequested().workspace.mode, "SOLVE");
+  assert.equal(app.getRequested().workspace.phase, "SOLVE");
   app.dispatch("SET_PHASE", { phase: "STAGE" });
   assert.equal(app.getRequested().workspace.phase, "STAGE");
-  assert.equal(app.getRequested().workspace.mode, "STAGE");
+  assert.equal(app.getRequested().workspace.phase, "STAGE");
 });
 
 test("loop period is log|γ|; LOOP phase uses that period", () => {

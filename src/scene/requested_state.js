@@ -124,7 +124,6 @@ export function defaultRequestedState() {
     recursion: { mode: "OFF", q: 1, n: 1, source_period: 256, source_rotation: 0, phase: [0, 0], singularity_policy: "disk", pole_policy: "portal_fixed_point", output_repeat: null },
     view: { tau: 0, warp_visible: false },
     workspace: {
-      mode: "DECLARE",
       phase: "DECLARE",
       input_mode: "VIEWPORT",
       output_mode: "FINAL_CAMERA",

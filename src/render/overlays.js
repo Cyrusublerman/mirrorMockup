@@ -3,34 +3,29 @@ export function overlayList(requested) {
 }
 
 export function activeOverlays(requested) {
-  const mode = requested.workspace.mode;
+  const phase = requested.workspace.phase;
+  const input = requested.workspace.input_mode;
+  const output = requested.workspace.output_mode;
   const sel = requested.workspace.selection;
   const stored = requested.workspace.overlays || {};
-  if (mode === "INSPECT") {
-    return {
-      ...stored,
-      REQUESTED_EFFECTIVE: true,
-      SENSITIVITY: true,
-      CORRESPONDENCE: true,
-    };
-  }
   return {
-    REFERENCE: mode === "COMPOSITION" || sel === "reference",
-    GRID: false,
-    LANDMARKS: mode === "COMPOSITION",
-    BBOX: mode === "COMPOSITION",
-    SKELETON: mode === "POSE" || sel === "body",
-    REACH: mode === "POSE" || sel === "body",
-    SUPPORT: mode === "POSE" || sel === "body",
-    PHONE: mode === "SCENE" || sel === "phone",
-    CAMERA: mode === "SCENE" || sel === "phone",
-    APPARATUS: mode === "SCENE",
-    MIRROR: mode === "SCENE" || sel === "mirror",
-    MIRROR_HITS: sel === "mirror",
-    VISIBILITY: sel === "mirror",
-    P: mode === "RECURSION" || sel === "phone" || sel === "p",
-    Q: mode === "RECURSION",
-    RECURSION: mode === "RECURSION",
+    ...stored,
+    REFERENCE: Boolean(stored.REFERENCE || phase === "DECLARE" || output === "COMPOSITION"),
+    GRID: Boolean(stored.GRID),
+    LANDMARKS: Boolean(stored.LANDMARKS || phase === "DECLARE" || output === "COMPOSITION"),
+    BBOX: Boolean(stored.BBOX || output === "COMPOSITION"),
+    SKELETON: Boolean(stored.SKELETON || (phase === "SOLVE" && input === "VIEWPORT") || sel === "body"),
+    REACH: Boolean(stored.REACH || input === "FEASIBLE" || sel === "body"),
+    SUPPORT: Boolean(stored.SUPPORT || (phase === "SOLVE" && sel === "body")),
+    PHONE: Boolean(stored.PHONE || (phase === "SOLVE" && input === "VIEWPORT") || sel === "phone"),
+    CAMERA: Boolean(stored.CAMERA || phase === "DECLARE" || sel === "phone"),
+    APPARATUS: Boolean(stored.APPARATUS || phase === "DECLARE" || (phase === "SOLVE" && input === "VIEWPORT")),
+    MIRROR: Boolean(stored.MIRROR || phase === "DECLARE" || sel === "mirror"),
+    MIRROR_HITS: Boolean(stored.MIRROR_HITS || sel === "mirror"),
+    VISIBILITY: Boolean(stored.VISIBILITY || input === "ELEVATION" || sel === "mirror"),
+    P: Boolean(stored.P || output === "RECURSION" || sel === "phone" || sel === "p"),
+    Q: Boolean(stored.Q || output === "RECURSION"),
+    RECURSION: Boolean(stored.RECURSION || output === "RECURSION"),
   };
 }
 
@@ -104,7 +99,5 @@ export function drawOverlays(ctx, requested, effective, w, h) {
   const nums = Object.values(residuals)
     .map((r) => r?.residual)
     .filter((x) => x != null && Number.isFinite(x));
-  if (nums.length) {
-    ctx.fillText(`max residual ${Math.max(...nums).toFixed(4)}`, 8, ty);
-  }
+  if (nums.length) ctx.fillText(`max residual ${Math.max(...nums).toFixed(4)}`, 8, ty);
 }

@@ -43,14 +43,13 @@ export function createApp(){
     if(name==="UNDO"){previewRequested=null;requested=histUndo(history,requested);return resolve(requested);}
     if(name==="REDO"){previewRequested=null;requested=histRedo(history,requested);return resolve(requested);}
     if(name==="SAVE_SNAPSHOT"){
-      snapshots[payload.id]={kind:payload.kind||"SCENE",state:structuredClone(activeRequested())};
-      if(payload.kind==="POSE")snapshots[payload.id].state={body:structuredClone(activeRequested().body)};
+      snapshots[payload.id]={kind:payload.kind||"REQUESTED_STATE",state:structuredClone(activeRequested())};
       if(payload.kind==="WORKSPACE")snapshots[payload.id].state={workspace:structuredClone(activeRequested().workspace),view:structuredClone(activeRequested().view),reference:{registration:structuredClone(activeRequested().reference.registration)}};
       return last;
     }
     if(name==="LOAD_SNAPSHOT"){
       if(!snapshots[payload.id])return{...last,error:"no snapshot"};pushHistory(history,requested,payload.label||"Load snapshot");previewRequested=null;const snap=snapshots[payload.id];
-      if(snap.kind==="POSE")requested=cloneMerge(requested,{body:snap.state.body});else if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);
+      if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);
     }
     if(["EXPORT_IMAGE","EXPORT_FINAL_CAMERA","EXPORT_STAGING_PRESCRIPTION","EXPORT_COMPOSITION_OVERLAY","EXPORT_REFERENCE_RENDER","EXPORT_MASK"].includes(name)){
       const req=activeRequested();resolve(req);last.export=exportImage(req,last.effective,{...payload,product:name});last.export.sidecar={...last.export.sidecar,build:BUILD,solver:last.effective.solver};if(name==="EXPORT_STAGING_PRESCRIPTION"&&last.export.staging?.refused)last.error="staging refused: hollow distances";return last;
