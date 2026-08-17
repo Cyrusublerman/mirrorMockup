@@ -9,10 +9,10 @@ html,body,#app{margin:0;height:100%;height:100dvh;overflow:hidden;overscroll-beh
 button,input{font:inherit}
 .mp-app{height:100%;height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--mp-canvas)}
 .mp-strip{display:flex;flex-wrap:nowrap;gap:4px;align-items:stretch;padding:6px;background:var(--mp-panel);border-bottom:1px solid var(--mp-line);flex:0 0 auto;overflow:hidden}
-.mp-strip[data-strip]>.mp-room{flex:1 1 0;min-width:0}
-.mp-room,.mp-chip,.mp-more{border:1px solid var(--mp-ink);background:var(--mp-panel);color:var(--mp-ink);border-radius:999px;min-height:44px;min-width:44px;padding:0 8px;font-size:11px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mp-room.is-on,.mp-chip.is-on{background:var(--mp-ink);color:#fff}
-.mp-room:focus-visible,.mp-chip:focus-visible,.mp-more:focus-visible{outline:2px solid var(--mp-action);outline-offset:2px}
+.mp-strip[data-strip]>.mp-phase{flex:1 1 0;min-width:0}
+.mp-phase,.mp-chip,.mp-more{border:1px solid var(--mp-ink);background:var(--mp-panel);color:var(--mp-ink);border-radius:999px;min-height:44px;min-width:44px;padding:0 8px;font-size:11px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-phase.is-on,.mp-chip.is-on{background:var(--mp-ink);color:#fff}
+.mp-phase:focus-visible,.mp-chip:focus-visible,.mp-more:focus-visible{outline:2px solid var(--mp-action);outline-offset:2px}
 .mp-more{flex:0 0 44px;padding:0}
 .mp-output-pane{position:relative;flex:2 1 0;min-height:20dvh;background:#F7F9FA;border-bottom:1px solid var(--mp-line);overflow:hidden;touch-action:none}
 .mp-output-webgl,.mp-output-product{position:absolute;inset:0;width:100%;height:100%;display:block}
