@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Architecture validator. Spec §26. Rejects duplicate authorities and UI→solver imports."""
+"""Architecture validator. Rejects duplicate authorities and UI→solver imports."""
 from __future__ import annotations
 
 import re
