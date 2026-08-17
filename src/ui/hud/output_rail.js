@@ -11,7 +11,7 @@ export class OutputRail {
         b.type = "button";
         b.className = "mp-chip";
         b.dataset.mode = id;
-        b.textContent = id === "RECURSION" ? "RECURSION · synthesis" : id.replaceAll("_", " ");
+        b.textContent = id.replaceAll("_", " ");
         b.addEventListener("click", () => onChange(id));
         el.appendChild(b);
       }
