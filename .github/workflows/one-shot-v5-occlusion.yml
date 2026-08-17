@@ -1,0 +1,324 @@
+name: One-shot v5 physical P occlusion
+
+on:
+  push:
+    branches:
+      - agent/phase-4-toast
+    paths:
+      - '.github/workflows/one-shot-v5-occlusion.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase-4-toast
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Implement physical screen occlusion gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          Path('src/domains/hand_grip/grip.js').write_text(r'''import { transformPoint } from "../../shared_math/transform.js";
+
+const DEFAULT_PALM_LOCAL = [0, -0.02, -0.01];
+
+function isZeroOffset(offset) {
+  return !offset || (offset[0] === 0 && offset[1] === 0 && offset[2] === 0);
+}
+
+function clipAgainst(poly, inside, intersect) {
+  if (!poly.length) return [];
+  const out = [];
+  let a = poly[poly.length - 1];
+  let aIn = inside(a);
+  for (const b of poly) {
+    const bIn = inside(b);
+    if (bIn) {
+      if (!aIn) out.push(intersect(a, b));
+      out.push(b);
+    } else if (aIn) out.push(intersect(a, b));
+    a = b;
+    aIn = bIn;
+  }
+  return out;
+}
+
+function clipUnit(poly) {
+  let p = (poly || []).filter((v) => Array.isArray(v) && v.length >= 2 && Number.isFinite(v[0]) && Number.isFinite(v[1])).map((v) => [v[0], v[1]]);
+  const xCross = (x) => (a, b) => {
+    const d = b[0] - a[0];
+    const t = Math.abs(d) < 1e-12 ? 0 : (x - a[0]) / d;
+    return [x, a[1] + (b[1] - a[1]) * t];
+  };
+  const yCross = (y) => (a, b) => {
+    const d = b[1] - a[1];
+    const t = Math.abs(d) < 1e-12 ? 0 : (y - a[1]) / d;
+    return [a[0] + (b[0] - a[0]) * t, y];
+  };
+  p = clipAgainst(p, (v) => v[0] >= 0, xCross(0));
+  p = clipAgainst(p, (v) => v[0] <= 1, xCross(1));
+  p = clipAgainst(p, (v) => v[1] >= 0, yCross(0));
+  p = clipAgainst(p, (v) => v[1] <= 1, yCross(1));
+  return p;
+}
+
+function area2(poly) {
+  if (poly.length < 3) return 0;
+  let s = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return Math.abs(s) * 0.5;
+}
+
+export function screenOcclusionFraction(polygons = []) {
+  let total = 0;
+  for (const poly of polygons) total += area2(clipUnit(poly));
+  return Math.max(0, Math.min(1, total));
+}
+
+export function evaluateGrip(phoneEval, requested) {
+  const grip_world = phoneEval.grip_world;
+  const offset = requested.phone.grip_relation.offset;
+  const phoneWorld = phoneEval.world || grip_world;
+  const wrist_target = isZeroOffset(offset)
+    ? transformPoint(phoneWorld, DEFAULT_PALM_LOCAL)
+    : grip_world.translation.slice();
+  const screen_occluder_polygons_uv = requested.phone.grip_relation.screen_occluder_polygons_uv || [];
+  return {
+    authority: requested.phone.authority,
+    grip_world,
+    wrist_target,
+    contacts: ["palm", "index", "middle", "ring", "thumb"],
+    screen_occluder_polygons_uv,
+    screen_occlusion_fraction: screenOcclusionFraction(screen_occluder_polygons_uv),
+  };
+}
+''')
+
+          Path('src/domains/carrier_p/screen_quad.js').write_text(r'''import { add, dot, normalize, scale, sub } from "../../shared_math/vector.js";
+import { reflectDir } from "../reflection/reflect.js";
+import { evaluateCarrierP } from "./project.js";
+import { ReflectionRay, RAY_STATE } from "../visibility/reflection_ray.js";
+import { occludesSegment } from "../visibility/report.js";
+import { t } from "../../../fixtures/tolerances.js";
+
+const GATES = ["area", "angle", "footprint", "conditioning", "occlusion", "bezel"];
+const reflectionRay = new ReflectionRay();
+
+function clamp01(x) {
+  return Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0));
+}
+
+export class ScreenQuad {
+  evaluate(phone, cam, mirror, opts = {}) {
+    const base = evaluateCarrierP(phone, cam, mirror);
+    const widthPx = cam.width_px || opts.width_px || 1170;
+    const heightPx = cam.height_px || opts.height_px || 1560;
+    const gates = {
+      area: this.areaGate(base),
+      angle: this.angleGate(phone, cam, mirror, base),
+      footprint: this.footprintGate(base, widthPx, heightPx),
+      conditioning: this.conditioningGate(base),
+      occlusion: this.occlusionGate(base, phone, cam, mirror, opts),
+      bezel: this.bezelGate(base, phone),
+    };
+    const gate_reasons = GATES.filter((k) => !gates[k].ok);
+    const gates_ok = gate_reasons.length === 0;
+    const reasons = [...(base.reasons || []), ...gate_reasons.map((r) => `gate_${r}`)];
+    return {
+      ...base,
+      gates,
+      gates_ok,
+      gate_reasons,
+      valid: !!base.valid && gates_ok,
+      reasons,
+      quad: base.quad,
+    };
+  }
+
+  areaGate(base) {
+    const a = Math.abs(base.area_capture ?? base.area ?? 0);
+    return { ok: a > 1e-10 && !(base.reasons || []).includes("zero_area") && !(base.reasons || []).includes("nonconvex"), value: a };
+  }
+
+  angleGate(phone, cam, mirror, base) {
+    const C = cam?.world?.translation;
+    const n0 = phone?.screen_normal;
+    const nM = mirror?.basis?.n;
+    const quad = base.quad_world;
+    if (!C || !n0 || !nM || !quad || quad.some((p) => !p)) return { ok: false, value: null };
+    const n = reflectDir(n0, nM);
+    const c0 = quad.reduce((s, p) => add(s, p), [0, 0, 0]);
+    const centroid = scale(c0, 0.25);
+    const view = normalize(sub(C, centroid));
+    const cos = Math.abs(dot(normalize(n), view));
+    const limit = Math.cos((t("T-PQ-ANGLE") * Math.PI) / 180);
+    return { ok: cos >= limit, value: cos, limit };
+  }
+
+  footprintGate(base, widthPx, heightPx) {
+    const a = Math.abs(base.area_capture ?? 0);
+    const px = a * widthPx * heightPx;
+    const minPx = t("T-PQ-PX");
+    return { ok: px >= minPx, value: px, limit: minPx };
+  }
+
+  conditioningGate(base) {
+    const cond = base.condition ?? Infinity;
+    const limit = t("T-HOMO");
+    return { ok: Number.isFinite(cond) && cond <= limit && !(base.reasons || []).includes("ill_conditioned"), value: cond, limit };
+  }
+
+  occlusionGate(base, phone, cam, mirror, opts = {}) {
+    const apertureFail = (base.reasons || []).some((r) => String(r).includes("aperture"));
+    const corners = phone?.screen_corners_world || [];
+    const probes = corners.length === 4
+      ? [...corners, scale(corners.reduce((s, p) => add(s, p), [0, 0, 0]), 0.25)]
+      : [];
+    let blocked = 0;
+    const ray_states = [];
+    const occluders = opts.occluders || [];
+    const C = cam?.world?.translation;
+    if (C && mirror && probes.length && occluders.length) {
+      for (const target of probes) {
+        const traced = reflectionRay.trace(target, C, mirror, occluders, occludesSegment);
+        ray_states.push(traced.state);
+        if (traced.state === RAY_STATE.OCCLUDED_CAMERA_TO_MIRROR || traced.state === RAY_STATE.OCCLUDED_MIRROR_TO_TARGET) blocked++;
+      }
+    }
+    const ray_fraction = probes.length ? blocked / probes.length : 0;
+    const finger_fraction = clamp01(opts.finger_occlusion_fraction || 0);
+    const forbidden_fraction = 1 - (1 - clamp01(ray_fraction)) * (1 - finger_fraction);
+    return {
+      ok: !apertureFail && forbidden_fraction <= 1e-12,
+      value: forbidden_fraction,
+      forbidden_fraction,
+      ray_fraction,
+      finger_fraction,
+      ray_states,
+    };
+  }
+
+  bezelGate(base, phone) {
+    const inset = phone?.screen_inset || {};
+    const vals = [inset.left, inset.right, inset.top, inset.bottom].filter(Number.isFinite);
+    const minInset = vals.length ? Math.min(...vals) : 0;
+    const ok = !!base.quad && base.quad.every((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1])) && minInset > 1e-4;
+    return { ok, value: minInset, limit: 1e-4 };
+  }
+}
+
+export { GATES as SCREEN_GATES };
+''')
+
+          def replace(path, old, new):
+              p=Path(path); s=p.read_text()
+              if old not in s:
+                  raise SystemExit(f'missing expected text in {path}: {old!r}')
+              p.write_text(s.replace(old,new))
+
+          replace('src/scene/requested_state.js',
+              '        source: "v5 working lever distributed across wrist/grip/phone/camera chain",\n      },',
+              '        source: "v5 working lever distributed across wrist/grip/phone/camera chain",\n        screen_occluder_polygons_uv: [],\n      },')
+          replace('src/scene/solve_network.js',
+              '  const carrier_p = screenQuad.evaluate(phone, cam, mirror);',
+              '  const carrier_p = screenQuad.evaluate(phone, cam, mirror, { occluders: [bodyOcc].filter(Boolean), finger_occlusion_fraction: grip.screen_occlusion_fraction });')
+
+          Path('tests/v5_screen_occlusion.test.mjs').write_text(r'''import test from "node:test";
+import assert from "node:assert/strict";
+import { createApp } from "../src/app/facade.js";
+import { ScreenQuad } from "../src/domains/carrier_p/screen_quad.js";
+import { screenOcclusionFraction } from "../src/domains/hand_grip/grip.js";
+
+const identity = { translation: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] };
+
+test("v5 entity 7 · finger polygon contributes physical screen occlusion fraction", () => {
+  const f = screenOcclusionFraction([[[0, 0], [0.25, 0], [0.25, 1], [0, 1]]]);
+  assert.ok(Math.abs(f - 0.25) < 1e-12, String(f));
+});
+
+test("ACC-PQ-01 · declared finger occlusion makes the P occlusion gate fail", () => {
+  const app = createApp();
+  app.dispatch("SET_MIRROR_FRAME_AUTHORITY", { authority: "APPARATUS" });
+  app.dispatch("SET_GRIP_RELATION", { screen_occluder_polygons_uv: [[[0, 0], [0.2, 0], [0.2, 1], [0, 1]]] });
+  const gate = app.getEffective().carrier_p.gates.occlusion;
+  assert.equal(gate.ok, false, JSON.stringify(gate));
+  assert.ok(gate.finger_fraction >= 0.199999, JSON.stringify(gate));
+  assert.ok(app.getEffective().carrier_p.gate_reasons.includes("occlusion"));
+});
+
+test("ACC-PQ-01 · body geometry on a reflected screen ray makes the P occlusion gate fail", () => {
+  const q = new ScreenQuad();
+  const phone = {
+    screen_corners_world: [[-0.1, 1, -0.1], [0.1, 1, -0.1], [0.1, 1, 0.1], [-0.1, 1, 0.1]],
+  };
+  const cam = { world: { translation: [0, 2, 0] } };
+  const mirror = {
+    centre: [0, 0, 0],
+    basis: { u: [1, 0, 0], v: [0, 0, 1], n: [0, 1, 0] },
+    width_m: 10,
+    height_m: 10,
+  };
+  const blocker = {
+    mesh: { positions: [[-2, 1.5, -2], [2, 1.5, -2], [0, 1.5, 2]], triangles: [[0, 1, 2]] },
+    world: identity,
+  };
+  const gate = q.occlusionGate({ reasons: [] }, phone, cam, mirror, { occluders: [blocker] });
+  assert.equal(gate.ok, false, JSON.stringify(gate));
+  assert.ok(gate.ray_fraction > 0, JSON.stringify(gate));
+  assert.ok(gate.ray_states.some((s) => s === "OCCLUDED_CAMERA_TO_MIRROR"), JSON.stringify(gate));
+});
+''')
+
+          Path('tests/v5_no_legacy_rooms.test.mjs').write_text(r'''import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const read = (rel) => fs.readFileSync(path.resolve(here, rel), "utf8");
+
+test("v5 interface architecture · no legacy POSE/SCENE workspace room path remains", () => {
+  const files = [
+    "../src/ui/app_shell.js",
+    "../src/app/facade.js",
+    "../src/app/actions.js",
+    "../src/scene/requested_state.js",
+    "../src/render/overlays.js",
+  ].map(read);
+  for (const src of files) {
+    assert.doesNotMatch(src, /workspace\.mode/);
+    assert.doesNotMatch(src, /kind\s*===?\s*["'](?:POSE|SCENE)["']/);
+    assert.doesNotMatch(src, /kind\s*:\s*["'](?:POSE|SCENE)["']/);
+  }
+});
+''')
+          PY
+      - run: npm ci
+      - name: Run full acceptance suite before committing
+        run: npm test
+      - name: Run architecture validator before committing
+        run: npm run validate
+      - name: Commit only after green acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src tests
+          git diff --cached --check
+          git commit -m 'Connect physical occlusion to the P screen gate'
+          git push origin HEAD:agent/phase-4-toast
