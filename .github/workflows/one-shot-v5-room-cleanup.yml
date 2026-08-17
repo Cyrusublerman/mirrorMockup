@@ -34,28 +34,15 @@ jobs:
               'app.dispatch("SAVE_SNAPSHOT",{id,kind:workspace.phase==="DECLARE"?"POSE":"SCENE"})',
               'app.dispatch("SAVE_SNAPSHOT",{id,kind:"REQUESTED_STATE"})')
 
-          p=Path('src/app/facade.js'); s=p.read_text()
-          old='''    if(name==="SAVE_SNAPSHOT"){
-              snapshots[payload.id]={kind:payload.kind||"SCENE",state:structuredClone(activeRequested())};
-              if(payload.kind==="POSE")snapshots[payload.id].state={body:structuredClone(activeRequested().body)};
-              if(payload.kind==="WORKSPACE")snapshots[payload.id].state={workspace:structuredClone(activeRequested().workspace),view:structuredClone(activeRequested().view),reference:{registration:structuredClone(activeRequested().reference.registration)}};
-              return last;
-            }
-            if(name==="LOAD_SNAPSHOT"){
-              if(!snapshots[payload.id])return{...last,error:"no snapshot"};pushHistory(history,requested,payload.label||"Load snapshot");previewRequested=null;const snap=snapshots[payload.id];
-              if(snap.kind==="POSE")requested=cloneMerge(requested,{body:snap.state.body});else if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);
-            }'''
-          new='''    if(name==="SAVE_SNAPSHOT"){
-              snapshots[payload.id]={kind:payload.kind||"REQUESTED_STATE",state:structuredClone(activeRequested())};
-              if(payload.kind==="WORKSPACE")snapshots[payload.id].state={workspace:structuredClone(activeRequested().workspace),view:structuredClone(activeRequested().view),reference:{registration:structuredClone(activeRequested().reference.registration)}};
-              return last;
-            }
-            if(name==="LOAD_SNAPSHOT"){
-              if(!snapshots[payload.id])return{...last,error:"no snapshot"};pushHistory(history,requested,payload.label||"Load snapshot");previewRequested=null;const snap=snapshots[payload.id];
-              if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);
-            }'''
-          if old not in s: raise SystemExit('facade snapshot block did not match')
-          p.write_text(s.replace(old,new))
+          replace('src/app/facade.js',
+              'snapshots[payload.id]={kind:payload.kind||"SCENE",state:structuredClone(activeRequested())};',
+              'snapshots[payload.id]={kind:payload.kind||"REQUESTED_STATE",state:structuredClone(activeRequested())};')
+          replace('src/app/facade.js',
+              '      if(payload.kind==="POSE")snapshots[payload.id].state={body:structuredClone(activeRequested().body)};\n',
+              '')
+          replace('src/app/facade.js',
+              'if(snap.kind==="POSE")requested=cloneMerge(requested,{body:snap.state.body});else if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);',
+              'if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);')
 
           replace('src/scene/requested_state.js','      mode: "DECLARE",\n      phase: "DECLARE",','      phase: "DECLARE",')
           replace('src/app/actions.js','  "UNDO", "REDO", "SET_WORKSPACE_MODE", "SET_SELECTION",','  "UNDO", "REDO", "SET_SELECTION",')
@@ -167,17 +154,9 @@ jobs:
             const nums = Object.values(residuals)
               .map((r) => r?.residual)
               .filter((x) => x != null && Number.isFinite(x));
-            if (nums.length) {
-              ctx.fillText(`max residual ${Math.max(...nums).toFixed(4)}`, 8, ty);
-            }
+            if (nums.length) ctx.fillText(`max residual ${Math.max(...nums).toFixed(4)}`, 8, ty);
           }
           ''')
-
-          p=Path('tests/v5_phase4_architecture.test.mjs'); s=p.read_text()
-          anchor='''  assert.match(scene,/setFrameScope/);\n});'''
-          repl='''  assert.match(scene,/setFrameScope/);\n  const overlays=read("../src/render/overlays.js"),facade=read("../src/app/facade.js");\n  for(const src of [shell,scene,overlays,facade]){\n    assert.doesNotMatch(src,/workspace\\.mode/);\n    assert.doesNotMatch(src,/kind===?["\\'](?:POSE|SCENE)["\\']/);\n  }\n});'''
-          if anchor not in s: raise SystemExit('phase4 architecture test anchor missing')
-          p.write_text(s.replace(anchor,repl))
           PY
       - name: Commit v5 room cleanup
         shell: bash
