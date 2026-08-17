@@ -1,0 +1,12 @@
+{
+  "spec": "Mirror_Portrait_UI_Spec_v5",
+  "reviewed": true,
+  "source_head": "ef12a3caa5be4a99cde16d4a0f4510a2740ca964",
+  "source_run": 179,
+  "sha256": {
+    "phone-393x852.png": "0a624c3ede5510ac61a2d3c95b1b98b53ce8d6ad6e2ad4e87a58d66babbfb448",
+    "phone-430x932.png": "7b38e9d9de45c548f20eef9ea6929d02552cc2f9a56cfae74a43b225ae1dadbd",
+    "tablet-768x1024.png": "59ef86b90e124c7f6c9b24f935270235a15a0528def08b054aca6dc71cb39645",
+    "desktop-1280x800.png": "13f8c1b2a2b0035ecaa1a100311279d92f9231d538da2618f0bdbcb86fc4eda9"
+  }
+}
