@@ -17,7 +17,7 @@ test("six editor views; swap preserves editor_view", () => {
   assert.equal(v.editor_view, "LEFT");
 });
 
-test("POSE fitBody ignores mirror distance; SCENE fitApparatus does not write camera", () => {
+test("body framing ignores mirror distance; apparatus framing does not write camera", () => {
   const app = createApp();
   const fk = app.getEffective().skeleton.fk;
   const cam0 = structuredClone(app.getEffective().camera);
