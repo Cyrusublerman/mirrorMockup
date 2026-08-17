@@ -30,9 +30,9 @@ jobs:
           name: test-log
           path: test.log
       - run: npm run validate
-      - name: Capture ACC-SHOT-01 candidates
-        run: python3 tools/screenshot_gate.py --capture-only
-      - name: Upload ACC-SHOT-01 candidates
+      - name: ACC-SHOT-01 reviewed screenshot diff
+        run: python3 tools/screenshot_gate.py
+      - name: Upload ACC-SHOT-01 current screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
