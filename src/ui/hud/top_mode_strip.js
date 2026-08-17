@@ -10,7 +10,7 @@ export function mountTopModeStrip(el, workspace, onChange) {
     for (const id of PHASES) {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "mp-room";
+      b.className = "mp-phase";
       b.dataset.phase = id;
       b.textContent = id;
       b.setAttribute("aria-label", id);
@@ -18,7 +18,7 @@ export function mountTopModeStrip(el, workspace, onChange) {
       el.appendChild(b);
     }
   }
-  for (const b of el.querySelectorAll(".mp-room")) {
+  for (const b of el.querySelectorAll(".mp-phase")) {
     const on = b.dataset.phase === workspace.phase;
     b.classList.toggle("is-on", on);
     b.setAttribute("aria-pressed", on ? "true" : "false");
