@@ -23,7 +23,10 @@ export class FramingPolicy {
     const pts = Object.values(fk || {}).filter((p) => Array.isArray(p) && p.length === 3);
     const b = this.boundsOf(pts);
     if (!b) return { target: [0, 0.9, 0.9], radius: 2.4 };
-    return { target: b.centre, radius: b.size * (0.9 + margin) };
+    // FK bounds stop at joint centres; the skinned silhouette extends beyond the
+    // crown, shoulders, hands and feet. Include that envelope so every canonical
+    // editor view contains the complete visible body rather than clipping skin.
+    return { target: b.centre, radius: b.size * (1.08 + margin) };
   }
 
   fitApparatus(eff, margin = this.margin) {
