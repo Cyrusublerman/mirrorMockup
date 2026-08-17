@@ -12,13 +12,20 @@ test("Phase 4 · literal workflow phases and pane modes",()=>{
 });
 
 test("Phase 4 · object-category rooms are absent from production UI architecture",()=>{
-  const phase=read("../src/ui/state/phase_state.js"),shell=read("../src/ui/app_shell.js"),scene=read("../src/render/scene_3d.js");
-  for(const src of [phase,shell,scene]){
+  const phase=read("../src/ui/state/phase_state.js"),shell=read("../src/ui/app_shell.js"),scene=read("../src/render/scene_3d.js"),css=read("../src/ui/shell.js"),top=read("../src/ui/hud/top_mode_strip.js");
+  for(const src of [phase,shell,scene,css,top]){
     assert.doesNotMatch(src,/PHASE_TO_ROOM/);
     assert.doesNotMatch(src,/setRoom\s*\(/);
     assert.doesNotMatch(src,/room\s*=\s*\{\s*id\s*:/);
+    assert.doesNotMatch(src,/mp-room/);
   }
   assert.match(scene,/setFrameScope/);
+});
+
+test("Phase 4 · input mode strip uses the single state authority",()=>{
+  const strip=read("../src/ui/hud/input_mode_strip.js");
+  assert.match(strip,/import \{ INPUT_MODES \} from "\.\.\/state\/phase_state\.js"/);
+  assert.doesNotMatch(strip,/export const INPUT_MODES\s*=/);
 });
 
 test("Phase 4 · physical authoring is SOLVE-gated, not DECLARE-gated",()=>{
