@@ -1,0 +1,191 @@
+name: One-shot v5 room cleanup
+
+on:
+  push:
+    branches:
+      - agent/phase-4-toast
+    paths:
+      - '.github/workflows/one-shot-v5-room-cleanup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase-4-toast
+      - name: Remove legacy object-room compatibility paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p=Path(path); s=p.read_text()
+              if old not in s:
+                  raise SystemExit(f'missing expected text in {path}: {old!r}')
+              p.write_text(s.replace(old,new))
+
+          replace('src/ui/app_shell.js',
+              'app.dispatch("SAVE_SNAPSHOT",{id,kind:workspace.phase==="DECLARE"?"POSE":"SCENE"})',
+              'app.dispatch("SAVE_SNAPSHOT",{id,kind:"REQUESTED_STATE"})')
+
+          p=Path('src/app/facade.js'); s=p.read_text()
+          old='''    if(name==="SAVE_SNAPSHOT"){
+              snapshots[payload.id]={kind:payload.kind||"SCENE",state:structuredClone(activeRequested())};
+              if(payload.kind==="POSE")snapshots[payload.id].state={body:structuredClone(activeRequested().body)};
+              if(payload.kind==="WORKSPACE")snapshots[payload.id].state={workspace:structuredClone(activeRequested().workspace),view:structuredClone(activeRequested().view),reference:{registration:structuredClone(activeRequested().reference.registration)}};
+              return last;
+            }
+            if(name==="LOAD_SNAPSHOT"){
+              if(!snapshots[payload.id])return{...last,error:"no snapshot"};pushHistory(history,requested,payload.label||"Load snapshot");previewRequested=null;const snap=snapshots[payload.id];
+              if(snap.kind==="POSE")requested=cloneMerge(requested,{body:snap.state.body});else if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);
+            }'''
+          new='''    if(name==="SAVE_SNAPSHOT"){
+              snapshots[payload.id]={kind:payload.kind||"REQUESTED_STATE",state:structuredClone(activeRequested())};
+              if(payload.kind==="WORKSPACE")snapshots[payload.id].state={workspace:structuredClone(activeRequested().workspace),view:structuredClone(activeRequested().view),reference:{registration:structuredClone(activeRequested().reference.registration)}};
+              return last;
+            }
+            if(name==="LOAD_SNAPSHOT"){
+              if(!snapshots[payload.id])return{...last,error:"no snapshot"};pushHistory(history,requested,payload.label||"Load snapshot");previewRequested=null;const snap=snapshots[payload.id];
+              if(snap.kind==="WORKSPACE")requested=cloneMerge(requested,snap.state);else requested=structuredClone(snap.state);return resolve(requested);
+            }'''
+          if old not in s: raise SystemExit('facade snapshot block did not match')
+          p.write_text(s.replace(old,new))
+
+          replace('src/scene/requested_state.js','      mode: "DECLARE",\n      phase: "DECLARE",','      phase: "DECLARE",')
+          replace('src/app/actions.js','  "UNDO", "REDO", "SET_WORKSPACE_MODE", "SET_SELECTION",','  "UNDO", "REDO", "SET_SELECTION",')
+          replace('src/app/actions.js','    case "SET_WORKSPACE_MODE": next.workspace.mode = payload.mode; break;\n','')
+          replace('src/app/actions.js','      next.workspace.phase = phase;\n      next.workspace.mode = phase;','      next.workspace.phase = phase;')
+          replace('tests/v1_parity.test.mjs','app.getRequested().workspace.mode, "SOLVE"','app.getRequested().workspace.phase, "SOLVE"')
+          replace('tests/v1_parity.test.mjs','app.getRequested().workspace.mode, "STAGE"','app.getRequested().workspace.phase, "STAGE"')
+          replace('tests/parity_spec.test.mjs','snapshots restore requested scene state','snapshots restore requested state')
+          replace('tests/parity_spec.test.mjs','app.dispatch("SAVE_SNAPSHOT",{id:"A",kind:"SCENE"})','app.dispatch("SAVE_SNAPSHOT",{id:"A",kind:"REQUESTED_STATE"})')
+
+          Path('src/render/overlays.js').write_text('''export function overlayList(requested) {
+            return activeOverlays(requested);
+          }
+
+          export function activeOverlays(requested) {
+            const phase = requested.workspace.phase;
+            const input = requested.workspace.input_mode;
+            const output = requested.workspace.output_mode;
+            const sel = requested.workspace.selection;
+            const stored = requested.workspace.overlays || {};
+            return {
+              ...stored,
+              REFERENCE: Boolean(stored.REFERENCE || phase === "DECLARE" || output === "COMPOSITION"),
+              GRID: Boolean(stored.GRID),
+              LANDMARKS: Boolean(stored.LANDMARKS || phase === "DECLARE" || output === "COMPOSITION"),
+              BBOX: Boolean(stored.BBOX || output === "COMPOSITION"),
+              SKELETON: Boolean(stored.SKELETON || (phase === "SOLVE" && input === "VIEWPORT") || sel === "body"),
+              REACH: Boolean(stored.REACH || input === "FEASIBLE" || sel === "body"),
+              SUPPORT: Boolean(stored.SUPPORT || (phase === "SOLVE" && sel === "body")),
+              PHONE: Boolean(stored.PHONE || (phase === "SOLVE" && input === "VIEWPORT") || sel === "phone"),
+              CAMERA: Boolean(stored.CAMERA || phase === "DECLARE" || sel === "phone"),
+              APPARATUS: Boolean(stored.APPARATUS || phase === "DECLARE" || (phase === "SOLVE" && input === "VIEWPORT")),
+              MIRROR: Boolean(stored.MIRROR || phase === "DECLARE" || sel === "mirror"),
+              MIRROR_HITS: Boolean(stored.MIRROR_HITS || sel === "mirror"),
+              VISIBILITY: Boolean(stored.VISIBILITY || input === "ELEVATION" || sel === "mirror"),
+              P: Boolean(stored.P || output === "RECURSION" || sel === "phone" || sel === "p"),
+              Q: Boolean(stored.Q || output === "RECURSION"),
+              RECURSION: Boolean(stored.RECURSION || output === "RECURSION"),
+            };
+          }
+
+          function toCanvas(p, w, h) {
+            return [p[0] * w, p[1] * h];
+          }
+
+          function strokeQuad(ctx, q, w, h, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const p0 = toCanvas(q[0], w, h);
+            ctx.moveTo(p0[0], p0[1]);
+            for (let i = 1; i < 4; i++) {
+              const p = toCanvas(q[i], w, h);
+              ctx.lineTo(p[0], p[1]);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+
+          export function drawOverlays(ctx, requested, effective, w, h) {
+            ctx.clearRect(0, 0, w, h);
+            const vis = activeOverlays(requested);
+            const q = effective.carrier_p?.quad;
+            if (vis.P && q) strokeQuad(ctx, q, w, h, "#c9a227");
+            if (vis.PHONE && q) strokeQuad(ctx, q, w, h, "#00c2d1");
+            if ((vis.REFERENCE || vis.LANDMARKS) && requested.reference.landmarks?.features) {
+              ctx.fillStyle = "rgba(0,0,0,0.55)";
+              for (const [id, f] of Object.entries(requested.reference.landmarks.features)) {
+                if (!f.bbox_centre && !f.centroid) continue;
+                const [x, y] = toCanvas(f.bbox_centre || f.centroid, w, h);
+                ctx.fillRect(x - 2, y - 2, 4, 4);
+                ctx.font = "10px sans-serif";
+                ctx.fillText(id, x + 5, y);
+              }
+            }
+            if (vis.SKELETON && effective.visibility?.reports) {
+              ctx.fillStyle = "rgba(40,40,120,0.7)";
+              for (const r of Object.values(effective.visibility.reports)) {
+                const p = r.reflected?.projection?.image_norm;
+                if (!p) continue;
+                const [x, y] = toCanvas(p, w, h);
+                ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+              }
+            }
+            ctx.font = "11px sans-serif";
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            let ty = 14;
+            if (effective.view?.segment) {
+              ctx.fillText(effective.view.segment, 8, ty);
+              ty += 14;
+            }
+            const cert = effective.recursion?.certificate;
+            if (cert) {
+              const arg = (cert.gamma_arg * 180) / Math.PI;
+              ctx.fillText(`γ |${Number(cert.gamma_abs).toFixed(3)}| ${arg.toFixed(1)}°`, 8, ty);
+              ty += 14;
+            }
+            if (vis.REQUESTED_EFFECTIVE && effective.compensation) {
+              const c = effective.compensation;
+              ctx.fillText(`compensate ${c.variable} ${Number(c.from).toFixed(3)}→${Number(c.to).toFixed(3)}`, 8, ty);
+              ty += 14;
+            }
+            const last = effective.last_edit;
+            if (last) {
+              ctx.fillText(`driver ${last.driver} · move ${last.allowed_to_move.join(",")}`, 8, ty);
+              ty += 14;
+            }
+            const residuals = effective.residuals || {};
+            const nums = Object.values(residuals)
+              .map((r) => r?.residual)
+              .filter((x) => x != null && Number.isFinite(x));
+            if (nums.length) {
+              ctx.fillText(`max residual ${Math.max(...nums).toFixed(4)}`, 8, ty);
+            }
+          }
+          ''')
+
+          p=Path('tests/v5_phase4_architecture.test.mjs'); s=p.read_text()
+          anchor='''  assert.match(scene,/setFrameScope/);\n});'''
+          repl='''  assert.match(scene,/setFrameScope/);\n  const overlays=read("../src/render/overlays.js"),facade=read("../src/app/facade.js");\n  for(const src of [shell,scene,overlays,facade]){\n    assert.doesNotMatch(src,/workspace\\.mode/);\n    assert.doesNotMatch(src,/kind===?["\\'](?:POSE|SCENE)["\\']/);\n  }\n});'''
+          if anchor not in s: raise SystemExit('phase4 architecture test anchor missing')
+          p.write_text(s.replace(anchor,repl))
+          PY
+      - name: Commit v5 room cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src tests
+          git diff --cached --check
+          git commit -m 'Remove legacy object-room compatibility paths'
+          git push origin HEAD:agent/phase-4-toast
