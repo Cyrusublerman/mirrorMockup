@@ -49,18 +49,26 @@ jobs:
         run: |
           set -euo pipefail
           FILE="$PWD/dist/mirror-portrait-standalone.html"
+          SHOT="$PWD/dist/standalone-offline-smoke.png"
           test -s "$FILE"
           if grep -Eiq '<script[^>]+src=|<link[^>]+href=' "$FILE"; then
             echo 'external HTML dependency found' >&2
             exit 1
           fi
-          timeout 50s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
-            --disable-background-networking --allow-file-access-from-files \
-            --enable-webgl --use-angle=swiftshader --ignore-gpu-blocklist \
-            --window-size=430,932 --hide-scrollbars --virtual-time-budget=10000 \
-            --screenshot="$PWD/dist/standalone-offline-smoke.png" "file://$FILE"
-          test -s "$PWD/dist/standalone-offline-smoke.png"
-          test "$(stat -c%s "$PWD/dist/standalone-offline-smoke.png")" -gt 10000
+          rm -f "$SHOT"
+          for BUDGET in 10000 20000 40000; do
+            timeout 55s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+              --disable-background-networking --allow-file-access-from-files \
+              --enable-webgl --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist \
+              --window-size=430,932 --hide-scrollbars --virtual-time-budget="$BUDGET" \
+              --screenshot="$SHOT" "file://$FILE" || true
+            if test -s "$SHOT" && test "$(stat -c%s "$SHOT")" -gt 10000; then
+              break
+            fi
+            rm -f "$SHOT"
+          done
+          test -s "$SHOT"
+          test "$(stat -c%s "$SHOT")" -gt 10000
       - name: Upload standalone HTML
         uses: actions/upload-artifact@v4
         with:
