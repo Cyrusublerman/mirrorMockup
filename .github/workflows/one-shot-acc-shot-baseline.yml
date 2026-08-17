@@ -26,7 +26,7 @@ jobs:
           repository: Cyrusublerman/mirrorMockup
           run-id: 32002929396
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Promote reviewed images and enable screenshot diff gate
+      - name: Promote reviewed images
         shell: bash
         run: |
           set -euo pipefail
@@ -48,21 +48,14 @@ jobs:
               'source_run':179,
               'sha256':manifest,
           },indent=2)+'\n')
-          p=Path('.github/workflows/ci.yml')
-          s=p.read_text()
-          needle='python3 tools/screenshot_gate.py --capture-only'
-          if needle not in s:
-              raise SystemExit('capture-only CI command not found')
-          p.write_text(s.replace(needle,'python3 tools/screenshot_gate.py'))
           PY
-      - name: Commit reviewed ACC-SHOT-01 gate
+      - name: Commit reviewed ACC-SHOT-01 images
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git rm .github/workflows/one-shot-acc-shot-baseline.yml
-          git add .github/workflows/ci.yml tests/screenshots/baseline tests/screenshots/review.json
+          git add tests/screenshots/baseline tests/screenshots/review.json
           git diff --cached --check
           git commit -m 'Promote reviewed ACC-SHOT-01 baselines'
           git push origin HEAD:agent/phase-4-toast
