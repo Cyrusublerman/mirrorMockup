@@ -1,4 +1,4 @@
-export const INPUT_MODES = Object.freeze(["VIEWPORT", "NUMBERS", "PLAN", "ELEVATION", "FEASIBLE"]);
+import { INPUT_MODES } from "../state/phase_state.js";
 
 export class InputModeStrip {
   mount(el, current, onChange) {
