@@ -1,9 +1,12 @@
 import { sub, length } from "../../shared_math/vector.js";
 import { finiteApertureTest, reflectPoint } from "../reflection/reflect.js";
+import { ReflectionRay } from "./reflection_ray.js";
 import { pinholeProject, imageNormFromPx } from "../../shared_math/projection.js";
 import { captureToFinal } from "../camera/crop.js";
 import { segmentTriangle } from "../../shared_math/intersection.js";
 import { transformPoint } from "../../shared_math/transform.js";
+
+const ray = new ReflectionRay();
 
 export function projectWorld(X, cam) {
   const p = pinholeProject(
@@ -60,9 +63,7 @@ export function sameAnatomyScale(sizeR, sizeD) {
 }
 
 function fkTranslation(p) {
-  if (Array.isArray(p) && p.length === 3 && typeof p[0] === "number" && typeof p[1] === "number" && typeof p[2] === "number") {
-    return p;
-  }
+  if (Array.isArray(p) && p.length === 3 && typeof p[0] === "number" && typeof p[1] === "number" && typeof p[2] === "number") return p;
   return null;
 }
 
@@ -78,31 +79,52 @@ export function occludesSegment(origin, target, mesh, worldXf) {
   return false;
 }
 
+function inFrame(uv) {
+  return !!(uv && uv[0] >= 0 && uv[0] <= 1 && uv[1] >= 0 && uv[1] <= 1);
+}
+
+function regionFraction(reports, names, space) {
+  let visible = 0;
+  let n = 0;
+  for (const name of names) {
+    const row = reports[name];
+    if (!row) continue;
+    n++;
+    if (space === "reflected") {
+      if (row.reflected?.visible && inFrame(row.reflected?.projection?.image_norm)) visible++;
+    } else if (row.direct?.valid && inFrame(row.direct?.image_norm)) visible++;
+  }
+  return n ? visible / n : 0;
+}
+
 export function evaluateVisibility(fk, cam, mirror, occluders = []) {
   const reports = {};
   const C = cam.world.translation;
   for (const [name, p] of Object.entries(fk)) {
     const X = fkTranslation(p);
     if (!X) continue;
+    const traced = ray.trace(X, C, mirror, occluders, occludesSegment);
     const reflected = reflectedVisibility(X, cam, mirror);
-    let occluded = false;
-    const hitPt = reflected.world_reflected;
-    for (const occ of occluders) {
-      if (!occ?.mesh || !occ?.world) continue;
-      if (occludesSegment(C, hitPt, occ.mesh, occ.world)) {
-        occluded = true;
-        break;
-      }
-    }
-    const vis = reflected.visible && !occluded;
     reports[name] = {
       direct: projectWorld(X, cam),
-      reflected: { ...reflected, occluded, visible: vis },
+      reflected: {
+        ...reflected,
+        ...traced,
+        occluded: traced.state === "OCCLUDED_CAMERA_TO_MIRROR" || traced.state === "OCCLUDED_MIRROR_TO_TARGET",
+        visible: traced.visible,
+      },
     };
   }
   const armFlags = ["shoulder_R", "elbow_R", "wrist_R"].map((n) => !!reports[n]?.reflected?.visible);
+  const fractions = {
+    reflected_head: regionFraction(reports, ["head", "neck"], "reflected"),
+    reflected_torso: regionFraction(reports, ["ribcage", "pelvis", "shoulder_L", "shoulder_R", "hip_L", "hip_R"], "reflected"),
+    reflected_legs: regionFraction(reports, ["hip_L", "knee_L", "ankle_L", "hip_R", "knee_R", "ankle_R"], "reflected"),
+    direct_face: regionFraction(reports, ["head", "neck"], "direct"),
+  };
   return {
     reports,
+    fractions,
     occlusion: { hand_phone_body: occluders.length > 0 },
     disjoint: { arm_R: disjointIntervals(armFlags) },
   };

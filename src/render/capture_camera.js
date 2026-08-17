@@ -27,10 +27,19 @@ export class CaptureCamera {
 
   apply(eff) {
     const c = eff.camera;
-    if (!c?.world?.translation || !c.world.rotation) return this.cam;
+    if (!c?.world?.translation || !c.basis?.forward || !c.basis?.up) return this.cam;
     this.cam.position.set(...c.world.translation);
-    this.cam.quaternion.set(c.world.rotation[0], c.world.rotation[1], c.world.rotation[2], c.world.rotation[3]);
-    if (c.basis?.up) this.cam.up.set(...c.basis.up);
+    this.cam.up.set(...c.basis.up).normalize();
+    const target = new this.THREE.Vector3(
+      c.world.translation[0] + c.basis.forward[0],
+      c.world.translation[1] + c.basis.forward[1],
+      c.world.translation[2] + c.basis.forward[2],
+    );
+    // Three cameras look down local -Z. The physical camera model defines its optical
+    // axis explicitly as basis.forward, so construct the render orientation from that
+    // basis rather than reusing the phone quaternion (whose +Y is screen/camera forward).
+    this.cam.lookAt(target);
+
     const W = c.width_px || 1170;
     const H = c.height_px || 1560;
     const hfov = c.hfov || Math.PI / 3;
@@ -46,6 +55,7 @@ export class CaptureCamera {
       this.cam.clearViewOffset();
     }
     this.cam.updateProjectionMatrix();
+    this.cam.updateMatrixWorld(true);
     this.cam.layers.disable(EDITOR_LAYER);
     return this.cam;
   }

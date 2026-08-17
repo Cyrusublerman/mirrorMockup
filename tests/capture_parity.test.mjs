@@ -14,7 +14,40 @@ test("ACC-CAM-02 · vfov = 2·atan((H/W)·tan(hfov/2))", () => {
   assert.ok(Math.abs(cam.vfov - vfovFromHfov(cam.hfov, cam.width_px, cam.height_px)) < 1e-12);
 });
 
-test("ACC-CAM-01 · preview vs export projection of the same landmark", async () => {
+test("ACC-CAM-01a · Three render camera optical axis equals the physical camera forward basis", async () => {
+  globalThis.self ??= globalThis;
+  const THREE = await import("three");
+  const eff = createApp().getEffective();
+  const cap = new CaptureCamera(THREE);
+  cap.mode = "FULL_SENSOR";
+  cap.apply(eff);
+  const d = new THREE.Vector3();
+  cap.cam.getWorldDirection(d);
+  const f = new THREE.Vector3(...eff.camera.basis.forward).normalize();
+  assert.ok(d.dot(f) > 1 - 1e-10, `render forward ${d.toArray()} vs physical ${f.toArray()}`);
+});
+
+test("ACC-CAM-01b · actual Three full-sensor projection matches solver projection <2 px", async () => {
+  globalThis.self ??= globalThis;
+  const THREE = await import("three");
+  const eff = createApp().getEffective();
+  const cap = new CaptureCamera(THREE);
+  cap.mode = "FULL_SENSOR";
+  cap.apply(eff);
+  for (const id of ["face_reference", "pelvis", "shoulder_R", "knee_L"]) {
+    const X = eff.skeleton.fk[id];
+    assert.ok(X, id);
+    const v = new THREE.Vector3(...X).project(cap.cam);
+    const actual = [(v.x + 1) / 2, (1 - v.y) / 2];
+    const expected = projectWorld(X, eff.camera).image_norm_capture;
+    assert.ok(expected, id);
+    const dx = (actual[0] - expected[0]) * eff.camera.width_px;
+    const dy = (actual[1] - expected[1]) * eff.camera.height_px;
+    assert.ok(Math.hypot(dx, dy) < 2, `${id}: ${Math.hypot(dx,dy)} px; actual=${actual} expected=${expected}`);
+  }
+});
+
+test("ACC-CAM-01 · preview/export final-crop math of the same landmark stays <2 px", async () => {
   globalThis.self ??= globalThis;
   const THREE = await import("three");
   const app = createApp();

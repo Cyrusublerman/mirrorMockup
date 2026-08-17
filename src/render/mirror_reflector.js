@@ -1,4 +1,13 @@
+import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 import { householderAffine, finiteApertureTest } from "../domains/reflection/reflect.js";
+
+function nodeKey(obj) {
+  return obj?.userData?.name || obj?.name || "";
+}
+
+function isPoseTransform(obj) {
+  return !!obj && !obj.isMesh && !obj.isSkinnedMesh;
+}
 
 export class MirrorReflector {
   constructor(THREE, scene) {
@@ -7,42 +16,83 @@ export class MirrorReflector {
     this.group = new THREE.Group();
     scene.add(this.group);
     this.body = null;
+    this.bodyCarrier = null;
+    this.bodySource = null;
     this.phone = null;
     this.phoneScreenSrc = null;
     this.stick = null;
     this.simple = null;
+    this.contour = null;
     this.clipPlanes = [];
     this._house = new THREE.Matrix4();
+    this.representation = "VOLUME";
   }
 
-  attachBody(gltfScene) {
-    if (this.body) this.group.remove(this.body);
-    this.body = gltfScene.clone(true);
+  attachBody(gltfScene, skeletonClone = cloneSkeleton) {
+    if (this.bodyCarrier) this.group.remove(this.bodyCarrier);
+    this.bodySource = gltfScene;
+    this.body = skeletonClone(gltfScene);
+    this.bodyCarrier = new this.THREE.Group();
+    this.bodyCarrier.name = "mirror_reflected_body_carrier";
+    this.bodyCarrier.add(this.body);
     this.body.traverse((obj) => {
-      if (obj.isSkinnedMesh) obj.bindMode = "detached";
+      if (obj.isSkinnedMesh) {
+        obj.bindMode = "detached";
+        obj.bindMatrixInverse.copy(obj.bindMatrix).invert();
+        obj.frustumCulled = false;
+      }
       if (obj.isMesh) {
         obj.frustumCulled = false;
         obj.material = obj.material.clone();
-        obj.material.transparent = true;
-        obj.material.opacity = 0.45;
+        if (obj.material.color) obj.material.color.multiplyScalar(0.62);
+        obj.material.transparent = false;
+        obj.material.opacity = 1;
+        obj.material.depthWrite = true;
         obj.material.clippingPlanes = this.clipPlanes;
         obj.material.clipShadows = true;
       }
     });
-    this.group.add(this.body);
+    this.group.add(this.bodyCarrier);
+    this.syncBodyPose();
+  }
+
+  syncBodyPose(source = this.bodySource, dest = this.body) {
+    if (!source || !dest) return;
+    const src = new Map();
+    source.traverse((obj) => {
+      if (!isPoseTransform(obj)) return;
+      const key = nodeKey(obj);
+      if (key) src.set(key, obj);
+    });
+    dest.traverse((obj) => {
+      if (!isPoseTransform(obj)) return;
+      const s = src.get(nodeKey(obj));
+      if (!s) return;
+      obj.position.copy(s.position);
+      obj.quaternion.copy(s.quaternion);
+      obj.scale.copy(s.scale);
+      obj.matrixAutoUpdate = s.matrixAutoUpdate;
+      if (!obj.matrixAutoUpdate) obj.matrix.copy(s.matrix);
+    });
+    dest.updateMatrixWorld(true);
+    dest.traverse((obj) => {
+      if (obj.isSkinnedMesh) obj.skeleton?.update?.();
+    });
   }
 
   attachPhone(phoneMesh, screenMesh) {
     if (this.phone) this.group.remove(this.phone);
     this.phone = phoneMesh.clone(true);
     this.phone.material = phoneMesh.material.clone();
-    this.phone.material.opacity = 0.55;
-    this.phone.material.transparent = true;
+    this.phone.material.opacity = 1;
+    this.phone.material.transparent = false;
     this.phone.material.clippingPlanes = this.clipPlanes;
     this.phoneScreenSrc = screenMesh;
     this.phone.traverse((obj) => {
       if (obj.material && obj !== this.phone) {
         obj.material = obj.material.clone();
+        obj.material.transparent = false;
+        obj.material.opacity = 1;
         obj.material.clippingPlanes = this.clipPlanes;
       }
     });
@@ -67,6 +117,27 @@ export class MirrorReflector {
       }
     });
     this.group.add(this.simple);
+  }
+
+  attachContour(group) {
+    if (this.contour) this.group.remove(this.contour);
+    this.contour = group.clone(true);
+    this.contour.traverse((obj) => {
+      if (obj.material) {
+        obj.material = obj.material.clone();
+        obj.material.clippingPlanes = this.clipPlanes;
+      }
+    });
+    this.group.add(this.contour);
+  }
+
+  setRepresentation(kind) {
+    this.representation = kind;
+    if (this.bodyCarrier) this.bodyCarrier.visible = kind === "VOLUME";
+    if (this.body) this.body.visible = true;
+    if (this.stick) this.stick.visible = kind === "GESTURE";
+    if (this.simple) this.simple.visible = false;
+    if (this.contour) this.contour.visible = kind === "CONTOUR";
   }
 
   updateClip(effective) {
@@ -112,14 +183,42 @@ export class MirrorReflector {
     return vis.visible === this.insideClip(worldPoint);
   }
 
-  applyHouseholder(src, dst, centre, n) {
+  applyHouseholder(src, dstCarrier, centre, n) {
     src.updateMatrixWorld(true);
     const H = householderAffine(centre, n);
-    this._house.set(H[0], H[1], H[2], H[3], H[4], H[5], H[6], H[7], H[8], H[9], H[10], H[11], H[12], H[13], H[14], H[15]);
-    dst.matrixAutoUpdate = false;
-    dst.matrix.copy(this._house).multiply(src.matrixWorld);
-    dst.updateMatrixWorld(true);
-    dst.visible = src.visible;
+    this._house.set(
+      H[0], H[1], H[2], H[3],
+      H[4], H[5], H[6], H[7],
+      H[8], H[9], H[10], H[11],
+      H[12], H[13], H[14], H[15],
+    );
+    dstCarrier.matrixAutoUpdate = false;
+    dstCarrier.matrix.copy(this._house).multiply(src.matrixWorld);
+    dstCarrier.updateMatrixWorld(true);
+    dstCarrier.visible = src.visible;
+  }
+
+  syncCloneGeometry(src, dst) {
+    if (!src || !dst) return;
+    while (dst.children.length > src.children.length) dst.remove(dst.children[dst.children.length - 1]);
+    for (let i = 0; i < src.children.length; i++) {
+      const s = src.children[i];
+      let d = dst.children[i];
+      if (!d) {
+        d = s.clone();
+        if (d.material) {
+          d.material = d.material.clone();
+          d.material.clippingPlanes = this.clipPlanes;
+        }
+        dst.add(d);
+      }
+      if (s.geometry) d.geometry = s.geometry;
+      if (s.material && d.material) d.material.clippingPlanes = this.clipPlanes;
+      d.position.copy(s.position);
+      d.quaternion.copy(s.quaternion);
+      d.scale.copy(s.scale);
+      d.visible = s.visible;
+    }
   }
 
   update(effective, sources) {
@@ -127,7 +226,14 @@ export class MirrorReflector {
     const M = effective.mirror?.centre;
     const n = effective.mirror?.basis?.n;
     if (!M || !n) return;
-    if (this.body && sources.bodyRoot) this.applyHouseholder(sources.bodyRoot, this.body, M, n);
+
+    if (this.body && this.bodyCarrier && sources.bodyRoot) {
+      this.syncBodyPose(sources.bodyGltf || this.bodySource, this.body);
+      this.applyHouseholder(sources.bodyRoot, this.bodyCarrier, M, n);
+      this.body.traverse((obj) => {
+        if (obj.isSkinnedMesh) obj.skeleton?.update?.();
+      });
+    }
     if (this.phone && sources.phoneMesh) {
       if (this.phoneScreenSrc) {
         const child = this.phone.children[0];
@@ -139,11 +245,15 @@ export class MirrorReflector {
     if (this.stick && sources.stick) {
       this.stick.geometry = sources.stick.geometry;
       this.applyHouseholder(sources.stick, this.stick, M, n);
-      this.stick.visible = sources.stick.visible;
     }
     if (this.simple && sources.simple) {
+      this.syncCloneGeometry(sources.simple, this.simple);
       this.applyHouseholder(sources.simple, this.simple, M, n);
-      this.simple.visible = sources.simple.visible;
     }
+    if (this.contour && sources.contour) {
+      this.syncCloneGeometry(sources.contour, this.contour);
+      this.applyHouseholder(sources.contour, this.contour, M, n);
+    }
+    this.setRepresentation(this.representation);
   }
 }

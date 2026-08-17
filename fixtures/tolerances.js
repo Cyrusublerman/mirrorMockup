@@ -20,19 +20,27 @@ export const T = Object.freeze({
   "T-PHONE": { value: [0.727, 0.1115], unit: "IMAGE_NORM", source: "P0 phone bbox_centre" },
   "T-MIR": { value: [0.6725, 0.3], unit: "IMAGE_NORM", source: "P0 mirror bbox_centre" },
   "T-DM-BOUNDS": { value: [0.25, 8], unit: "m", source: "CODE_PRESENT existing clamp" },
+  "T-BONE-REG": { value: 0.005, unit: "m", source: "v5 ACC-REG-01/02" },
+  "T-CLIP": { value: 1e-4, unit: "m", source: "v5 ACC-REF-02" },
+  "T-CAPTURE-PX": { value: 2, unit: "px", source: "v5 ACC-CAM-01" },
+  "T-FEA-E": { value: 0.13, unit: "m", source: "v5 §7 e floor" },
+  "T-FEA-A-ELBOW": { value: 0.25, unit: "m", source: "v5 §7 elbow-in boundary" },
+  "T-FEA-A-CROSS": { value: 0.53, unit: "m", source: "v5 §7 cross-body boundary" },
+  "T-FEA-A-REACH": { value: 0.60, unit: "m", source: "v5 §7 same-side/reach boundary" },
+  "T-FEA-E-MAX": { value: 0.30, unit: "m", source: "v5 §7 shoulder-abduction ceiling" },
+  "T-PQ-ANGLE": { value: 75, unit: "deg", source: "v5 P gate angle" },
+  "T-PQ-PX": { value: 16, unit: "px2", source: "v5 P gate footprint" },
+  "T-PQ-BEZEL": { value: 0.002, unit: "IMAGE_NORM", source: "v5 P gate bezel" },
+  "T-MSK-IOU": { value: 0.5, unit: "1", source: "v5 ACC-MSK-01 floor" },
+  "T-HEAD-R": { value: 0.115, unit: "m", source: "v5 unresolved hair-included hypothesis only" },
+  "T-LEVER": { value: 0.22, unit: "m", source: "v5 optical lever" },
+  "T-CROSS-BODY": { value: 0.07, unit: "m", source: "legacy compatibility; superseded by v5 §7 boundary" },
+  "T-REACH": { value: 0.60, unit: "m", source: "v5 §7 same-side/reach" },
+  "T-STATION-M": { value: 1.2, unit: "m", source: "v5 §16 unresolved analysis candidate" },
+  "T-STATION-A": { value: 0.368, unit: "m", source: "v5 §16 unresolved analysis candidate" },
+  "T-STATION-E": { value: 0.14, unit: "m", source: "v5 §16 unresolved analysis candidate" },
 });
-
-export function t(id) {
-  return T[id].value;
-}
-
-export function toleranceSetHash() {
-  return `${TOLERANCE_SET_VERSION}:${Object.keys(T).sort().join(",")}`;
-}
-
-export function minCarrierPx(N, a = t("T-AMOD"), legible = t("T-LEG")) {
-  const n = Math.max(1, N | 0);
-  return legible / Math.pow(Math.abs(a) || t("T-AMOD"), n - 1);
-}
-
+export function t(id){return T[id].value;}
+export function toleranceSetHash(){return `${TOLERANCE_SET_VERSION}:${Object.keys(T).sort().join(",")}`;}
+export function minCarrierPx(N,a=t("T-AMOD"),legible=t("T-LEG")){const n=Math.max(1,N|0);return legible/Math.pow(Math.abs(a)||t("T-AMOD"),n-1);}
 export default T;

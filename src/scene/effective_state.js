@@ -15,6 +15,9 @@ export function emptyEffective() {
     constraints: [],
     sensitivity: [],
     residuals: {},
+    feasible: null,
+    aperture_band: null,
+    occlusion_intent: null,
   };
 }
 

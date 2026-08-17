@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Architecture validator. Spec §26. Rejects duplicate authorities and UI→solver imports."""
+"""Architecture validator. Rejects duplicate authorities and UI→solver imports."""
 from __future__ import annotations
 
 import re
@@ -45,7 +45,8 @@ def main() -> int:
         return 1
 
     extras = [p.name for p in ROOT.iterdir() if p.is_dir() and p.name not in {
-        "src", "fixtures", "tests", "tools", ".git", ".cursor", "node_modules", "dist"
+        "src", "fixtures", "tests", "tools", ".git", ".github", ".cursor",
+        "node_modules", "dist", "Handover"
     }]
     for e in extras:
         errors.append(f"unexpected top-level product tree: {e}")

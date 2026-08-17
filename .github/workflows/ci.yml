@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run tests
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test.log
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: test.log
+      - run: npm run validate
+      - name: ACC-SHOT-01 reviewed screenshot diff
+        run: python3 tools/screenshot_gate.py
+      - name: Upload ACC-SHOT-01 current screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acc-shot-current
+          path: tests/screenshots/current/*.png
+      - name: Install pinned standalone bundler
+        run: npm install --no-save esbuild@0.24.2
+      - name: Build standalone offline HTML
+        env:
+          MIRROR_SOURCE_SHA: ${{ github.sha }}
+        run: node tools/build_standalone.mjs
+      - name: Verify standalone is self-contained and renders offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="$PWD/dist/mirror-portrait-standalone.html"
+          SHOT="$PWD/dist/standalone-offline-smoke.png"
+          test -s "$FILE"
+          if grep -Eiq '<script[^>]+src=|<link[^>]+href=' "$FILE"; then
+            echo 'external HTML dependency found' >&2
+            exit 1
+          fi
+          rm -f "$SHOT"
+          for BUDGET in 10000 20000 40000; do
+            timeout 55s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage \
+              --disable-background-networking --allow-file-access-from-files \
+              --enable-webgl --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist \
+              --window-size=430,932 --hide-scrollbars --virtual-time-budget="$BUDGET" \
+              --screenshot="$SHOT" "file://$FILE" || true
+            if test -s "$SHOT" && test "$(stat -c%s "$SHOT")" -gt 10000; then
+              break
+            fi
+            rm -f "$SHOT"
+          done
+          test -s "$SHOT"
+          test "$(stat -c%s "$SHOT")" -gt 10000
+      - name: Upload standalone HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: mirror-portrait-standalone
+          path: |
+            dist/mirror-portrait-standalone.html
+            dist/standalone-offline-smoke.png
+          if-no-files-found: error
+      - name: Record exact branch source state
+        if: always()
+        shell: bash
+        run: |
+          git ls-tree -r HEAD > source-tree.txt
+          tar -czf source-state.tgz src tests fixtures tools package.json .github/workflows/ci.yml
+      - name: Upload exact branch source state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-state
+          path: |
+            source-tree.txt
+            source-state.tgz

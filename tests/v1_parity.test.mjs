@@ -4,35 +4,34 @@ import { createApp } from "../src/app/facade.js";
 import { ACTION_NAMES } from "../src/app/actions.js";
 import { distance } from "../src/shared_math/vector.js";
 import { loopPeriod, loopPhase, inverseDesiredPortal, sampleI, evaluateRecursion } from "../src/domains/recursion/kernel.js";
-import { activeOverlays } from "../src/render/overlays.js";
 import { defaultRequestedState } from "../src/scene/requested_state.js";
-import { disjointIntervals } from "../src/domains/visibility/report.js";
-import { occludesSegment } from "../src/domains/visibility/report.js";
+import { disjointIntervals, occludesSegment } from "../src/domains/visibility/report.js";
 import { identity } from "../src/shared_math/transform.js";
 
-test("link lengths preserved after PHONE_DRIVES_HAND IK", () => {
+test("link lengths and the 1.700 m v5 model scale are preserved after PHONE_DRIVES_HAND IK", () => {
   const app = createApp();
-  const L = app.getEffective().skeleton.link_lengths.arm_R;
+  const e = app.getEffective();
+  const L = e.skeleton.link_lengths.arm_R;
   assert.ok(Math.abs(L.L1 - L.L1_rest) < 1e-4);
   assert.ok(Math.abs(L.L2 - L.L2_rest) < 1e-4);
-  const fk = app.getEffective().skeleton.fk;
+  const fk = e.skeleton.fk;
   assert.ok(fk.head[2] > fk.pelvis[2]);
   assert.ok(fk.pelvis[2] > fk.ankle_L[2]);
-  const stature = fk.head[2] - Math.min(fk.toe_L[2], fk.toe_R[2]);
-  assert.ok(stature > 1.2 && stature < 2.0);
-  assert.equal(app.getEffective().skeleton.labelled_stature_m, 1.727);
+  assert.equal(e.skeleton.labelled_stature_m, 1.700);
+  assert.ok(Math.abs(e.skeleton.model_stature_m - 1.700) < 1e-9);
 });
 
-test("HAND_DRIVES_PHONE moves phone with wrist target", () => {
+test("HAND_DRIVES_PHONE preserves the explicit wrist→grip→phone relation", () => {
   const app = createApp();
   const phone0 = app.getEffective().phone.world.translation.slice();
+  const target = [0.18, 0.52, 1.35];
   app.dispatch("SET_PHONE_AUTHORITY", { authority: "HAND_DRIVES_PHONE" });
-  app.dispatch("MOVE_POSE_TARGET", { end: "wrist_R", world: [0.18, 0.62, 1.35] });
-  const wrist = app.getEffective().skeleton.fk.wrist_R;
-  const phone = app.getEffective().phone.world.translation;
-  assert.ok(distance(wrist, [0.18, 0.62, 1.35]) < 0.08);
-  assert.ok(distance(phone, phone0) > 1e-4);
-  assert.ok(distance(phone, wrist) < 0.08);
+  app.dispatch("MOVE_POSE_TARGET", { end: "wrist_R", world: target });
+  const e = app.getEffective();
+  assert.ok(distance(e.skeleton.fk.wrist_R, target) < 0.08);
+  assert.ok(distance(e.phone.world.translation, phone0) > 1e-4);
+  assert.ok(distance(e.phone.grip_world.translation, e.skeleton.fk.wrist_R) < 1e-6,
+    `grip/wrist drift=${distance(e.phone.grip_world.translation, e.skeleton.fk.wrist_R)}`);
 });
 
 test("support plant is applied on effective skeleton", () => {
@@ -53,23 +52,30 @@ test("Bend Tilt Twist is a semantic action and joint limits project", () => {
   const q = app.getRequested().body.pose_targets.bend_tilt_twist.head;
   assert.equal(q.length, 4);
   app.dispatch("SET_ANATOMICAL_DOF", { joint: "head", bend: 8, tilt: 0, twist: 0 });
-  const q2 = app.getEffective().skeleton.locals;
-  assert.ok(q2);
+  assert.ok(app.getEffective().skeleton.locals);
 });
 
-test("autosolve compensation is inspectable; last_edit names driver/preserve/allowed", () => {
+test("explicit reflected-phone preserve lock compensates mirror distance without redefining its target", () => {
   const app = createApp();
-  app.dispatch("MOVE_PHONE", { translation: [0.14, 0.52, 1.42] });
-  const last = app.getEffective().last_edit;
+  const target = app.getRequested().apparatus.preserved_reflected_phone_ratio;
+  app.dispatch("SET_MIRROR_DISTANCE_AUTOSOLVE", { on: true });
+  const p = app.getRequested().phone.transform_request.translation.slice();
+  app.dispatch("MOVE_PHONE", { translation: [p[0], p[1] + 0.05, p[2]] });
+  const e = app.getEffective();
+  const last = e.last_edit;
   assert.equal(last.action, "MOVE_PHONE");
   assert.equal(last.driver, "phone");
   assert.ok(Array.isArray(last.preserve));
   assert.ok(Array.isArray(last.allowed_to_move));
-  const c = app.getEffective().compensation;
-  assert.ok(c);
+  const c = e.compensation;
+  assert.ok(c, "explicit autosolve must yield inspectable compensation");
   assert.equal(c.variable, "mirror_distance_request_m");
   assert.equal(c.inspectable, true);
-  assert.ok("from" in c && "to" in c);
+  assert.ok(Math.abs(c.to - c.from) > 0.01, `compensation ${c.from}→${c.to}`);
+  assert.equal(app.getRequested().apparatus.preserved_reflected_phone_ratio, target,
+    "solver must not rewrite the requested preserve target");
+  assert.ok(Math.abs(Math.abs(e.carrier_p.area_capture) - target) < 2e-7,
+    `P area ${e.carrier_p.area_capture} vs target ${target}`);
 });
 
 test("FOV is a sensitivity variable", () => {
@@ -97,16 +103,15 @@ test("numeric FOV round-trips through SET_CAMERA_FOV", () => {
   assert.ok(Math.abs(app.getEffective().camera.hfov - hfov) < 1e-12);
 });
 
-test("one selection drives overlay set; inspect is not a production nav room", () => {
+test("production workflow phase state is DECLARE / SOLVE / STAGE", () => {
   const app = createApp();
-  app.dispatch("SET_WORKSPACE_MODE", { mode: "POSE" });
-  app.dispatch("SET_SELECTION", { selection: "body" });
-  const pose = activeOverlays(app.getRequested());
-  assert.equal(pose.SKELETON, true);
-  app.dispatch("SET_WORKSPACE_MODE", { mode: "SCENE" });
-  app.dispatch("SET_SELECTION", { selection: "mirror" });
-  const scene = activeOverlays(app.getRequested());
-  assert.equal(scene.MIRROR, true);
+  assert.equal(app.getRequested().workspace.phase, "DECLARE");
+  app.dispatch("SET_PHASE", { phase: "SOLVE" });
+  assert.equal(app.getRequested().workspace.phase, "SOLVE");
+  assert.equal(app.getRequested().workspace.phase, "SOLVE");
+  app.dispatch("SET_PHASE", { phase: "STAGE" });
+  assert.equal(app.getRequested().workspace.phase, "STAGE");
+  assert.equal(app.getRequested().workspace.phase, "STAGE");
 });
 
 test("loop period is log|γ|; LOOP phase uses that period", () => {
@@ -158,7 +163,7 @@ test("disjoint visibility intervals and phone occlusion classifier exist", () =>
   assert.ok(app.getEffective().visibility.occlusion);
 });
 
-test("required production actions exist and ROTATE_MIRROR does not", () => {
+test("required v5 production actions exist and ROTATE_MIRROR does not", () => {
   for (const n of [
     "SET_DRIVER",
     "SET_PRESERVE_SET",
@@ -166,6 +171,10 @@ test("required production actions exist and ROTATE_MIRROR does not", () => {
     "SET_ANATOMICAL_DOF",
     "SET_PHONE_AUTHORITY",
     "SET_CAMERA_FOV",
+    "SET_PHASE",
+    "SET_OUTPUT_MODE",
+    "SET_INPUT_MODE",
+    "SET_TOPOLOGY",
   ]) {
     assert.ok(ACTION_NAMES.includes(n));
   }
