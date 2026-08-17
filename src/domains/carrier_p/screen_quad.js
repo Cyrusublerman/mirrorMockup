@@ -1,9 +1,16 @@
 import { add, dot, normalize, scale, sub } from "../../shared_math/vector.js";
 import { reflectDir } from "../reflection/reflect.js";
 import { evaluateCarrierP } from "./project.js";
+import { ReflectionRay, RAY_STATE } from "../visibility/reflection_ray.js";
+import { occludesSegment } from "../visibility/report.js";
 import { t } from "../../../fixtures/tolerances.js";
 
 const GATES = ["area", "angle", "footprint", "conditioning", "occlusion", "bezel"];
+const reflectionRay = new ReflectionRay();
+
+function clamp01(x) {
+  return Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0));
+}
 
 export class ScreenQuad {
   evaluate(phone, cam, mirror, opts = {}) {
@@ -15,7 +22,7 @@ export class ScreenQuad {
       angle: this.angleGate(phone, cam, mirror, base),
       footprint: this.footprintGate(base, widthPx, heightPx),
       conditioning: this.conditioningGate(base),
-      occlusion: this.occlusionGate(base, opts.occluded === true),
+      occlusion: this.occlusionGate(base, phone, cam, mirror, opts),
       bezel: this.bezelGate(base, phone),
     };
     const gate_reasons = GATES.filter((k) => !gates[k].ok);
@@ -65,18 +72,40 @@ export class ScreenQuad {
     return { ok: Number.isFinite(cond) && cond <= limit && !(base.reasons || []).includes("ill_conditioned"), value: cond, limit };
   }
 
-  occlusionGate(base, occluded) {
+  occlusionGate(base, phone, cam, mirror, opts = {}) {
     const apertureFail = (base.reasons || []).some((r) => String(r).includes("aperture"));
-    return { ok: !occluded && !apertureFail, value: occluded ? 1 : 0 };
+    const corners = phone?.screen_corners_world || [];
+    const probes = corners.length === 4
+      ? [...corners, scale(corners.reduce((s, p) => add(s, p), [0, 0, 0]), 0.25)]
+      : [];
+    let blocked = 0;
+    const ray_states = [];
+    const occluders = opts.occluders || [];
+    const C = cam?.world?.translation;
+    if (C && mirror && probes.length && occluders.length) {
+      for (const target of probes) {
+        const traced = reflectionRay.trace(target, C, mirror, occluders, occludesSegment);
+        ray_states.push(traced.state);
+        if (traced.state === RAY_STATE.OCCLUDED_CAMERA_TO_MIRROR || traced.state === RAY_STATE.OCCLUDED_MIRROR_TO_TARGET) blocked++;
+      }
+    }
+    const ray_fraction = probes.length ? blocked / probes.length : 0;
+    const finger_fraction = clamp01(opts.finger_occlusion_fraction || 0);
+    const forbidden_fraction = 1 - (1 - clamp01(ray_fraction)) * (1 - finger_fraction);
+    return {
+      ok: !apertureFail && forbidden_fraction <= 1e-12,
+      value: forbidden_fraction,
+      forbidden_fraction,
+      ray_fraction,
+      finger_fraction,
+      ray_states,
+    };
   }
 
   bezelGate(base, phone) {
     const inset = phone?.screen_inset || {};
     const vals = [inset.left, inset.right, inset.top, inset.bottom].filter(Number.isFinite);
     const minInset = vals.length ? Math.min(...vals) : 0;
-    // S_i are already the physical screen corners inset from the phone body. The
-    // bezel gate therefore tests that the physical inset exists; framing belongs
-    // to the footprint/crop system, not to bezel validity.
     const ok = !!base.quad && base.quad.every((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1])) && minInset > 1e-4;
     return { ok, value: minInset, limit: 1e-4 };
   }

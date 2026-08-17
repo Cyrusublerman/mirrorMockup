@@ -126,7 +126,7 @@ function solveOnce(req) {
   const bodyOcc = silhouetteOccluder(pose);
   const occluders = [{ mesh: phone.mesh, world: phone.world }, bodyOcc].filter(Boolean);
   const visibility = evaluateVisibility(pose.fk, cam, mirror, occluders);
-  const carrier_p = screenQuad.evaluate(phone, cam, mirror);
+  const carrier_p = screenQuad.evaluate(phone, cam, mirror, { occluders: [bodyOcc].filter(Boolean), finger_occlusion_fraction: grip.screen_occlusion_fraction });
   const feasible = feasibleSet.evaluate({
     face: pose.fk?.face_reference || pose.fk?.head,
     camera: cam.world?.translation,

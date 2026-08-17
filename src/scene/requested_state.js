@@ -66,6 +66,7 @@ export function defaultRequestedState() {
         rotation: [0, 0, 0, 1],
         epistemic_status: "HYPOTHESIS",
         source: "v5 working lever distributed across wrist/grip/phone/camera chain",
+        screen_occluder_polygons_uv: [],
       },
       body_dimensions_m: { width: 0.075, height: 0.147, depth: 0.008 },
       width_epistemic: "ASSUMED",
