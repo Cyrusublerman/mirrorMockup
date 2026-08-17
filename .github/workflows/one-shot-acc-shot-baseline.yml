@@ -1,0 +1,68 @@
+name: One-shot ACC-SHOT-01 reviewed baseline
+
+on:
+  push:
+    branches:
+      - agent/phase-4-toast
+    paths:
+      - '.github/workflows/one-shot-acc-shot-baseline.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase-4-toast
+      - name: Download manually reviewed run 179 screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: acc-shot-current
+          path: /tmp/acc-shot-reviewed
+          repository: Cyrusublerman/mirrorMockup
+          run-id: 32002929396
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote reviewed images and enable screenshot diff gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tests/screenshots/baseline
+          cp /tmp/acc-shot-reviewed/phone-393x852.png tests/screenshots/baseline/
+          cp /tmp/acc-shot-reviewed/phone-430x932.png tests/screenshots/baseline/
+          cp /tmp/acc-shot-reviewed/tablet-768x1024.png tests/screenshots/baseline/
+          cp /tmp/acc-shot-reviewed/desktop-1280x800.png tests/screenshots/baseline/
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          base=Path('tests/screenshots/baseline')
+          names=['phone-393x852.png','phone-430x932.png','tablet-768x1024.png','desktop-1280x800.png']
+          manifest={name:hashlib.sha256((base/name).read_bytes()).hexdigest() for name in names}
+          Path('tests/screenshots/review.json').write_text(json.dumps({
+              'spec':'Mirror_Portrait_UI_Spec_v5',
+              'reviewed':True,
+              'source_head':'ef12a3caa5be4a99cde16d4a0f4510a2740ca964',
+              'source_run':179,
+              'sha256':manifest,
+          },indent=2)+'\n')
+          p=Path('.github/workflows/ci.yml')
+          s=p.read_text()
+          needle='python3 tools/screenshot_gate.py --capture-only'
+          if needle not in s:
+              raise SystemExit('capture-only CI command not found')
+          p.write_text(s.replace(needle,'python3 tools/screenshot_gate.py'))
+          PY
+      - name: Commit reviewed ACC-SHOT-01 gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/one-shot-acc-shot-baseline.yml
+          git add .github/workflows/ci.yml tests/screenshots/baseline tests/screenshots/review.json
+          git diff --cached --check
+          git commit -m 'Promote reviewed ACC-SHOT-01 baselines'
+          git push origin HEAD:agent/phase-4-toast
